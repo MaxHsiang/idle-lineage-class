@@ -548,7 +548,7 @@
         /* 🧝 v3.0.46 玩家變身戰鬥 sprite（js/09 _playerMorphApply 懶建）：狩獵區最下方中間偏左·原生像素三層(影子 multiply/本體/武器 screen)。
            ⚠️容器與各層皆不用 transform（隔離群組會使 _w 的 screen blend 失效＝黑框病根 v3.0.19）→ 置中由 js 以 left:calc(44% - 寬/2) 完成。 */
         #player-morph-sprite { position: absolute; bottom: 4px; height: 1px; z-index: 2; pointer-events: none; overflow: visible; }
-        #player-morph-sprite img { position: absolute; left: 0; bottom: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
+        #player-morph-sprite img, #player-morph-sprite canvas { position: absolute; left: 0; bottom: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
         #player-morph-sprite .pm-contact-shadow { position:absolute; z-index:0; transform:translateX(-50%); transform-origin:center; border-radius:50%; pointer-events:none; background:radial-gradient(ellipse at center,rgba(0,0,0,.72) 0%,rgba(0,0,0,.42) 46%,rgba(0,0,0,0) 78%); mix-blend-mode:multiply; filter:blur(.35px); }
         #player-morph-sprite .pm-shadow { z-index:0; mix-blend-mode: multiply; }
         #player-morph-sprite .pm-body { z-index:1; }

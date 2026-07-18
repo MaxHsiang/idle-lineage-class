@@ -1973,6 +1973,21 @@ function _playerMorphName() {   // 目前變身名（含套裝別名映射）·�
 }
 let _pmState = { act: null, t: 0, prevHp: null, name: null, el: null, imgs: null, bodyFrame: null };
 let _pmVisibleBoxCache = Object.create(null);
+// 三個獨立 <img> 在全能師 0.07s 攻速＋大量特效同時播放時，瀏覽器可能在不同繪製週期
+// 才完成 body／shadow／weapon 的 src 換幀，畫面便會短暫組成「本體上一幀、影武下一幀」。
+// 預載完成的 Image 直接同步畫進三張 canvas；同一個 JS tick 結束後才一起 paint，三層永遠同幀。
+function _pmCanvasFrame(cv, frame) {
+    try {
+        if (!cv || !frame || !frame.complete || !frame.naturalWidth || !frame.naturalHeight) return false;
+        if (cv.width !== frame.naturalWidth) cv.width = frame.naturalWidth;
+        if (cv.height !== frame.naturalHeight) cv.height = frame.naturalHeight;
+        let cx = cv.getContext('2d');
+        cx.clearRect(0, 0, cv.width, cv.height);
+        cx.drawImage(frame, 0, 0);
+        cv.dataset.frameSrc = frame.src || '';
+        return true;
+    } catch (e) { return false; }
+}
 // 角色動畫採共畫布輸出，PNG 四周通常保留大量透明區。特效若直接取 img rect，
 // 發射點會落在「畫布胸口」而非人物胸口；長投影也容易因缺少腳底接觸點而像另一個物件。
 // 每張幀圖只掃描一次 alpha，後續同時供施法錨點與腳底接觸陰影使用。
@@ -2094,10 +2109,9 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
         let el = document.createElement('div');
         el.id = 'player-morph-sprite';
         let ct = document.createElement('span'); ct.className = 'pm-contact-shadow';
-        let sh = document.createElement('img'); sh.className = 'pm-shadow';
-        let bd = document.createElement('img'); bd.className = 'pm-body';
-        let wp = document.createElement('img'); wp.className = 'pm-weapon';
-        [sh, bd, wp].forEach(i => { i.alt = ''; i.draggable = false; });
+        let sh = document.createElement('canvas'); sh.className = 'pm-shadow';
+        let bd = document.createElement('canvas'); bd.className = 'pm-body';
+        let wp = document.createElement('canvas'); wp.className = 'pm-weapon';
         el.append(ct, sh, bd, wp);
         bv.appendChild(el);
         _pmState.el = el; _pmState.imgs = { ct: ct, sh: sh, bd: bd, wp: wp };
@@ -2134,13 +2148,13 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
     let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
     let I = _pmState.imgs;
     _pmState.bodyFrame = seq[f];
-    if (I.bd.src !== seq[f].src) I.bd.src = seq[f].src;
+    _pmCanvasFrame(I.bd, seq[f]);
     _pmContactShadowApply(seq[f]);
     let ss = (act === 'skill' && _useW) ? a.shadow.wskill : a.shadow[act];   // 影子：寬容（幀數不足取模·缺動作隱藏）
-    if (ss && ss.length) { let sf = f < ss.length ? f : (f % ss.length); if (I.sh.style.visibility === 'hidden') I.sh.style.visibility = ''; if (I.sh.src !== ss[sf].src) I.sh.src = ss[sf].src; }
+    if (ss && ss.length) { let sf = f < ss.length ? f : (f % ss.length); if (_pmCanvasFrame(I.sh, ss[sf])) I.sh.style.visibility = ''; else I.sh.style.visibility = 'hidden'; }
     else if (I.sh.style.visibility !== 'hidden') I.sh.style.visibility = 'hidden';
     let ws = a.weapon[act];   // 武器：嚴格 1:1（本動作本幀無 _w→隱藏·v2.7.36 規則）
-    if (ws && ws[f]) { if (I.wp.style.visibility === 'hidden') I.wp.style.visibility = ''; if (I.wp.src !== ws[f].src) I.wp.src = ws[f].src; }
+    if (ws && ws[f]) { if (_pmCanvasFrame(I.wp, ws[f])) I.wp.style.visibility = ''; else I.wp.style.visibility = 'hidden'; }
     else if (I.wp.style.visibility !== 'hidden') I.wp.style.visibility = 'hidden';
 }
 // 🧝 施法觸發：包裝 manualCast（castSkill 已於上方 VFX 包裝內加掛）
