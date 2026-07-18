@@ -1976,13 +1976,63 @@ function _actorMorphName(actor) {   // 玩家／傭兵目前變身名（含套�
 function _playerMorphName() {
     return _actorMorphName((typeof player !== 'undefined') ? player : null);
 }
-let _pmState = { act: null, t: 0, prevHp: null, name: null, el: null, imgs: null };
+let _pmState = { act: null, t: 0, prevHp: null, name: null, el: null, imgs: null, bodyFrame: null };
+let _pmVisibleBoxCache = Object.create(null);
+// 玩家動畫幀採共畫布輸出，PNG 四周通常保留大量透明區。特效若直接取 img rect，
+// 發射點會落在「畫布胸口」而非人物胸口；同時補上貼合可見人物腳底的接觸影子。
+// 每張幀圖只掃描一次 alpha，後續同時供施法錨點與腳底接觸影子使用。
+function _pmVisibleBox(img) {
+    try {
+        if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return null;
+        let key = img.currentSrc || img.src || '';
+        if (Object.prototype.hasOwnProperty.call(_pmVisibleBoxCache, key)) return _pmVisibleBoxCache[key];
+        let cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+        let cx = cv.getContext('2d', { willReadFrequently: true });
+        cx.clearRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0);
+        let px = cx.getImageData(0, 0, cv.width, cv.height).data;
+        let minX = cv.width, minY = cv.height, maxX = -1, maxY = -1;
+        for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) {
+            if (px[(y * cv.width + x) * 4 + 3] <= 8) continue;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        let box = (maxX >= minX && maxY >= minY)
+            ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, nw: cv.width, nh: cv.height }
+            : null;
+        _pmVisibleBoxCache[key] = box; return box;
+    } catch (e) { return null; }
+}
+function _pmVisibleBodyRect() {
+    try {
+        let I = _pmState && _pmState.imgs, fr = _pmState && _pmState.bodyFrame;
+        if (!I || !I.bd || !fr) return null;
+        let r = I.bd.getBoundingClientRect(), b = _pmVisibleBox(fr);
+        if (!b || !r.width || !r.height) return null;
+        let sx = r.width / b.nw, sy = r.height / b.nh;
+        let left = r.left + b.x * sx, top = r.top + b.y * sy;
+        let width = b.w * sx, height = b.h * sy;
+        return { left: left, top: top, width: width, height: height, right: left + width, bottom: top + height };
+    } catch (e) { return null; }
+}
+function _pmContactShadowApply(frame) {
+    try {
+        let I = _pmState && _pmState.imgs, b = _pmVisibleBox(frame);
+        if (!I || !I.ct || !b) { if (I && I.ct) I.ct.style.visibility = 'hidden'; return; }
+        let bodyRect = I.bd.getBoundingClientRect();
+        let scaleX = bodyRect.width / b.nw || 1, scaleY = bodyRect.height / b.nh || 1;
+        I.ct.style.left = ((b.x + b.w / 2) * scaleX) + 'px';
+        I.ct.style.bottom = (Math.max(0, b.nh - (b.y + b.h)) * scaleY + 1) + 'px';
+        I.ct.style.width = Math.max(18, Math.min(42, b.w * scaleX * 0.72)) + 'px';
+        I.ct.style.height = Math.max(5, Math.min(9, b.h * scaleY * 0.11)) + 'px';
+        I.ct.style.visibility = '';
+    } catch (e) {}
+}
 // 🧝 v3.0.49 施法者錨點：玩家變身戰鬥 sprite 顯示中→回傳本體圖的螢幕矩形（投射法術發射點/自我特效錨點共用）·未變身/未顯示→null（呼叫端退回原「戰鬥區底部中央」）
 function _pmCasterRect() {
     try {
         let I = _pmState && _pmState.imgs;
         if (!I || !I.bd || !_pmState.el || !_pmState.el.isConnected) return null;
-        let r = I.bd.getBoundingClientRect();
+        let r = _pmVisibleBodyRect() || I.bd.getBoundingClientRect();
         return (r.width > 0 && r.height > 0) ? r : null;
     } catch (e) { return null; }
 }
@@ -2011,7 +2061,7 @@ function _playerMorphTrigger(k, skId) {   // js/04 attack／castSkill·manualCas
 }
 function _playerMorphRemove() {
     if (_pmState.el) { try { _pmState.el.remove(); } catch (e) {} }
-    _pmState.el = null; _pmState.imgs = null; _pmState.act = null; _pmState.name = null; _pmState.prevHp = null; _pmState.pendAtk = false;
+    _pmState.el = null; _pmState.imgs = null; _pmState.bodyFrame = null; _pmState.act = null; _pmState.name = null; _pmState.prevHp = null; _pmState.pendAtk = false;
 }
 // ⚔️ v3.0.91 攻擊動畫播放速度隨攻速：攻擊動作每幀時長＝攻擊間隔(秒)÷幀數→整段動畫恰在一次攻擊間隔內播完（「播完對上攻速」）。
 //   只加速不放慢：慢攻取 min(base,…)＝維持預設 8fps（早播完後待機·不拖成慢動作）；下限 45ms/幀(≈22fps)防過快閃爍。
@@ -2048,13 +2098,14 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
     if (!_pmState.el) {
         let el = document.createElement('div');
         el.id = 'player-morph-sprite';
+        let ct = document.createElement('span'); ct.className = 'pm-contact-shadow';
         let sh = document.createElement('img'); sh.className = 'pm-shadow';
         let bd = document.createElement('img'); bd.className = 'pm-body';
         let wp = document.createElement('img'); wp.className = 'pm-weapon';
         [sh, bd, wp].forEach(i => { i.alt = ''; i.draggable = false; });
-        el.append(sh, bd, wp);
+        el.append(ct, sh, bd, wp);
         bv.appendChild(el);
-        _pmState.el = el; _pmState.imgs = { sh: sh, bd: bd, wp: wp };
+        _pmState.el = el; _pmState.imgs = { ct: ct, sh: sh, bd: bd, wp: wp };
         let w = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
         el.style.width = w + 'px';
     } else if (_pmState.el.parentElement !== bv) bv.appendChild(_pmState.el);
@@ -2086,7 +2137,9 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
     if (act === null) return;
     let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
     let I = _pmState.imgs;
+    _pmState.bodyFrame = seq[f];
     if (I.bd.src !== seq[f].src) I.bd.src = seq[f].src;
+    _pmContactShadowApply(seq[f]);
     let ss = (act === 'skill' && _useW) ? a.shadow.wskill : a.shadow[act];   // 影子：寬容（幀數不足取模·缺動作隱藏）
     if (ss && ss.length) { let sf = f < ss.length ? f : (f % ss.length); if (I.sh.style.visibility === 'hidden') I.sh.style.visibility = ''; if (I.sh.src !== ss[sf].src) I.sh.src = ss[sf].src; }
     else if (I.sh.style.visibility !== 'hidden') I.sh.style.visibility = 'hidden';
