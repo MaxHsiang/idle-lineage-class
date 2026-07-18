@@ -8,28 +8,34 @@
     const LOCK_KEY = STORE_KEY + '_lock';
     const STORE_VERSION = 2;
     const CHECK_MS = (TEST_BUILD ? 3 : 10) * 60 * 1000;
-    const WANDERER_LIFE_MS = 2 * 60 * 60 * 1000;
+    const WANDERER_LIFE_MS = 3 * 60 * 60 * 1000;
     const BROADCAST_MS = 3 * 60 * 1000;
     const BOARD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
     const RELIC_SEARCH_COST = 100;
-    const WANDERER_CHANCE = TEST_BUILD ? 1 : 0.05;
+    const WANDERER_CHANCE = TEST_BUILD ? 1 : 0.10;
 
+    // 🚫 v3.5.53 出沒排除（用戶拍板）：攻城三城（限持城者進入·NPC 形同碰不到）＋炎魔謁見所＋席琳神殿；
+    //    其餘安全區皆可出沒（含 傲慢之塔入口/時空裂痕入口/沉默洞穴/長老會議廳/希培利亞村莊/貝希摩斯）。
     const EXCLUDED_TOWNS = new Set([
-        'town_silent',          // 拉斯塔巴德／沉默洞穴系安全區
-        'town_elder_council',   // 拉斯塔巴德長老會議廳
-        'town_pride',           // 傲慢之塔
-        'town_rift',            // 時空裂痕
-        'town_sherine'          // 席琳神殿
+        'town_sherine',           // 席琳神殿
+        'town_kent_castle',       // 肯特城（攻城據點）
+        'town_heine_castle',      // 海音城（攻城據點）
+        'town_windwood_castle',   // 風木城（攻城據點）
+        'town_flame_audience'     // 炎魔謁見所
     ]);
-    const EXCLUDED_TOWN_NAMES = ['拉斯塔巴德', '傲慢之塔', '時空裂痕', '席琳神殿'];
+    const EXCLUDED_TOWN_NAMES = ['席琳神殿'];
 
     const PLAYER_AVATARS = [
         '王子', '公主', '男騎士', '女騎士', '男法師', '女法師', '男妖精', '女妖精',
         '男黑暗妖精', '女黑暗妖精', '男幻術士', '女幻術士', '男龍騎士', '女龍騎士', '男戰士', '女戰士'
     ];
-    const NAME_PREFIX = ['蒼', '緋', '玄', '墨', '銀', '白', '青', '赤', '紫', '碧', '幽', '夜', '月', '星', '霜', '雪', '風', '雲', '雷', '炎', '燼', '影', '夢', '幻', '孤', '醉', '逆', '零'];
+    const NAME_PREFIX = ['蒼', '緋', '玄', '墨', '銀', '白', '青', '赤', '紫', '碧', '幽', '夜', '月', '星', '霜', '雪', '風', '雲', '雷', '炎', '燼', '影', '夢', '幻', '孤', '醉', '逆', '零',
+        '煞氣ㄟ', '最愛', '闇の', '覚醒', '邪王', '漆黑', '魔眼', '天上天下', '超高校級', '無敵', '爆裂', '狂氣', '破滅', '終焉', '孤高', '霸氣', 'ㄎㄧㄤ爆', 'ㄅㄧㄤˋ', '神ってる', '真祖',
+        '野獸', '仲夏夜'];
     const NAME_IMAGE = ['狼', '狐', '龍', '羽', '刃', '劍', '弦', '花', '葉', '海', '川', '山', '嵐', '歌', '月', '星', '塵', '魂', '心', '影', '光', '痕'];
-    const NAME_TITLE = ['行者', '旅人', '浪客', '劍士', '術士', '獵人', '守望者', '歸人', '逐風者', '追月者', '無眠', '未央', '長歌', '無雙'];
+    const NAME_TITLE = ['行者', '旅人', '浪客', '劍士', '術士', '獵人', '守望者', '歸人', '逐風者', '追月者', '無眠', '未央', '長歌', '無雙',
+        '公主', '王子', '魔王', '霸主', '大人', 'さま', '先輩', '総長', '天才', '救世主', '煞星', '狂戰士', '龍傲天', '夜神', '封弊者', '中二王', 'ㄉㄧㄠ炸天', 'ㄎㄧㄤ王', '本命', '偶像',
+        '前輩', '之夢'];
     const NAME_SURNAME = ['南宮', '上官', '司徒', '慕容', '東方', '北辰', '長孫', '令狐', '歐陽', '夏侯'];
     const NAME_GIVEN = ['無月', '長歌', '聽雪', '清風', '流雲', '暮雨', '星河', '青鋒', '白夜', '未央', '若水', '凌霜'];
     const NAME_CASUAL = ['小隊長', '老玩家', '別打我', '路過', '掛機中', '求組隊', '練功中', '只收不賣', '佛系玩家'];
@@ -52,6 +58,16 @@
         '對不起，我沒有惡意', '抱歉，我馬上關掉廣播', '收到，之後不再打擾', '不好意思，我安靜等人來', '抱歉，我會耐心一點', '對不起，辛苦你提醒了', '好，我不喊了，抱歉', '不好意思，廣播已停止',
         '抱歉，我會注意頻率', '對不起，讓你不舒服了', '了解，謝謝提醒', '不好意思，我不再佔版面', '抱歉，接下來保持安靜', '收到，我會乖乖等', '對不起，我已經停止重播', '抱歉，是我宣傳過頭了',
         '不好意思，我不再吵大家', '了解，廣播到此為止', '對不起，我會改進', '抱歉，給你添麻煩了', '不好意思，我這就停', '收到，請別生氣', '對不起，打擾到你了', '抱歉，我會安靜等候'
+    ];
+    const SILENCE_SPICY_REPLIES = [
+        '叫三小？', '來 PK 啊', '你算老幾？', '你很大聲欸', '不爽來奇岩外面', '少在那邊指揮', '我收東西礙到你喔', '有種報座標',
+        '別哭啦', '安靜的是你吧', '你誰啦', '不要一副 GM 樣', '打字很兇喔', '來啊，單挑', '笑死，玻璃心喔', '我就喊，怎樣',
+        '先問你等級多少', '別躲安全區嘴', '菜味很重喔', '懂不懂市場行情', '這頻道你開的？', '我喊我的，你練你的', '想管我先打贏', '你這麼急幹嘛',
+        '怕吵可以關日誌', '看不爽就來', '喔是喔真的假的', '你先排隊啦', '講那麼多，不服來戰', '別在那邊裝大哥', '小聲點？你先啦', '已讀不回也要管？',
+        '笑死，講得你好像很強', '你的存在感比掉寶率還低', '先把裝備穿好再嘴', '你那戰力也敢出聲喔', '喊你一下就破防？', '你很勇嘛，報名牌啊', '別急著丟臉', '你先去練等啦',
+        '嘴很快，手速有跟上嗎', '別只會在安全區當高手', '你這氣勢只夠買紅水', '講那麼大聲，錢夠嗎', '你是不是沒人理才來管我', '我還以為是哪位大人物呢', '這麼兇，結果只會按抱怨', '別把自尊拿來拍賣',
+        '你的意見我放倉庫了', '收到，完全不想聽', '再吵我加價收給你看', '你管天管地管不到我喊價', '先贏一場再教我安靜', '你這發言很有 Lv.1 的美感', '別鬧，市場不是給你哭的', '笑到我忘記要收什麼',
+        '你這句話傷害大概 1 點', '你是不是把勇氣喝到嘴上了', '來啊，我站著等你', '你喊破喉嚨也不會變強', '嘴砲有安定值嗎', '你這氣勢連卷軸都點不亮', '別演了，大家都看著呢', '先存夠傳送費再兇'
     ];
 
     const RELIC_CATEGORIES = {
@@ -181,6 +197,12 @@
     function _pick(st, list, tag) {
         if (!list || !list.length) return null;
         return list[Math.floor(_rand(st, tag) * list.length) % list.length];
+    }
+
+    function _pickSilenceReply() {
+        let spicy = Math.random() < 0.8;
+        let list = spicy ? SILENCE_SPICY_REPLIES : SILENCE_APOLOGIES;
+        return { text: list[Math.floor(Math.random() * list.length)], spicy: spicy };
     }
 
     function _isEquipmentDef(d) {
@@ -372,7 +394,11 @@
     }
 
     function wanderingBuyerSpriteData(w) {
-        let folder = String((w && w.avatar) || '男騎士') + 'F';
+        // 🎲 v3.5.52 三方向隨機 idle：依 wanderer id 雜湊決定論選 右('')/正面('F')/左('2') classanim 資料夾——同一位 NPC 重繪/跨分頁方向固定，不同 NPC 隨機
+        let _dirs = ['', 'F', '2'];
+        let _sid = String((w && w.id) || ''), _h = 0;
+        for (let i = 0; i < _sid.length; i++) _h = (_h * 31 + _sid.charCodeAt(i)) >>> 0;
+        let folder = String((w && w.avatar) || '男騎士') + _dirs[_h % 3];
         let key = folder + '|idle';
         if (!_classFrameCache[key]) {
             let base = 'assets/classanim/' + folder;
@@ -542,7 +568,8 @@
             return;
         }
         let complaint = SILENCE_COMPLAINTS[Math.floor(Math.random() * SILENCE_COMPLAINTS.length)];
-        let apology = SILENCE_APOLOGIES[Math.floor(Math.random() * SILENCE_APOLOGIES.length)];
+        let _reply = _pickSilenceReply();
+        let apology = _reply.text;
         let result = _stopWanderingBroadcast(w.id);
         _closeWanderingShoutMenu();
         if (!result.ok) return;
@@ -557,6 +584,15 @@
                 `<span class="wander-chat-in"><span class="wander-chat-speaker">[${_esc(w.name)}]</span> ` +
                 `${_esc(apology)}</span>`
             );
+        }
+        // 😤 v3.5.59 白目玩家系統：NPC 嗆聲(衝的語氣)回覆→ 20% 機率記仇；2 小時內野外怪物重生 5% 機率遭遇本人（js/03 spawnMob·同名不重複·擊殺/被擊殺/逾期解除）
+        if (_reply.spicy && (TEST_BUILD || Math.random() < 0.2) && typeof player !== "undefined" && player && player.cls) {   // 🧪 TEST版：回嗆必定記仇（正式版 20%）
+            if (!player.trollPlayers) player.trollPlayers = [];
+            if (!player.trollPlayers.some(t => t && t.n === w.name)) {
+                player.trollPlayers.push({ n: w.name, avatar: w.avatar || "男戰士", until: Date.now() + 2 * 60 * 60 * 1000 });
+                if (typeof logSys === "function") logSys(`<span class="text-rose-400 font-bold">[${_esc(w.name)}] 惡狠狠地記住了你……</span>`);
+                try { if (typeof saveGame === "function") saveGame(); } catch (e) {}
+            }
         }
     }
 

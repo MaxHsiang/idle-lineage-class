@@ -163,8 +163,6 @@ function _dpsCreditDot(src, amt) {   // DoT 依施加者標記歸因：'player'/
 }
 
 function gameLoop() {
-    // 🛡️ 反盜用：非官方網域時橫幅若被移除則自動重掛（官方/本機為快取布林值判定，成本可忽略）
-    if (typeof _origEnforce === 'function') _origEnforce();
     let now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     if(_loopLast == null) _loopLast = now;
     let elapsed = now - _loopLast;
@@ -761,6 +759,26 @@ function applySiegeEnemyScaling(mob) {
     if (s.er) mob.er = s.er;
 }
 
+
+// 😤 v3.5.59 白目玩家：叫賣NPC 頭像→白目怪 id；等級=玩家+5(上限100)·常駐回血 40/60 每2秒(王族 regenFix 60)·經驗/金幣 0
+const TROLL_CLASS_BY_AVATAR = { "王子": "troll_royal", "公主": "troll_royal", "男騎士": "troll_knight", "女騎士": "troll_knight", "男妖精": "troll_elf", "女妖精": "troll_elf", "男法師": "troll_mage", "女法師": "troll_mage", "男黑暗妖精": "troll_dark", "女黑暗妖精": "troll_dark", "男幻術士": "troll_illusion", "女幻術士": "troll_illusion", "男龍騎士": "troll_dragon", "女龍騎士": "troll_dragon", "男戰士": "troll_warrior", "女戰士": "troll_warrior" };
+function applyTrollScaling(mob) {
+    let L = Math.min(100, Math.max(1, player.lv + 5));
+    let s = mob.scale || {};
+    mob.lv = L;
+    mob.hp = (s.hpC || 12) * L; mob.curHp = mob.hp;
+    mob.ac = (s.acBase !== undefined ? s.acBase : -10) - Math.floor(L / (s.acDiv || 4));
+    mob.mr = (s.mrBase || 0) + Math.floor(L / (s.mrDiv || 5));
+    mob.exp = 0; mob.goldMin = 0; mob.goldMax = 0;
+    mob.dmg = [1, s.dmgSides || 10];
+    mob.db = (s.dbHalf ? Math.floor(L / 2) : L) + (s.dbPlus || 0);
+    mob.hit = (s.hitBase || 0) + Math.floor(L / 2);
+    mob.atkSpd = s.atkSpd || 0.67;
+    mob.regenHp = mob.regenFix || ((L >= 50) ? 60 : 40);
+    mob.regenEvery = 20;
+    if (s.er) mob.er = s.er;
+}
+
 function applyPledgeEnemyScaling(mob) {
     let L = Math.max(1, player.lv);
     let s = mob.scale || {};
@@ -897,6 +915,17 @@ function spawnMob(idx) {
             });
             if(candidates.length > 0) mobId = candidates[Math.floor(Math.random() * candidates.length)];
         }
+        // 😤 v3.5.59 白目玩家：被記仇(player.trollPlayers·js/24 嗆聲觸發)→野外(非BOSS房/非攻城)重生 5% 機率遭遇；同名不同時出現；逾期(2小時)自動移除
+        if (player.trollPlayers && player.trollPlayers.length) {
+            let _now = Date.now();
+            let _tl = player.trollPlayers.filter(t => t && t.until > _now);
+            if (_tl.length !== player.trollPlayers.length) player.trollPlayers = _tl;
+            if (_tl.length && !PURE_BOSS_MAPS.includes(mapState.current) && !isSiegeArea(mapState.current) && Math.random() < ((typeof window !== 'undefined' && window.__FB5_TEST_BUILD) ? 1 : 0.05)) {   // 🧪 TEST版：野外重生必定遭遇（正式版 5%）
+                let _onF = mapState.mobs.filter(m => m).map(m => m.n);
+                let _cand = _tl.filter(t => !_onF.includes(t.n));
+                if (_cand.length) { let _t = _cand[Math.floor(Math.random() * _cand.length)]; mobId = TROLL_CLASS_BY_AVATAR[_t.avatar] || "troll_warrior"; mapState._trollSpawn = _t; }
+            }
+        }
     }
     
     // 魔物追蹤：在追蹤地圖且追蹤有效期間，每次出怪 50% 固定機率改為被追蹤的怪物（🏺 v3.2.17 裝備 小獵犬的追蹤鼻 → 70%）
@@ -940,6 +969,24 @@ function spawnMob(idx) {
         mapState.mobs[idx].beh = '被動';   // 頭目除外，維持主動
     }
     if(base.pledgeEnemy) applyPledgeEnemyScaling(mapState.mobs[idx]);   // 血盟敵人：依玩家等級縮放
+    if(base.trollPlayer) {   // 😤 白目玩家：等級縮放＋名稱=叫賣NPC本人＋戰鬥動態=玩家職業動畫（v3.5.64·assets/anim/玩家<avatar>·從職業動畫產出·idle/attack/hurt/death/skill＋_s 影子全套·動態註冊 MOB_ANIM_ALIAS 真共用）
+        applyTrollScaling(mapState.mobs[idx]);
+        let _t = mapState._trollSpawn;
+        if (_t) {
+            mapState.mobs[idx].n = _t.n;
+            mapState.mobs[idx].img = "assets/classanim/" + (_t.avatar || "男戰士") + "F/unarmed_idle_0.png";   // 動畫缺檔時的靜態後備
+            if (typeof MOB_ANIM_NAMES !== "undefined" && typeof MOB_ANIM_ALIAS !== "undefined") {
+                let _dir = "玩家" + (_t.avatar || "男戰士");
+                if (MOB_ANIM_ALIAS[_t.n] !== _dir) {   // 首次註冊或同名 NPC 換頭像→更新 alias 並清舊幀快取（cache keyed by 名）
+                    MOB_ANIM_ALIAS[_t.n] = _dir;
+                    if (typeof _mobAnimCache !== "undefined") delete _mobAnimCache[_t.n];
+                }
+                MOB_ANIM_NAMES.add(_t.n);
+                if (typeof MOB_ANIM_SPRITE_SHADOW !== "undefined") MOB_ANIM_SPRITE_SHADOW.add(_t.n);   // 16 職業資料夾皆含 _s 影子層
+            }
+        }
+        delete mapState._trollSpawn;
+    }
     if(base.siegeEnemy) applySiegeEnemyScaling(mapState.mobs[idx]);   // 攻城敵人：依玩家等級縮放
     applyUltimateLandScaling(mapState.mobs[idx]);   // 終極之地耐久版：HP×100、傷害×0.2、防禦×2、獎勵×10
     applySherineBuff(idx);   // 🔮 席琳的世界強化＋_sherine（與時空裂痕共用 applySherineBuff）

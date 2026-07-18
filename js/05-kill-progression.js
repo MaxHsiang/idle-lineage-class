@@ -345,6 +345,11 @@ function killMob(idx) {
 
     // === 野外＋血盟敵人：1% 機率額外掉落一件「攜帶物」（抽法同潘朵拉，裝備可能已強化）===
     if ((mob.wild && mob.race === '血盟') || mob.siegeEnemy) pledgeBonusDrop(mob);   // 野外血盟 或 攻城敵人：擊殺特殊掉寶
+    if (mob.trollPlayer) {   // 😤 v3.5.59 白目玩家：擊殺→仇恨解除；10% 裝備掉落（同血盟掉寶池·王族搜索狀 gachaWeight 0 不會出·經驗/金幣 0）
+        if (player.trollPlayers) player.trollPlayers = player.trollPlayers.filter(t => t && t.n !== mob.n);
+        logSys(`<span class="text-amber-300 font-bold">你擊敗了白目玩家 ${mob.n}，對方悻悻然地下線了。</span>`);
+        pledgeBonusDrop(mob, 0.10);
+    }
 
     // === 🐉 三大龍：擊敗必得「頑皮幼龍蛋」（身上已有一枚則不再掉落，100%・不受經典掉率影響）===
     if (['安塔瑞斯', '法利昂', '巴拉卡斯'].includes(mob.n) && !player.inv.some(i => i.id === 'item_dragon_egg')) {

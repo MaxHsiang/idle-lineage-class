@@ -843,7 +843,7 @@ function _enemyPhysicalAttackInner(mob, idx, stunChance = 0, atkDmg = null, atkD
     // 🔧 暗隱術：100% 迴避一次物理攻擊（迴避後失效並進入 5 秒冷卻）；否則依 ER 有效迴避率判定
     let _stealthDodge = !!(player.buffs && player.buffs.sk_dark_stealth > 0);
     let _titanEr = (player.skills.includes('sk_warrior_titan_bullet') && player.hp < player.mhp * titanThreshold()) ? 50 : 0;   // ⚔️ 泰坦：子彈：HP<40%(反彈精通 80%) 時 ER+50（即時判定，不入 recomputeStats）
-    if (!_asleep && !(player.d && player.d.noEvade && !_stealthDodge) && (_stealthDodge || roll(1, 100) <= effResistPct(player.d.er + _titanEr))) {   // 🏺 笨重的鋼鐵石盾 noEvade：無法迴避（暗隱術 100% 迴避不受限）
+    if (!mob.magicMelee && !_asleep && !(player.d && player.d.noEvade && !_stealthDodge) && (_stealthDodge || roll(1, 100) <= effResistPct(player.d.er + _titanEr))) {   // 😤 magicMelee(白目幻術士)：一般攻擊視為魔法·必定命中不可迴避   // 🏺 笨重的鋼鐵石盾 noEvade：無法迴避（暗隱術 100% 迴避不受限）
         logCombat(`${player.name || '你'} 成功迴避攻擊。`, 'evade');
         if (hasMastery('d_evade')) { let _s = player._darkEvadeStack || 0; player._darkEvadeStack = 0; if (player.d) player.d.er -= _s; player._darkEvadeSure = true; player._darkEvadeCrit = true; }   // 🔧 迴避精通：清空累積ER，下次一般攻擊必中且必爆
         if (player._setShadow3) { player.hp = Math.min(player.mhp, player.hp + Math.floor(player.mhp * 0.02)); }   // 🔧 暗影 3/5：觸發迴避恢復 2% HP
@@ -1272,6 +1272,10 @@ function enemyAttackAlly(mob, ally) {
 function killPlayer() {
     player.hp = 0;
     player.dead = true; // 保持死亡狀態，停止遊戲計時
+    if (player.trollPlayers && player.trollPlayers.length) {   // 😤 被白目玩家擊殺(場上有白目即視為其戰果)：仇恨解除·離場
+        let _tn = mapState.mobs.filter(m => m && m.trollPlayer).map(m => m.n);
+        if (_tn.length) { player.trollPlayers = player.trollPlayers.filter(t => t && !_tn.includes(t.n)); logSys("<span class=\"text-rose-300\">白目玩家心滿意足地離開了……</span>"); }
+    }
     // 死亡時清除所有召喚物與召喚 buff（迷魅術/造屍術/召喚屬性精靈/召喚強力屬性精靈一致處理），
     // 與復活流程同步，避免狀態殘留；復活後由自動施放重新召喚。
     player.summon = null;
@@ -1608,6 +1612,16 @@ function _applyMobMagicInner(mob, sk) {
         player.statuses.evilAura = (sk.dur || 6) * 10;
         calcStats();   // 立即套用 AC/ER 變化
         logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放 ${sk.skn || '邪靈之氣'}，邪氣纏身！（AC+${sk.acUp || 10}、ER−${sk.erDown || 10}，持續 ${sk.dur || 6} 秒）`, 'enemy');
+        return;
+    }
+    // 😤 v3.5.59 初級治癒術（白目玩家·王族）：恢復自身 healDice HP（滿血不施放）
+    if(sk.type === 'self_heal') {
+        if (mob.curHp >= mob.hp) return;
+        let _min = sk.healDice ? sk.healDice[0] : 30, _max = sk.healDice ? sk.healDice[1] : 60;
+        let _h = _min + Math.floor(Math.random() * (_max - _min + 1));   // healDice=[最小,最大] 均勻取值（勿用 roll＝N顆骰）
+        mob.curHp = Math.min(mob.hp, mob.curHp + _h);
+        logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放 ${sk.skn || "初級治癒術"}，恢復了 ${_h} 點 HP。`, "enemy");
+        renderMobs();
         return;
     }
     // 生命的祝福：場上所有血盟怪物（含自己）每 interval 秒回復 healDice + 等級/3 HP，持續 dur 秒
@@ -2006,9 +2020,9 @@ function rollPledgeDropEnhance(safe) {
     return Math.min(lvl, safe);
 }
 
-// 野外+血盟敵人擊殺掉寶：1% 機率獲得 1 件物品（抽法同潘朵拉抽獎卷；詞綴走新制——只可能獲得「祝福的」1%，屬性/遠古改由象牙塔『碧恩』取得；仍依安定值附帶強化等級）
-function pledgeBonusDrop(mob) {
-    if (Math.random() >= 0.01 * classicDropMult()) return;   // 1% 機率（🎮 經典模式：×1/10）
+// 野外+血盟敵人擊殺掉寶：1% 機率獲得 1 件物品（抽法同潘朵拉黑市權重 getWeightedGachaResult；詞綴走新制——只可能獲得「祝福的」1%，屬性/遠古改由象牙塔『碧恩』取得；仍依安定值附帶強化等級）
+function pledgeBonusDrop(mob, rate) {
+    if (Math.random() >= (rate || 0.01) * classicDropMult()) return;   // 預設 1% 機率（😤 白目玩家傳 0.10＝10%；🎮 經典模式：×1/10）
     let id = getWeightedGachaResult(true);   // 🔧 血盟野外＋攻城敵人：權重 1 以外的物品以 2 倍權重抽取（權重100→200）
     let d0 = DB.items[id];
     if (!d0) return;

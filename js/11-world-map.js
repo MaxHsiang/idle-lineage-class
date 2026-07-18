@@ -2088,10 +2088,37 @@ function renderTownNPCMap(townId) {
     //   （例：肯特城堡 奧貝勒固定 1049，若 伊賽馬利 先抽到 1049 就會撞臉；先預留固定圖 → 池分配自動避開）
     vis.forEach(npc => { let fk = npc._spr || NPC_SPR_FIXED[npc.id] || NPC_SPR_ROLE[npc.type]; if (fk) used.add(fk); });
     vis.forEach((npc, i) => {
-        let key = npc._spr || _npcSpriteKey(npc, used); used.add(key);
-        let cat = NPC_SPR[key] || NPC_SPR['1256'];
         let ov = ovr[npc.id];
         let p = ov ? { x: ov[0], y: ov[1] } : (pos[i] || { x: 50, y: 60 });
+        // 玩家 NPC 使用 classanim 的無武器 idle（三方向隨機·由 wanderingBuyerSpriteData 依 id 決定），本體與影子各自同步播放。
+        if (npc._wanderer && typeof wanderingBuyerSpriteData === 'function') {
+            let spr = wanderingBuyerSpriteData(npc);
+            let body0 = spr.frames && spr.frames[0] ? spr.frames[0].src : '';
+            let shadow0 = spr.shadows && spr.shadows[0] ? spr.shadows[0].src : '';
+            let el = document.createElement('div');
+            el.className = 'town-npc wandering-player';
+            el.style.left = p.x + '%'; el.style.top = p.y + '%'; el.style.zIndex = Math.round(p.y * 10);
+            el.innerHTML =
+                '<div class="tn-label"><span class="tn-name">' + npc.n + '</span><span class="tn-title">[玩家收購]</span></div>' +
+                '<img class="tn-shadow" src="' + shadow0 + '" alt="" onload="this.parentElement.classList.add(\'has-tn-shadow\')" onerror="this.remove()">' +
+                '<img class="tn-body" src="' + body0 + '" alt="">';
+            el.onclick = () => openWanderingBuyerDialog(npc.id);
+            map.appendChild(el);
+            let bodyImg = el.querySelector('.tn-body');
+            let shadowImg = el.querySelector('.tn-shadow');
+            bodyImg.addEventListener('load', _scheduleTownLabelResolve, { once: true });
+            _townNpcSprites.push({
+                img: bodyImg,
+                wimg: shadowImg,
+                wframes: spr.shadows || null,
+                frames: spr.frames || [],
+                phase: (i * 3) % 8,
+                last: -1
+            });
+            return;
+        }
+        let key = npc._spr || _npcSpriteKey(npc, used); used.add(key);
+        let cat = NPC_SPR[key] || NPC_SPR['1256'];
         let el = document.createElement('div');
         el.className = 'town-npc';
         el.style.left = p.x + '%'; el.style.top = p.y + '%'; el.style.zIndex = Math.round(p.y * 10);

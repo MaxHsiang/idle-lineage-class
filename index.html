@@ -58,8 +58,8 @@
         </div>
 
         <div id="login-meta-layer">
-            <!-- 🏷️ 版本號（由 js/14 window.onload 依 GAME_VERSION 填入；此處 v2.4.0 僅為 JS 失效時的後備文字） -->
-            <div id="login-version" class="text-center text-sm text-slate-300 font-medium tracking-wide select-none">v2.4.0</div>
+            <!-- 🏷️ 版本號（由 js/14 window.onload 依 GAME_VERSION 填入；此處為 JS 失效時的後備文字） -->
+            <div id="login-version" class="text-center text-sm text-slate-300 font-medium tracking-wide select-none">v3.5.66</div>
             <div id="login-disclaimer" class="text-center text-xs text-slate-400 leading-relaxed mx-auto">本遊戲為非官方免費同人作品，絕無營利意圖；遊戲內圖片與音樂版權歸原權利方 NCSOFT 所有，其餘程式為獨立開發，嚴禁商業販售。參考來源：<a href="https://github.com/shines871/idle-lineage-class" target="_blank" rel="noopener noreferrer" class="text-amber-300 hover:text-amber-200 underline">shines871/idle-lineage-class</a></div>
         </div>
       </div>
@@ -400,8 +400,6 @@
                             <input type="range" id="set-sfx-vol" min="0" max="100" value="50" step="5" class="flex-1 max-w-[150px]" oninput="try{setSfxVol(this.value)}catch(e){}" title="音效音量">
                         </div>
                         <div class="flex items-center justify-between gap-3 border-t border-slate-700 pt-2">
-                            <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-bgm-on" class="w-4 h-4" onchange="try{setBgmOn(this.checked)}catch(e){}"><span class="text-sm text-sky-200 font-bold">🎵 背景音樂</span></label>
-                            <input type="range" id="set-bgm-vol" min="0" max="100" value="35" step="5" class="flex-1 max-w-[150px]" oninput="try{setBgmVol(this.value)}catch(e){}" title="音樂音量">
                         </div>
                     </div>
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
@@ -551,31 +549,32 @@
     })();
     </script>
 
-    <script src="js/anim-manifest.js?v=v3.4.40-manifest"></script>
-    <script src="js/00-data.js?v=v3.5.10-pages-omni-fix"></script>
-<script src="js/01-drops-config.js?v=v3.5.3-gasha-drops"></script>
-<script src="js/02-stats-recompute.js?v=v3.5.8-laia-control"></script>
-    <script src="js/03-combat-core.js?v=v3.4.101-terror-types"></script>
-    <script src="js/04-combat-attack.js?v=v3.5.2-party-debuffs"></script>
-<script src="js/05-kill-progression.js?v=v3.5.4-audit-foxdrops"></script>
-    <script src="js/06-status-allies.js?v=v3.5.8-laia-control"></script>
-    <script src="js/07-skills-cast.js?v=v3.5.7-partner-support"></script>
-<script src="js/08-items-equip.js?v=v3.4.93-gasha-soul"></script>
-<script src="js/09-vfx-render.js?v=v3.5.10-player-layer-sync"></script>
-<script src="js/10-ui-tabs.js?v=v3.5.7-partner-support"></script>
-<script src="js/11-world-map.js?v=v3.5.10b-town-animation"></script>
-<script src="js/12-npc-quests.js?v=v3.4.30-pledge-portrait"></script>
-<script src="js/13-shop-save.js?v=v3.5.4-omni-export"></script>
-<script src="js/14-craft-pandora.js?v=v3.4.96-slayer-armor"></script>
-<script src="js/15-cards.js?v=v3.5.2-foxcards"></script>
+    <script src="js/anim-manifest.js?v=v3.5.64-player-class-anim"></script>
+    <script src="js/00-data.js?v=v3.5.66-omni-repair"></script>
+<script src="js/01-drops-config.js?v=v3.5.60-troll-restamp"></script>
+<script src="js/02-stats-recompute.js?v=v3.5.47-save-worker-guard"></script>
+    <script src="js/03-combat-core.js?v=v3.5.64-player-class-anim"></script>
+    <script src="js/04-combat-attack.js?v=v3.5.60-troll-restamp"></script>
+<script src="js/05-kill-progression.js?v=v3.5.60-troll-restamp"></script>
+    <script src="js/06-status-allies.js?v=v3.5.46-merc-support-hp-cost"></script>
+    <script src="js/07-skills-cast.js?v=v3.5.42-dash-move-speed"></script>
+<script src="js/08-items-equip.js?v=v3.5.50-panacea-batch"></script>
+<script src="js/09-vfx-render.js?v=v3.5.66-player-layer-sync"></script>
+<script src="js/10-ui-tabs.js?v=v3.5.42-dash-move-speed"></script>
+<script src="js/11-world-map.js?v=v3.5.52-wanderer-towns-dirs"></script>
+<script src="js/12-npc-quests.js?v=v3.5.49-ticket-item-purge"></script>
+<script src="js/13-shop-save.js?v=v3.5.47-save-worker-guard"></script>
+<script src="js/14-craft-pandora.js?v=v3.5.58-pandora-buyorder-no-range-text"></script>
+<script src="js/15-cards.js?v=v3.5.35-lindvior-card"></script>
 <script src="js/16-equip-book.js?v=v3.2.37-petgear"></script>
 <script src="js/18-misc-book.js?v=v3.2.13-bless-cleanup"></script>
-<script src="js/17-audio.js?v=v3.5.0-sunrise-release"></script>
+<script src="js/17-audio.js?v=v3.5.66-bgm-disabled"></script>
 <script src="js/19-equipment-window.js?v=v3.4.67-emperor-sword"></script>
 <script src="js/20-warehouse-window.js?v=20260702a"></script>
 <script src="js/21-relic-book.js?v=v3.1.7"></script>
     <script src="js/23-summons.js?v=v3.5.7-omni-echo"></script>
     <script src="js/22-pets.js?v=v3.5.10b-six-action-pets"></script>
+    <script src="js/24-pandora-relic-market.js?v=v3.5.65-wanderer-spicy-80"></script>
     <script src="js/24-four-dragon-sword.js?v=v3.5.3-four-dragon"></script>
     <script src="js/25-omni-class.js?v=v3.5.10b-mini-dragon-render"></script>
     <script src="js/26-complete-pass.js?v=v3.5.4-complete-pass"></script>

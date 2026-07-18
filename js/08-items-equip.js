@@ -283,8 +283,34 @@ function batchUseItem(u) {
     let item = player.inv.find(i => i.uid === u);
     if (!item) return;
     let d = DB.items[item.id];
-    if (!d || !d.batchUse || d.eff !== 'expsoul') return;
+    if (!d || !d.batchUse) return;
     if (player.dead) { logSys(`死亡狀態無法使用道具，請先復活。`); return; }
+    // 💊 v3.5.50 萬能藥批量使用：一次輸入數量，自動夾限「持有數／60 瓶總額度／該屬性距上限 60」三者取小
+    if (d.eff === 'panacea') {
+        const STAT_CN = { str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'精神', cha:'魅力' };
+        let st = d.pstat, cap = 60;
+        let remainQuota = 60 - (player.panaceaUsed || 0);
+        let remainStat = cap - naturalStat(st);
+        if (remainQuota <= 0) { logSys(`萬能藥最多只能使用 60 瓶，使用回憶蠟燭後可重新使用。`); return; }
+        if (remainStat <= 0) { logSys(`${STAT_CN[st]}已達上限（${cap}），無法再使用 ${d.n}。`); return; }
+        let maxN = Math.min(item.cnt, remainQuota, remainStat);
+        let rawP = prompt(`要使用幾瓶 ${d.n}？（持有 ${item.cnt} 瓶·${STAT_CN[st]}距上限 ${remainStat}·萬能藥剩餘額度 ${remainQuota} 瓶·本次最多 ${maxN} 瓶）`, maxN);
+        if (rawP === null) return;
+        let nP = Math.floor(Number(rawP));
+        if (!nP || nP <= 0) { logSys('已取消批量使用。'); return; }
+        nP = Math.min(nP, maxN);
+        if (!player.panacea) player.panacea = { str:0, dex:0, con:0, int:0, wis:0, cha:0 };
+        player.panacea[st] = (player.panacea[st] || 0) + nP;
+        player.panaceaUsed = (player.panaceaUsed || 0) + nP;
+        item.cnt -= nP;
+        if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);
+        calcStats();
+        logSys(`使用了 <span class="${d.c || 'text-pink-300'} font-bold">${d.n}</span> ×${nP}，${STAT_CN[st]} 永久 +${nP}！（萬能藥已使用 ${player.panaceaUsed}/60）`);
+        renderTabs(); updateUI(); saveGame();
+        if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
+        return;
+    }
+    if (d.eff !== 'expsoul') return;
     let raw = prompt(`要使用幾個 ${d.n}？（持有 ${item.cnt} 個·每個 +${(d.expGain || 1000000).toLocaleString()} 經驗）`, item.cnt);
     if (raw === null) return;
     let n = Math.floor(Number(raw));

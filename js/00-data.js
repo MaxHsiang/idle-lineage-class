@@ -1,6 +1,6 @@
 /** 遊戲核心資料庫 */
 // 🏷️ 遊戲版本號（顯示於登入頁面下方·單一真相來源）：更新版本時只改這一行，登入頁面自動同步。
-const GAME_VERSION = 'v3.5.10';
+const GAME_VERSION = 'v3.5.66';
 // ===== 💾 存檔壓縮（LZString compressToUTF16/decompressFromUTF16·MIT, Pieroxy）：localStorage 內部以 UTF-16 壓縮，省 ~89%，繞過 5MB 上限 =====
 //  ⚠️ 只壓 localStorage（存檔位/倉庫/共用桶/_bak）；匯出檔維持明文 JSON（可攜·importSave 用 JSON.parse 驗證）。_lzGet 相容舊明文存檔（無 'LZ1:' 前綴→原樣回傳）。
 var LZString = (function () {
@@ -347,7 +347,7 @@ const DB = {
         "wpn_steel_manawand_blue": { n: "藍色鋼鐵瑪那魔杖", type: "wpn", dmgS: 15, dmgL: 15, hit: 6, dmgBonus: 3, str: 3, mdmg: 3, spd: 1.0, req: "mage,illusion", safe: 6, p: 75000, mpOnHit: true, mpOnHitBase: 2, gachaWeight: 10, d: "以鋼鐵重鑄的瑪那魔杖，杖心的魔法寶石映著幽藍冷光。" },
         "wpn_steel_manawand_red": { n: "紅色鋼鐵瑪那魔杖", type: "wpn", dmgS: 15, dmgL: 15, hit: 6, dmgBonus: 3, str: 3, mdmg: 3, spd: 1.0, req: "mage,illusion", safe: 6, p: 75000, eff: "magicstrike", mpOnHit: true, mpOnHitBase: 2, gachaWeight: 10, d: "以鋼鐵重鑄的力量魔法杖，杖心的魔法寶石燃著赤紅烈焰。" },
         "wpn_crystalwand": { n: "水晶魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, spd: 1.0, req: "mage", safe: 6, p: 10000, mpR: 10, mpROverSafe: 2, gachaWeight: 20 },
-        "wpn_powerless_baless": { n: "失去魔力的巴列斯魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 0, p: 0, gachaWeight: 0, noEnhance: true, d: "魔力早已枯竭的古老魔杖，杖芯卻仍隱隱悸動。攜帶它並使用『靈魂之球』，或許能喚回沉睡的力量……（封印狀態無法強化；傳統模式下解封印才附加隨機強化值。可販售，售價 0）" },   // 🔧 巴列斯任務武器；🏛️ noEnhance＝封印恆 +0（傳統模式自帶強化值延後到靈魂之球解封印時附加）
+        "wpn_powerless_baless": { n: "失去魔力的巴列斯魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 0, p: 100000, gachaWeight: 0, noEnhance: true, d: "魔力早已枯竭的古老魔杖，杖芯卻仍隱隱悸動。攜帶它並使用『靈魂之球』，或許能喚回沉睡的力量……（封印狀態無法強化；傳統模式下解封印才附加隨機強化值。可販售，售價 100000）" },   // 🔧 巴列斯任務武器；🏛️ noEnhance＝封印恆 +0（傳統模式自帶強化值延後到靈魂之球解封印時附加）
         "wpn_baless": { n: "巴列斯魔杖", type: "wpn", dmgS: 2, dmgL: 3, hit: 0, dmgBonus: 0, mdmg: 2, spd: 1.0, req: "mage", safe: 0, p: 250000, mpR: 10, mpROverSafe: 2, legend: true, gachaWeight: 1, d: "重獲魔力的傳說魔杖，杖身蘊含撼動萬物的共鳴之力。" },   // 🏅 傳說武器（共鳴：見 WAND_LIGHTARROW_IDS）；🔧 安定值0：+0 為 MP自然恢復10，每強化+1再+2（10/12/14…）
         "wpn_39": { n: "潘的角", type: "wpn", dmgS: 3, dmgL: 4, hit: 0, spd: 1, req: "all", safe: 6, p: 10, gachaWeight: 100 },
         "wpn_40": { n: "覆上米索莉的角", type: "wpn", dmgS: 4, dmgL: 4, hit: 0, spd: 1, req: "all", safe: 6, p: 178, unBonus: true, gachaWeight: 100 },
@@ -1058,13 +1058,13 @@ const DB = {
         "item_ancientkey": { n: "古代鑰匙", p: 1, c: "text-blue-300", d: "試煉所需的材料。", gachaWeight: 0 },   // 🔧 試煉材料統一藍色
         "item_nightvision": { n: "夜之視野", p: 1, c: "text-blue-300", d: "凝視黑暗也不失方向的祕術之眼，試煉所需的材料。", gachaWeight: 0 },
         "candle": { n: "回憶蠟燭", type: "misc", req: "all", p: 100000, c: "text-red-500", d: "點擊使用：六大屬性回到 Lv1，於資訊面板以 +／- 重新分配能力點數，按「確認」才生效（按「取消」則不消耗蠟燭）。同時退還已使用的萬能藥；若重置後魅力不足，超出上限的出戰寵物會自動返回保管。", eff: "reset", gachaWeight: 0 },
-        "panacea_str": { n: "萬能藥(STR)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "傳說中能重塑筋骨的靈藥。", eff: "panacea", pstat: "str", gachaWeight: 10 },
-        "panacea_dex": { n: "萬能藥(DEX)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "飲下後身手如風的靈藥。", eff: "panacea", pstat: "dex", gachaWeight: 10 },
-        "panacea_con": { n: "萬能藥(CON)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "淬鍊體魄、固本培元的靈藥。", eff: "panacea", pstat: "con", gachaWeight: 10 },
-        "panacea_int": { n: "萬能藥(INT)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "啟迪心智、開悟靈光的靈藥。", eff: "panacea", pstat: "int", gachaWeight: 10 },
-        "panacea_wis": { n: "萬能藥(WIS)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "沉澱心神、堅定意志的靈藥。", eff: "panacea", pstat: "wis", gachaWeight: 10 },
+        "panacea_str": { n: "萬能藥(STR)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "傳說中能重塑筋骨的靈藥。", eff: "panacea", batchUse: true, pstat: "str", gachaWeight: 10 },
+        "panacea_dex": { n: "萬能藥(DEX)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "飲下後身手如風的靈藥。", eff: "panacea", batchUse: true, pstat: "dex", gachaWeight: 10 },
+        "panacea_con": { n: "萬能藥(CON)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "淬鍊體魄、固本培元的靈藥。", eff: "panacea", batchUse: true, pstat: "con", gachaWeight: 10 },
+        "panacea_int": { n: "萬能藥(INT)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "啟迪心智、開悟靈光的靈藥。", eff: "panacea", batchUse: true, pstat: "int", gachaWeight: 10 },
+        "panacea_wis": { n: "萬能藥(WIS)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "沉澱心神、堅定意志的靈藥。", eff: "panacea", batchUse: true, pstat: "wis", gachaWeight: 10 },
         "panacea_white": { n: "純白的萬能藥", type: "misc", req: "all", p: 5000, c: "text-slate-100", noUse: true, d: "純白無瑕、尚未沾染屬性的萬能藥原料（無法直接使用，僅作製作材料）。使用回憶蠟燭重置配點時，依已使用過的萬能藥瓶數獲得。可在象牙塔的塔斯處，以 3 個製作成任一屬性的萬能藥。", gachaWeight: 0 },
-        "panacea_cha": { n: "萬能藥(CHA)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "令人顧盼生輝、風采動人的靈藥。", eff: "panacea", pstat: "cha", gachaWeight: 0 },
+        "panacea_cha": { n: "萬能藥(CHA)", type: "misc", req: "all", p: 10000, c: "text-pink-300", d: "令人顧盼生輝、風采動人的靈藥。", eff: "panacea", batchUse: true, pstat: "cha", gachaWeight: 0 },
         
         // ===== 🐾 夥伴系統 v2（v3.2.17）：誘捕道具（使用後獲得對應誘捕狀態 600 秒·期間擊殺對應動物→寵物保管獲得基本等級寵物並失去狀態）=====
         //   🚫 舊項圈系統（哨子/8種項圈/肉/舊進化果實）已全數移除；舊存檔項圈由 petMigrateLegacy 轉換為寵物。
@@ -1367,7 +1367,7 @@ const DB = {
         "wpn_dual_destroy": { n: "破壞雙刀", type: "wpn", w2h: true, dmgS: 16, dmgL: 10, hit: 6, dmgBonus: 1, str: 1, wis: 2, spd: 0.8, req: "dark", safe: 6, p: 150000, legend: true, gachaWeight: 1, eff: "combo", comboRate: 30, procBurstPoison: { rateBase: 1, ratePerEn: 1 }, d: "蘊含猛爆毒性的漆黑雙刃，揮舞間散逸出腐蝕一切的劇毒。黑暗妖精專屬・雙刀（雙手・近距離）。" },
         "wpn_claw_destroy": { n: "破壞鋼爪", type: "wpn", w2h: true, dmgS: 19, dmgL: 18, hit: 6, dmgBonus: 1, str: 1, wis: 2, spd: 0.9, req: "dark", safe: 6, p: 150000, legend: true, gachaWeight: 1, eff: "combo", comboRate: 30, procBurstPoison: { rateBase: 1, ratePerEn: 1 }, d: "凝聚猛爆毒性的漆黑利爪，每一抓都將致命劇毒灌入血肉。黑暗妖精專屬・鋼爪（雙手・近距離）。" },
         "wpn_demon_xbow": { n: "惡魔十字弓", type: "wpn", isBow: true, ranged: true, rapidfire: 60, w2h: true, dmgS: 3, dmgL: 3, hit: 2, dmgBonus: 4, spd: 1.0, req: "elf", safe: 6, p: 47300, gachaWeight: 1, equipHaste: true, d: "以惡魔之骨為弦的十字弓，箭雨傾瀉如墮入煉獄。" },
-        "wpn_powerless_baphomet": { n: "失去魔力的巴風特魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 6, p: 0, gachaWeight: 0, noEnhance: true, d: "曾屬於魔神巴風特的魔杖，如今魔力枯竭、沉默不語。對靈魂之球使用可恢復為巴風特魔杖。（封印狀態無法強化；傳統模式下解封印才附加隨機強化值。可販售，售價 0）" },   // 🏛️ noEnhance＝封印恆 +0（傳統模式自帶強化值延後到靈魂之球解封印時附加）
+        "wpn_powerless_baphomet": { n: "失去魔力的巴風特魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 6, p: 100000, gachaWeight: 0, noEnhance: true, d: "曾屬於魔神巴風特的魔杖，如今魔力枯竭、沉默不語。對靈魂之球使用可恢復為巴風特魔杖。（封印狀態無法強化；傳統模式下解封印才附加隨機強化值。可販售，售價 100000）" },   // 🏛️ noEnhance＝封印恆 +0（傳統模式自帶強化值延後到靈魂之球解封印時附加）
         "wpn_baphomet_wand": { n: "巴風特魔杖", type: "wpn", dmgS: 7, dmgL: 6, hit: 8, dmgBonus: 5, spd: 1.0, req: "mage", safe: 0, p: 210000, legend: true, gachaWeight: 1, procSkill: "sk_earthquake", procRateBase: 8, procRatePerEn: 2, mdmgEnFrom7Max3: true, d: "魔神巴風特之力重新甦醒，杖身迴盪著大地撕裂的共鳴。" },
         "wpn_qigu_obsidian": { n: "黑曜石奇古獸", type: "wpn", qigu: true, dmgS: 24, dmgL: 24, hit: 0, spd: 0.8, mdmg: 1, wis: 1, req: "illusion", safe: 6, p: 100000, gachaWeight: 10, d: "幻術士豢養的奇古獸，化作以心念支配的兵器。幻術士專屬·奇古獸。一般攻擊化為必中的魔法傷害（受魔抗減免）。" },
         "wpn_qigu_meditate": { n: "冥想奇古獸", type: "wpn", qigu: true, dmgS: 25, dmgL: 25, hit: 0, spd: 0.8, wis: 1, mpR: 5, mpRPerEn: 1, req: "illusion", safe: 6, p: 100000, gachaWeight: 10, d: "沉入冥想的奇古獸，靜默中源源汲取魔力。幻術士專屬·奇古獸。" },
@@ -1847,6 +1847,15 @@ const DB = {
         "siege_senis": { n: "魔女賽尼斯", img: "assets/icons/monsters/魔女賽尼斯.png", lv: 1, s: "S", beh: "主動", race: "血盟", siegeEnemy: true, e: "none", hp: 8, ac: -11, mr: 18, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.67, dmg: [1, 4], db: 0, hit: 0, siege: { hpC: 8, acBase: -11, acDiv: 6, mrBase: 18, mrDiv: 3, dmgSides: 4, dbHalf: true, hitBase: 0, atkSpd: 0.67 }, mag: { skn: "冰箭", cd: 20, dmg: [2, 6], dbLv: 1, ele: "water", alwaysHit: true }, mag2: { skn: "冰矛圍籬", cd: 50, chance: 0.2, dmg: [5, 12], dbLv: 1, dbLvMult: 2, ele: "water", alwaysHit: true, sec: { type: "freeze", pbase: 150 } }, mag3: { skn: "冰雪暴", cd: 130, chance: 0.1, dmg: [8, 12], dbLv: 1, dbLvMult: 3, ele: "water", alwaysHit: true, sec: { type: "freeze", pbase: 200 } } },
         // 闇影格立特：ER+12、雙重破壞被動(doubleDestroy)、破壞盔甲(armor_break) — 已實作
         "siege_grit": { n: "闇影格立特", img: "assets/icons/monsters/闇影格立特.png", lv: 1, s: "S", beh: "主動", race: "血盟", siegeEnemy: true, doubleDestroy: true, e: "none", hp: 10, ac: -13, mr: 20, er: 12, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.5, dmg: [1, 50], db: 0, hit: 5, siege: { hpC: 10, acBase: -13, acDiv: 5, mrBase: 20, mrDiv: 2, dmgSides: 50, dbHalf: true, hitBase: 5, atkSpd: 0.5, er: 12 }, mag: { skn: "破壞盔甲", type: "armor_break", cd: 50, chance: 0.1 } },
+        // ===== 😤 v3.5.59 白目玩家（白目玩家系統.md）：js/24 嗆聲 20% 觸發→野外重生 5% 遭遇·名稱/外觀由叫賣NPC 決定（spawnMob 動態覆蓋 n/img）·等級=玩家+5(上限100·applyTrollScaling)·經驗/金幣 0·擊殺 10% 裝備掉落（同血盟掉寶池·王族搜索狀權重0不會出） =====
+        "troll_royal":    { n: "白目玩家(王族)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, e: "none", hp: 16, ac: -10, mr: 0, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.67, dmg: [1, 12], db: 0, hit: 2, regenFix: 60, scale: { hpC: 16, acBase: -10, acDiv: 4, mrBase: 0, mrDiv: 5, dmgSides: 12, hitBase: 2, atkSpd: 0.67 }, mag: { skn: "初級治癒術", type: "self_heal", cd: 60, healDice: [30, 60] } },
+        "troll_knight":   { n: "白目玩家(騎士)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, e: "none", hp: 20, ac: -15, mr: 0, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.25, dmg: [1, 28], db: 0, hit: 0, scale: { hpC: 20, acBase: -15, acDiv: 3, mrBase: 0, mrDiv: 5, dmgSides: 28, hitBase: 0, atkSpd: 0.25 }, mag: { skn: "衝擊之暈", cd: 50, chance: 0.5, type: "extra_attack", stunChance: 10 }, mag2: { skn: "堅固防護", type: "self_buff", buffKind: "guard", cd: 60 } },
+        "troll_elf":      { n: "白目玩家(妖精)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, e: "none", hp: 14, ac: -15, mr: 25, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.56, dmg: [1, 18], db: 0, hit: 5, scale: { hpC: 14, acBase: -15, acDiv: 4, mrBase: 25, mrDiv: 2, dmgSides: 18, hitBase: 5, atkSpd: 0.56 }, mag: { skn: "三重矢", cd: 50, chance: 0.5, type: "multi_attack", times: 3 }, mag2: { skn: "暴風神射", type: "self_buff", buffKind: "volley", cd: 60 } },
+        "troll_mage":     { n: "白目玩家(法師)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, e: "none", hp: 10, ac: -11, mr: 18, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.67, dmg: [1, 4], db: 0, hit: 5, scale: { hpC: 10, acBase: -11, acDiv: 6, mrBase: 18, mrDiv: 3, dmgSides: 4, dbHalf: true, hitBase: 5, atkSpd: 0.67 }, mag: { skn: "光箭", cd: 20, dmg: [3, 6], dbLv: 1, ele: "none", alwaysHit: true }, mag2: { skn: "冰矛圍籬", cd: 50, chance: 0.3, dmg: [8, 12], dbLv: 1, dbLvMult: 2, ele: "water", alwaysHit: true, sec: { type: "freeze", pbase: 200 } }, mag3: { skn: "冰雪暴", cd: 110, chance: 0.1, dmg: [10, 12], dbLv: 1, dbLvMult: 3, ele: "water", alwaysHit: true, sec: { type: "freeze", pbase: 200 } }, mag4: { skn: "震裂術", cd: 70, chance: 0.5, dmg: [5, 25], dbLv: 1, dbLvMult: 3, ele: "earth", alwaysHit: true } },
+        "troll_dark":     { n: "白目玩家(黑妖)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, doubleDestroy: true, e: "none", hp: 12, ac: -13, mr: 20, er: 20, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.4, dmg: [1, 50], db: 0, hit: 5, scale: { hpC: 12, acBase: -13, acDiv: 5, mrBase: 20, mrDiv: 2, dmgSides: 50, dbHalf: true, hitBase: 5, atkSpd: 0.4, er: 20 }, mag: { skn: "破壞盔甲", type: "armor_break", cd: 50, chance: 0.5 } },
+        "troll_dragon":   { n: "白目玩家(龍騎)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, e: "none", hp: 18, ac: -15, mr: 0, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.3, dmg: [1, 24], db: 0, hit: 2, scale: { hpC: 18, acBase: -15, acDiv: 3, mrBase: 0, mrDiv: 5, dmgSides: 24, hitBase: 2, atkSpd: 0.3 }, mag: { skn: "屠宰者", cd: 50, chance: 0.5, type: "multi_attack", times: 3 }, mag2: { skn: "奪命之雷", cd: 60, dmg: [5, 25], dbLv: 1, dbLvMult: 3, ele: "wind", alwaysHit: true } },
+        "troll_illusion": { n: "白目玩家(幻術)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, magicMelee: true, e: "none", hp: 11, ac: -11, mr: 18, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.67, dmg: [1, 4], db: 0, hit: 30, scale: { hpC: 11, acBase: -11, acDiv: 6, mrBase: 18, mrDiv: 3, dmgSides: 4, dbHalf: true, hitBase: 30, atkSpd: 0.67 }, mag: { skn: "粉碎能量", cd: 20, dmg: [3, 6], dbLv: 1, ele: "none", alwaysHit: true }, mag2: { skn: "燃燒立方", cd: 40, dmg: [2, 12], dbLv: 1, dbLvMult: 2, ele: "fire", alwaysHit: true } },
+        "troll_warrior":  { n: "白目玩家(戰士)",   lv: 1, s: "S", beh: "主動", race: "玩家", wild: true, trollPlayer: true, e: "none", hp: 22, ac: -15, mr: 0, exp: 0, goldMin: 0, goldMax: 0, atkSpd: 0.2, dmg: [1, 20], db: 10, hit: 0, scale: { hpC: 22, acBase: -15, acDiv: 3, mrBase: 0, mrDiv: 5, dmgSides: 20, hitBase: 0, atkSpd: 0.2, dbPlus: 10 }, onHitPoison: { skn: "出血", pbase: 150, d: 30, tick: 5, dur: 10 }, mag: { skn: "咆哮", cd: 50, chance: 0.5, dmg: [5, 12], dbLv: 1, ele: "none", alwaysHit: true } },
         "orc_archer": { n: "妖魔弓箭手", lv: 3, s: "S", beh: "被動", race: "妖魔", e: "fire", hp: 12, ac: 10, mr: 2, exp: 10, goldMin: 11, goldMax: 32, atkSpd: 2, dmg: [2, 4], db: 2, hit: 0 },
         "gremlin": { n: "地靈", lv: 3, s: "S", beh: "被動", race: "地靈", e: "earth", hp: 7, ac: 10, mr: 2, exp: 10, goldMin: 11, goldMax: 32, atkSpd: 2, dmg: [2, 4], db: 2, hit: 0 },
         "nm_001": { n: "污染的地精靈", lv: 3, s: "S", beh: "被動", race: "元素", elem: true, e: "earth", hp: 10, ac: 10, mr: 10, exp: 10, goldMin: 11, goldMax: 32, atkSpd: 2, dmg: [2, 4], db: 2, hit: 0 },
@@ -3397,24 +3406,8 @@ function _origAuthorizedHost() {
 
 // 官方版指引橫幅（中性·無指控）：僅在非官方網域顯示；若被移除可安全重掛（見 gameLoop）
 function _origEnforce() {
-  try {
-    if (_origAuthorizedHost()) return;
-    if (!document.body || document.getElementById('_orig_pbar')) return;
-    var url = 'https://shines871.github.io/idle-lineage-class/';
-    var bar = document.createElement('div');
-    bar.id = '_orig_pbar';
-    bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;'
-      + 'background:linear-gradient(90deg,#0d1f3a,#17408a,#0d1f3a);color:#eef4ff;'
-      + 'font:bold 15px/1.5 "Microsoft JhengHei","Segoe UI",Arial,sans-serif;'
-      + 'padding:11px 16px;text-align:center;letter-spacing:.3px;'
-      + 'box-shadow:0 2px 14px rgba(0,0,0,.45);border-bottom:2px solid #ffcf5a;';
-    // ⚠️中性措辭·勿加「盜版/未授權/廣告/惡意」等指控（授權允許非商業轉載→指控合法轉載者有毀謗風險）
-    bar.innerHTML = '📢 這是<span style="color:#ffcf5a">非官方轉載版本</span>，內容可能不是最新。'
-      + '本遊戲<span style="color:#ffcf5a">永久免費</span>，前往<span style="color:#ffcf5a">官方最新版</span>：'
-      + '<a href="' + url + '" style="color:#ffcf5a;font-weight:bold;text-decoration:underline">'
-      + 'shines871.github.io/idle-lineage-class</a>';
-    document.body.appendChild(bar);
-  } catch (_) {}
+  // 此非商業 GitHub Pages 版本已在登入頁保留原作者與來源連結；不再顯示遮住遊戲畫面的頂端橫幅。
+  return;
 }
 
 try {

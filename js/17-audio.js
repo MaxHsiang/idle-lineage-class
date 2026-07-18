@@ -540,7 +540,8 @@ function playMorphDeathSfx() {   // js/09 玩家變身死亡動作首次觸發�
 // ===== 🎵 背景音樂（分場景 · HTMLAudio 雙元素交叉淡入淡出 · 自我輪詢偵測場景，無戰鬥碼掛鉤）=====
 //   場景 title(登入)/create(創角畫面)/town(共通安全區)/battle(野外戰鬥)/boss(頭目戰)＋專屬創角職業/城鎮 BGM；音檔位於 assets/bgm/。
 //   缺某場景音檔（或尚未解析完成）→保持目前曲目、不切換。BGM 音量/開關與音效獨立（存 'fb5_bgm'）。
-var _bgmCfg = { on: true, vol: 35 };
+// 此部署依使用者要求永久關閉背景音樂；戰鬥與介面音效仍由 SFX 設定控制。
+var _bgmCfg = { on: false, vol: 0 };
 // 🎵 場景：title(標題)/create(創角畫面)/town(共通安全區)/battle(野外)/boss(頭目)＋下列「專屬 BGM 城鎮」(scene key = 城鎮地圖 id·檔名同名)；其餘城鎮皆用共通 'town'。
 var TOWN_BGM_LIST = [
     'town_silent',        // 沉默洞穴
@@ -578,10 +579,9 @@ Object.keys(HUNT_BGM).forEach(function (id) { BGM_TRACKS[HUNT_BGM[id]] = HUNT_BG
 var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
 
 function _bgmLoadCfg() {
-    try {
-        var s = (typeof _lsGet === 'function') ? _lsGet('fb5_bgm') : null;
-        if (s) { var o = JSON.parse(s); if (o && typeof o === 'object') { _bgmCfg.on = (o.on !== false); _bgmCfg.vol = (typeof o.vol === 'number') ? o.vol : 35; } }
-    } catch (e) {}
+    // 忽略舊存檔中曾開啟的 BGM，避免更新後再次自動播放。
+    _bgmCfg.on = false;
+    _bgmCfg.vol = 0;
 }
 function _bgmSaveCfg() { try { if (typeof _lsSet === 'function') _lsSet('fb5_bgm', JSON.stringify(_bgmCfg)); } catch (e) {} }
 function _bgmTargetVol() { return Math.max(0, Math.min(1, _bgmCfg.vol / 100)); }
@@ -653,7 +653,7 @@ function _bgmStopAll() {
 }
 function _bgmTick() { if (_bgmInited) { try { _bgmSwitch(_bgmDetectScene()); } catch (e) {} } }
 
-function setBgmOn(on) { _bgmCfg.on = !!on; _bgmSaveCfg(); if (!on) { _bgmStopAll(); _bgmScene = null; } else { _bgmScene = null; _bgmTick(); } }
+function setBgmOn() { _bgmCfg.on = false; _bgmCfg.vol = 0; _bgmSaveCfg(); _bgmStopAll(); _bgmScene = null; _bgmSyncUI(); }
 function setBgmVol(v) { _bgmCfg.vol = Math.max(0, Math.min(100, parseInt(v, 10) || 0)); _bgmSaveCfg(); if (!_bgmFadeTimer && _bgmActive >= 0 && _bgmEls[_bgmActive]) _bgmEls[_bgmActive].volume = _bgmTargetVol(); }
 function _bgmSyncUI() {
     var c = document.getElementById('set-bgm-on'); if (c) c.checked = !!_bgmCfg.on;
@@ -662,12 +662,8 @@ function _bgmSyncUI() {
 function _bgmInit() {
     if (_bgmInited) return; _bgmInited = true;
     _bgmLoadCfg();
-    Object.keys(BGM_TRACKS).forEach(function (s) { _bgmResolve(s, BGM_TRACKS[s]); });
     _bgmSyncUI();
-    setInterval(_bgmTick, 1000);   // 自我輪詢場景（每秒；只在場景改變時切換）
-    var kick = function () { _bgmScene = null; _bgmTick(); };   // 首次互動立即啟動（autoplay 解鎖）
-    document.addEventListener('pointerdown', kick, { once: true });
-    document.addEventListener('keydown', kick, { once: true });
+    _bgmStopAll();
 }
 
 if (typeof document !== 'undefined') {
