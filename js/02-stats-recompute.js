@@ -812,16 +812,14 @@ const DANTES_POLY_FORM = { n: "真死亡騎士 冥皇丹特斯", lv: 99, apm: { 
 function hasPolyRing() {
     // 🐾 v3.2.17 浣熊的變身葉（relic_raccoon_leaf·頭盔遺物）：「需裝備」才可選擇變身（不同於戒指的攜帶即可）
     let _leaf = false; try { for (let k in player.eq) { let e = player.eq[k]; if (e && e.id === 'relic_raccoon_leaf') { _leaf = true; break; } } } catch (e) {}
-    return _leaf
-        || [player.eq.ring1, player.eq.ring2, player.eq.ring3, player.eq.ring4].some(e => e && e.id === 'acc_117')
-        || [player.eq.ring1, player.eq.ring2, player.eq.ring3, player.eq.ring4].some(e => e && e.id === 'acc_laia_ring')
-        || (player.inv && player.inv.some(i => i && (i.id === 'acc_117' || i.id === 'acc_laia_ring') && (i.cnt || 0) > 0));
+    let _has = i => i && DB.items[i.id] && DB.items[i.id].polyCtrl && (i.cnt == null || (i.cnt || 0) > 0);
+    return _leaf || Object.values(player.eq || {}).some(_has) || (player.inv && player.inv.some(_has));
 }
 // 是否持有傳送控制戒指 (acc_116)
 // 🔧 改為「背包攜帶即可觸發」：裝備中或背包內任一處有戒指都算持有，不需佔用戒指欄位
 function hasTeleportRing() {
-    return [player.eq.ring1, player.eq.ring2, player.eq.ring3, player.eq.ring4].some(e => e && (e.id === 'acc_116' || e.id === 'acc_laia_ring'))
-        || (player.inv && player.inv.some(i => i && (i.id === 'acc_116' || i.id === 'acc_laia_ring') && (i.cnt || 0) > 0));
+    let _has = i => i && DB.items[i.id] && DB.items[i.id].teleportCtrl && (i.cnt == null || (i.cnt || 0) > 0);
+    return Object.values(player.eq || {}).some(_has) || (player.inv && player.inv.some(_has));
 }
 // 傳送：清空當前怪物並重置生怪排程；forceBoss=true 時讓下一次生怪必定為 BOSS
 function doTeleport(forceBoss) {

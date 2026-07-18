@@ -771,15 +771,15 @@ function equipItem(item) {
     if (slot === 'ring') {
         if(!player.eq.ring1) slot = 'ring1';
         else if(!player.eq.ring2) slot = 'ring2';
-        else if(player.lv >= 76 && !player.eq.ring3) slot = 'ring3';   // 第3戒指欄：需 Lv76
-        else if(player.lv >= 81 && !player.eq.ring4) slot = 'ring4';   // 第4戒指欄：需 Lv81
+        else if(player.lv >= 1 && !player.eq.ring3) slot = 'ring3';   // 🐉 創世版：第3戒指欄 Lv1 開放
+        else if(player.lv >= 1 && !player.eq.ring4) slot = 'ring4';   // 🐉 創世版：第4戒指欄 Lv1 開放
         else slot = 'ring1';
     }
 
-    // 🦻 耳環欄位分配：一開始 1 個（ear1），Lv59 開放第 2 個（ear2），最多 2 個
+    // 🦻 創世版：兩個耳環欄從 Lv1 起皆可使用。
     if (slot === 'ear') {
         if(!player.eq.ear1) slot = 'ear1';
-        else if(player.lv >= 59 && !player.eq.ear2) slot = 'ear2';   // 第2耳環欄：需 Lv59
+        else if(player.lv >= 1 && !player.eq.ear2) slot = 'ear2';   // 🐉 創世版：第2耳環欄 Lv1 開放
         else slot = 'ear1';
     }
     // 🦻 不能同時裝備兩個名字相同的耳環

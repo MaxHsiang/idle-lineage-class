@@ -2869,11 +2869,9 @@ function dismissAllAllies() {
 function hasSummonCtrlRing(owner) {
     owner = owner || player;   // 🩸 v2.6.25 owner 參數化：讀 owner.eq（傭兵召喚控制戒指亦生效）
     let eq = owner.eq || {};
-    let r1 = eq.ring1, r2 = eq.ring2, r3 = eq.ring3, r4 = eq.ring4;
-    if ((r1 && (r1.id === 'acc_summon_ctrl' || r1.id === 'acc_laia_ring')) || (r2 && (r2.id === 'acc_summon_ctrl' || r2.id === 'acc_laia_ring')) || (r3 && (r3.id === 'acc_summon_ctrl' || r3.id === 'acc_laia_ring')) || (r4 && (r4.id === 'acc_summon_ctrl' || r4.id === 'acc_laia_ring'))) return true;
-    if (owner === player && player.inv && player.inv.some(i => i && i.id === 'acc_laia_ring' && (i.cnt || 0) > 0)) return true;
-    if (eq.shin && DB.items[eq.shin.id] && DB.items[eq.shin.id].summonCtrl) return true;   // 🏺 遺物 召喚儀式的魔術布（脛甲）：等同召喚控制戒指
-    return false;
+    let _has = i => i && DB.items[i.id] && DB.items[i.id].summonCtrl && (i.cnt == null || (i.cnt || 0) > 0);
+    if (Object.values(eq).some(_has)) return true;
+    return !!(owner === player && player.inv && player.inv.some(_has));
 }
 // 🏺 遺物 巨靈的承諾（耳環）：裝備於耳飾欄時，傭兵/寵物死亡立即自動使用復活卷軸（跳過復活冷卻·仍消耗卷軸）。純看玩家裝備。
 function playerHasAutoReviveEarring() {

@@ -1,20 +1,21 @@
-// ===== 🐉 Codex MOD：四龍神之劍 =====
+// ===== 🐉 Codex MOD：終焉・四龍創世神劍 =====
 // 全體攻擊與 75% HP/MP 汲取只在此武器裝備於主手時啟用。
-const FOUR_DRAGON_SWORD_ID = 'wpn_four_dragon_god_sword';
+const LEGACY_FOUR_DRAGON_SWORD_ID = 'wpn_four_dragon_god_sword';
+const FOUR_DRAGON_SWORD_ID = 'wpn_genesis_four_dragon_sword';
 
 DB.items[FOUR_DRAGON_SWORD_ID] = {
-    n: '四龍神之劍',
+    n: '終焉・四龍創世神劍',
     type: 'wpn',
     oneHand: true,
-    dmgS: 120,
-    dmgL: 120,
-    hit: 100,
-    dmgBonus: 100,
-    mdmg: 100,
-    extraDmg: 100,
-    extraMp: 100,
-    str: 100,
-    int: 100,
+    dmgS: 150,
+    dmgL: 150,
+    hit: 120,
+    dmgBonus: 120,
+    mdmg: 120,
+    extraDmg: 120,
+    extraMp: 120,
+    str: 120,
+    int: 120,
     mcrit: 100,
     rcrit: 100,
     mcritDmg: 300,
@@ -26,16 +27,24 @@ DB.items[FOUR_DRAGON_SWORD_ID] = {
     gachaWeight: 0,
     legend: true,
     noJunk: true,
-    img: 'assets/icons/weapons/吉爾塔斯之劍.png',
+    img: 'assets/icons/genesis/genesis_four_dragon_sword.png',
     fourDragonSword: true,
-    d: '火、水、風、地四龍神共同鍛造的單手神劍。力量+100、智力+100、物理與魔法能力大幅提升；裝備時，一般攻擊與直接傷害魔法化為全體攻擊，並依實際總傷害回復75% HP與MP。'
+    d: '終焉之火、水、風、地四龍神共同創造的單手神劍。力量+120、智力+120、物理與魔法能力大幅提升；裝備時，一般攻擊與直接傷害魔法化為全體攻擊，並依實際總傷害回復75% HP與MP。集齊創世24件套時汲取率提升為100%。'
 };
+
+// 舊存檔仍可辨識原本的四龍神之劍，但會另外補發新版創世神劍。
+DB.items[LEGACY_FOUR_DRAGON_SWORD_ID] = Object.assign({}, DB.items[FOUR_DRAGON_SWORD_ID], {
+    n: '四龍神之劍（舊版）',
+    dmgS: 120, dmgL: 120, hit: 100, dmgBonus: 100, mdmg: 100,
+    extraDmg: 100, extraMp: 100, str: 100, int: 100
+});
 
 // 讓所有職業的裝備規則都把它辨識為單手劍；戰士另由 req 明確放行。
 if (typeof WEAPON_TAGS !== 'undefined') WEAPON_TAGS[FOUR_DRAGON_SWORD_ID] = ['單手劍'];
+if (typeof WEAPON_TAGS !== 'undefined') WEAPON_TAGS[LEGACY_FOUR_DRAGON_SWORD_ID] = ['單手劍'];
 
 function fourDragonSwordEquipped() {
-    return !!(player && player.eq && player.eq.wpn && player.eq.wpn.id === FOUR_DRAGON_SWORD_ID);
+    return !!(player && player.eq && player.eq.wpn && [FOUR_DRAGON_SWORD_ID, LEGACY_FOUR_DRAGON_SWORD_ID].includes(player.eq.wpn.id));
 }
 
 function fourDragonRecover(dealt, sourceLabel) {
@@ -144,7 +153,7 @@ function fourDragonEnsureSword() {
     if (typeof calcStats === 'function') calcStats();
     if (typeof renderTabs === 'function') renderTabs(true);
     if (typeof saveGame === 'function') saveGame();
-    if (typeof logSys === 'function') logSys('<span class="font-bold" style="color:#fde68a;text-shadow:0 0 6px #ef4444,0 0 10px #3b82f6;">四龍神之劍已放入背包。</span>');
+    if (typeof logSys === 'function') logSys('<span class="font-bold" style="color:#fde68a;text-shadow:0 0 6px #ef4444,0 0 10px #3b82f6;">終焉・四龍創世神劍已放入背包。</span>');
     return true;
 }
 

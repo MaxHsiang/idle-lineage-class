@@ -22,7 +22,7 @@
     DB.items.doll_four_dragons = {
         n: '魔法娃娃：四龍娃娃', type: 'acc', slot: 'doll', req: 'all', safe: 0, p: 0,
         doll: true, dollTier: 7, noEnhance: true, noSell: true, unique: true, gachaWeight: 0,
-        c: 'text-fuchsia-300', img: 'assets/icons/accessories/魔法娃娃：巴拉卡斯.png',
+        c: 'text-fuchsia-300', img: 'assets/icons/genesis/genesis_four_dragon_doll.png',
         dollImg: '魔法娃娃：巴拉卡斯',
         hpR: 80, mpR: 40, mhp: 100, ac: 5, mr: 10, dr: 15,
         int: 2, wis: 2, mdmg: 5, meleeDmg: 4, meleeHit: 8,
