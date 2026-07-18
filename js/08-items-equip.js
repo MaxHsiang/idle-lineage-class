@@ -1122,11 +1122,12 @@ function renderStatusEffects() {
     // 🐾 v3.2.17 誘捕狀態（新夥伴系統·7 種）；舊「夥伴：項圈」與 taming 顯示已隨項圈系統移除
     if(typeof PET_LURES!=='undefined')Object.keys(PET_LURES).forEach(k=>{if((player.buffs[k]||0)>0)buffs.push(`<span class="text-pink-300 font-bold">${PET_LURES[k].n}</span>`);});
 
-    // 🔮 席琳套裝：達 2 件以上（觸發套裝能力）的組別顯示於資訊面板（n/5）
+    // 🔮 席琳套裝：達 2 件以上顯示 n/5；創世第二頁套裝共有 8 件，顯示 n/8。
     if (player._sherineSetCnt) {
         for (let _g in player._sherineSetCnt) {
-            let _n = Math.min(5, player._sherineSetCnt[_g]);
-            if (_n >= 2) buffs.push(`<span class="c-sherine font-bold">${_g} ${_n}/5</span>`);
+            let _max = _g === '創世' ? 8 : 5;
+            let _n = Math.min(_max, player._sherineSetCnt[_g]);
+            if (_n >= 2) buffs.push(`<span class="c-sherine font-bold">${_g} ${_n}/${_max}</span>`);
         }
     }
 

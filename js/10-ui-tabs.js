@@ -212,6 +212,8 @@ function renderTabs(force) {
     if(setCheck['icequeen_charm'] >= 3) activeSets.push('icequeen_charm');   // ❄️👸 冰之女王魅力套裝：3 件齊→欄位底色亮起
     if(setCheck['frost'] >= 3) activeSets.push('frost');   // ❄️ 寒冰套裝：3 件齊→欄位底色亮起
     if(setCheck['bluepirate'] >= 4) activeSets.push('bluepirate');   // 🏴‍☠️ 藍海賊套裝：4 件齊→欄位底色亮起
+    if(setCheck['genesis_armor'] >= 2) activeSets.push('genesis_armor');   // 🐉 創世防具：2/4/6/8 件分段發動
+    if(setCheck['genesis_acc'] >= 2) activeSets.push('genesis_acc');       // 🐉 創世飾品：2/4/6/8 件分段發動
 
     slots.forEach(s => {
         if (s.filler) {   // 🦴 v3.1.75 填充格：與 decorateClassicInventoryTab 尾端補的空格同款（無邊框互動·非 .list-item）
@@ -878,7 +880,8 @@ function buildItemDescHTML(item) {
         let _g = item.seteff.slice(0, 2);
         let _lines = (SHERINE_SET_TEXT[_g] || []).map(t => `<span class="text-green-200">・${t}</span>`).join('<br>');
         let _legacy = d.remains ? '' : `<br><span class="text-amber-300 text-sm">（舊詞綴：已不計入套裝效果，可請席琳神殿的菈克希絲拆分為遺骸）</span>`;
-        desc = `<span class="c-sherine font-bold">✦ 席琳套裝效果：${_g}</span><br>${_lines}${_legacy}`
+        let _setTitle = _g === '創世' ? '四龍創世遺骸套裝' : `席琳套裝效果：${_g}`;
+        desc = `<span class="c-sherine font-bold">✦ ${_setTitle}</span><br>${_lines}${_legacy}`
              + (desc ? `<br>${desc}` : '');
     }
     if(d.type === 'wpn') {

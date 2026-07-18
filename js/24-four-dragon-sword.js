@@ -41,7 +41,7 @@ function fourDragonSwordEquipped() {
 function fourDragonRecover(dealt, sourceLabel) {
     if (!fourDragonSwordEquipped()) return 0;
     dealt = Math.max(0, Math.floor(Number(dealt) || 0));
-    let amount = Math.floor(dealt * 0.75);
+    let amount = Math.floor(dealt * (player._genesisFullSet ? 1 : 0.75));
     if (!amount) return 0;
     let oldHp = Number(player.hp) || 0;
     let oldMp = Number(player.mp) || 0;
@@ -50,7 +50,7 @@ function fourDragonRecover(dealt, sourceLabel) {
     let hpGain = Math.max(0, Math.floor(player.hp - oldHp));
     let mpGain = Math.max(0, Math.floor(player.mp - oldMp));
     if (hpGain || mpGain) {
-        logCombat(`<span class="font-bold" style="color:#fde68a;text-shadow:0 0 7px #ef4444,0 0 11px #3b82f6;">【四龍神汲取・${sourceLabel || '攻擊'}】</span>依 ${dealt} 點實際傷害，恢復 ${hpGain} HP／${mpGain} MP。`, 'heal');
+        logCombat(`<span class="font-bold" style="color:#fde68a;text-shadow:0 0 7px #ef4444,0 0 11px #3b82f6;">【${player._genesisFullSet ? '創世神汲取' : '四龍神汲取'}・${sourceLabel || '攻擊'}】</span>依 ${dealt} 點實際傷害，恢復 ${hpGain} HP／${mpGain} MP。`, 'heal');
         updateUI();
     }
     return amount;
