@@ -400,6 +400,8 @@
                             <input type="range" id="set-sfx-vol" min="0" max="100" value="50" step="5" class="flex-1 max-w-[150px]" oninput="try{setSfxVol(this.value)}catch(e){}" title="音效音量">
                         </div>
                         <div class="flex items-center justify-between gap-3 border-t border-slate-700 pt-2">
+                            <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-bgm-on" class="w-4 h-4" onchange="try{setBgmOn(this.checked)}catch(e){}"><span class="text-sm text-sky-200 font-bold">🎵 背景音樂</span></label>
+                            <input type="range" id="set-bgm-vol" min="0" max="100" value="35" step="5" class="flex-1 max-w-[150px]" oninput="try{setBgmVol(this.value)}catch(e){}" title="音樂音量">
                         </div>
                     </div>
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
@@ -568,7 +570,7 @@
 <script src="js/15-cards.js?v=v3.5.35-lindvior-card"></script>
 <script src="js/16-equip-book.js?v=v3.2.37-petgear"></script>
 <script src="js/18-misc-book.js?v=v3.2.13-bless-cleanup"></script>
-<script src="js/17-audio.js?v=v3.5.66-bgm-disabled"></script>
+<script src="js/17-audio.js?v=v3.5.66-bgm-enabled"></script>
 <script src="js/19-equipment-window.js?v=v3.4.67-emperor-sword"></script>
 <script src="js/20-warehouse-window.js?v=20260702a"></script>
 <script src="js/21-relic-book.js?v=v3.1.7"></script>
