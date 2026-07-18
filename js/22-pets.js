@@ -54,11 +54,16 @@ const PET_BOOK = {
     '高等頑皮龍':   { kind:'spec', tier:1, lv0:1, hpUp:[10,15], mpUp:[3,5], hpReg:5,  mpReg:8,  apm:55.38, capm:51.43, stun:0.58, cha:15, evo:null, sk:[{ n:'頑皮龍火球', mp:10, kind:'magic', d:[2,10], ele:'fire', w:50 }, { n:'頑皮龍大火球', mp:12, kind:'magic', d:[2,12], ele:'fire', w:50 }] },
     '高等淘氣龍':   { kind:'spec', tier:1, lv0:1, hpUp:[10,15], mpUp:[3,5], hpReg:8,  mpReg:1,  apm:65.45, capm:0,     stun:0.58, cha:15, evo:null, sk:[] },
     // ===== 黃金龍（v3.2.63：任一「一般型態」＋勝利果實可直接進化取得·與高等型態並列·Lv1 起·最終型態不可再進化）=====
-    '黃金龍':       { kind:'spec', tier:2, lv0:1, hpUp:[8,12],  mpUp:[2,4], hpReg:8,  mpReg:4,  apm:72,    capm:45,    stun:0.58, cha:20, evo:null, sk:[{ n:'火焰噴射', mp:15, kind:'magic', d:[1,15], ele:'fire', aoe:true, w:50 }, { n:'火球', mp:10, kind:'magic', d:[2,10], ele:'fire', w:50 }] }
+    '黃金龍':       { kind:'spec', tier:2, lv0:1, hpUp:[8,12],  mpUp:[2,4], hpReg:8,  mpReg:4,  apm:72,    capm:45,    stun:0.58, cha:20, evo:null, sk:[{ n:'火焰噴射', mp:15, kind:'magic', d:[1,15], ele:'fire', aoe:true, w:50 }, { n:'火球', mp:10, kind:'magic', d:[2,10], ele:'fire', w:50 }] },
+    // 迷你四龍：沿用四龍 BOSS 動畫並縮小；招式保留各龍特色，但改為寵物級數值。
+    '迷你安塔瑞斯': { kind:'spec', tier:2, lv0:1, hp0:120, mp0:80, hpUp:[12,18], mpUp:[5,8], hpReg:12, mpReg:8, apm:66, capm:42, stun:0.52, cha:0, noCharm:true, evo:null, gfx:'安塔瑞斯', gfxRoot:true, gfxScale:0.38, sk:[{ n:'幼龍・大地怒吼', mp:20, kind:'magic', d:[4,20], ele:'earth', aoe:true, w:60 }, { n:'幼龍・毒氣風暴', mp:16, kind:'magic', d:[3,16], ele:'earth', status:{ kind:'poison', pbase:100, dur:6, tick:3, dmg:[1,4] }, w:40 }] },
+    '迷你法利昂':   { kind:'mag',  tier:2, lv0:1, hp0:105, mp0:100,hpUp:[10,16], mpUp:[7,10],hpReg:10, mpReg:12,apm:64, capm:46, stun:0.50, cha:0, noCharm:true, evo:null, gfx:'法利昂', gfxRoot:true, gfxScale:0.38, sk:[{ n:'幼龍・巨水炮', mp:18, kind:'magic', d:[5,18], ele:'water', aoe:true, w:60 }, { n:'幼龍・寒冰噴吐', mp:20, kind:'magic', d:[4,18], ele:'water', status:{ kind:'freeze', pbase:100, dur:3 }, w:40 }] },
+    '迷你林德拜爾': { kind:'mag',  tier:2, lv0:1, hp0:95, mp0:110, hpUp:[9,14], mpUp:[8,11],hpReg:8, mpReg:13, apm:78, capm:50, stun:0.45, cha:0, noCharm:true, evo:null, gfx:'林德拜爾', gfxRoot:true, gfxScale:0.34, sk:[{ n:'幼龍・閃電風暴', mp:19, kind:'magic', d:[5,19], ele:'wind', aoe:true, w:65 }, { n:'幼龍・電擊', mp:17, kind:'magic', d:[4,17], ele:'wind', status:{ kind:'paralyze', pbase:80, dur:3 }, w:35 }] },
+    '迷你巴拉卡斯': { kind:'phys', tier:2, lv0:1, hp0:130, mp0:75, hpUp:[13,19], mpUp:[4,7], hpReg:14, mpReg:7, apm:82, capm:40, stun:0.45, cha:0, noCharm:true, evo:null, gfx:'巴拉卡斯', gfxRoot:true, gfxScale:0.36, sk:[{ n:'幼龍・流星雨', mp:22, kind:'magic', d:[5,20], ele:'fire', aoe:true, status:{ kind:'burn', pbase:100, dur:5 }, w:55 }, { n:'幼龍・火焰噴吐', mp:18, kind:'magic', d:[4,20], ele:'fire', w:45 }] }
 };
 const PET_KIND_WEIGHT = { phys: 4, spec: 3, mag: 2 };   // 受擊權重（怪物一般攻擊選目標）
 const PET_KIND_LABEL = { phys: '物理型', spec: '特殊型', mag: '魔法型' };
-const PET_STORAGE_MAX = 20;   // 亞丁包武保管上限（含出戰中）
+const PET_STORAGE_MAX = 40;   // 亞丁包武保管上限（舊存檔即使已達24/24，仍能強制補入迷你四龍）
 const PET_CARRY_MAX = 4;      // 同時出戰上限
 
 // 誘捕 buff（player.buffs 鍵·值=秒）→ 可捕捉怪（key=怪物名精確比對·value=獲得的寵物型態）
@@ -350,13 +355,14 @@ window.addEventListener('storage', ev => {
 });
 
 function petsOutList() { let owner = _petCurrentOwnerKey(); return owner ? petRoster().filter(p => String(p.outOwner || '') === owner) : []; }
-function petChaUsed() { return petsOutList().reduce((s, p) => s + ((PET_BOOK[p.form] || {}).cha || 6), 0); }
+function petCharmCost(p) { let d = PET_BOOK[p && p.form] || {}; return d.noCharm ? 0 : (d.cha || 6); }
+function petChaUsed() { return petsOutList().reduce((s, p) => s + petCharmCost(p), 0); }
 function _petEnforceCarry() {   // 換角色載入：魅力不足/超過4隻→自動收回超出的
     let out = petsOutList();
     if (!player || !player.cls || !player.d || !Number.isFinite(Number(player.d.cha))) return;   // 載入/重算未完成時不可誤用魅力0收回寵物
     let cha = Number(player.d.cha), used = 0, n = 0;
     out.forEach(p => {
-        let need = (PET_BOOK[p.form] || {}).cha || 6;
+        let need = petCharmCost(p);
         if (n >= PET_CARRY_MAX || used + need > cha) {
             p.outOwner = null; p.outSlot = null; p.outV = _petNowStamp(); _petRosterDirty = true;
             // 🐾 v3.3.30 補訊息（用戶回報黃金龍「莫名自己收回」＝原本靜默）：說明原因（魅力不足/超過上限）·同一寵收回後不再入 petsOutList→不會重複洗版
@@ -496,7 +502,7 @@ function petDeployToggle(uidv) {
     else {
         let outs = petsOutList();
         if (outs.length >= PET_CARRY_MAX) { logSys(`<span class="text-red-400">最多同時攜帶 ${PET_CARRY_MAX} 隻寵物。</span>`); return; }
-        let need = (PET_BOOK[p.form] || {}).cha || 6;
+        let need = petCharmCost(p);
         if (petChaUsed() + need > (player.d.cha || 0)) { logSys(`<span class="text-red-400">魅力不足：攜帶 ${p.form} 需要魅力 ${need}（目前已用 ${petChaUsed()}/${player.d.cha || 0}）。</span>`); return; }
         p.outOwner = owner; p.outSlot = slot; p.outV = _petNowStamp(); p.hp = Math.max(1, p.hp);
         logSys(`<span class="text-green-300 font-bold">${petDisplayName(p)} 加入了隊伍！</span>`);
@@ -726,7 +732,60 @@ function _petInWild() {   // 狩獵區判定：該圖有出怪池（村莊/安�
         return !!(mapState.mobs && mapState.mobs.some(m => m && m.curHp > 0));
     } catch (e) { return false; }
 }
+
+// 🤝 主角自動支援夥伴：返生術優先，其次依玩家設定的 HP 門檻對最低血量夥伴施放指定治癒術。
+// 召喚物死亡沿用原本的自動重召；此處的「可返生夥伴」限定傭兵與出戰寵物。
+function partnerSupportTick() {
+    if (typeof player === 'undefined' || !player || player.dead || typeof state === 'undefined') return;
+    if (state.ticks % 5 !== 0) return;   // 每 0.5 秒檢查一次，實際施法仍受技能冷卻與 MP 限制
+
+    if (player.partnerHealSkill == null) player.partnerHealSkill = (player.skills || []).includes('sk_full_heal') ? 'sk_full_heal' : '';
+    if (player.partnerHealHpPct == null) player.partnerHealHpPct = 70;
+
+    if (player.partnerAutoRez !== false && (player.skills || []).includes('sk_resurrection')) {
+        let downAlly = (player.allies || []).find(a => a && a._downed);
+        let downPet = petsOutList().find(p => p && p._downed);
+        if (downAlly || downPet) {
+            let rezSk = DB.skills.sk_resurrection;
+            let rezCost = rezSk ? ((player.d && typeof player.d.getMpCost === 'function') ? player.d.getMpCost(rezSk.mp, rezSk.tier) : ((typeof getMpCost === 'function') ? getMpCost(rezSk) : 50)) : Infinity;
+            if ((player.mp || 0) < rezCost) return;
+            if (downAlly && typeof reviveMercenary === 'function') {
+                reviveMercenary(downAlly._slot, 'rez');
+                if (!downAlly._downed) return;
+            }
+            if (downPet && typeof petRevive === 'function') {
+                petRevive(downPet.uid, 'rez');
+                if (!downPet._downed) return;
+            }
+        }
+    }
+
+    let skId = player.partnerHealSkill || '';
+    let threshold = Math.max(0, Math.min(100, Number(player.partnerHealHpPct == null ? 70 : player.partnerHealHpPct) || 0));
+    let sk = skId && DB.skills[skId];
+    if (!threshold || !sk || sk.type !== 'heal' || sk.hot || !(player.skills || []).includes(skId)) return;
+    let cands = [];
+    (player.allies || []).forEach(a => { if (a && !a._downed && (a.curHp || 0) > 0) cands.push(a); });
+    petsOutList().forEach(p => { if (p && !p._downed && (p.hp || 0) > 0) cands.push(p); });
+    try { if (typeof summonV2List === 'function') summonV2List().forEach(s => { if (s && !s._downed && (s.hp || 0) > 0) cands.push(s); }); } catch (e) {}
+    let target = null, pct = Infinity;
+    cands.forEach(c => {
+        let mx = (typeof _supMhp === 'function') ? _supMhp(c) : (c.mhp || 1);
+        let hp = (typeof _supHp === 'function') ? _supHp(c) : (c.curHp != null ? c.curHp : c.hp);
+        let p = mx > 0 ? hp / mx * 100 : 100;
+        if (p < threshold && p < pct) { pct = p; target = c; }
+    });
+    if (!target || typeof castSkill !== 'function') return;
+    try {
+        _partnerForcedHealTarget = target;
+        castSkill(skId);
+    } finally {
+        _partnerForcedHealTarget = null;
+    }
+}
+
 function petsTick() {
+    partnerSupportTick();
     let outs = petsOutList();
     if (!outs.length) return;
     let wild = _petInWild();
@@ -896,6 +955,7 @@ function petCastSkill(p, d, target) {
                 if (typeof _relicPetSkillMult === 'function') dmg = Math.max(1, Math.floor(dmg * _relicPetSkillMult()));   // 🏺 馴獸師的訓狗棒：寵物技能×1.5
                 if (sk.n && sk.n.includes('冰錐') && typeof equipSkillDmgMult === 'function') dmg = Math.max(1, Math.floor(dmg * equipSkillDmgMult(DB.skills.sk_ice_spike, 'sk_ice_spike')));   // 🏺 v3.2.35 暴走兔最愛的胡蘿蔔：攜帶的暴走兔/高等暴走兔施放的冰錐也 ×1.5（掃玩家裝備 skillDmgMult.sk_ice_spike·與訓狗棒相乘）
                 m.curHp -= dmg; if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(m, dmg, 'magic'); m.justHit = sk.ele || 'none'; mobWake(m);   // 🌅 巨大骷髏：寵物傷害技能視為魔法
+                if (m.curHp > 0 && sk.status && typeof applyMobStatus === 'function') applyMobStatus(m, sk.status, sk.n, d.skillFlat || 0);
                 texts.push(`<span class="${getMobColor(m.lv)}">${m.n}</span> ${dmg}`);
                 if (sk.drainHalf) { let heal = Math.floor(dmg / 2); if (heal > 0) p.hp = Math.min(p.mhp, p.hp + heal); }
             });
@@ -1055,11 +1115,12 @@ function renderPetStorageNPC(div, confirmUid) {
         let def = PET_BOOK[p.form] || {};
         let d = petDerive(p) || {};
         let cb = petCharmCombatBonus();
-        let need = def.cha || 6;
+        let need = petCharmCost(p);
         let _evoOpts = petEvoOptions(p);   // 🐉 v3.2.63 一般型態才可進化（進化果實→高等／勝利果實→黃金龍）
         let canEvo = _evoOpts.length > 0;
         let _evoTip = _evoOpts.map(o => (DB.items[o.fruitId] ? DB.items[o.fruitId].n : o.fruitId) + '→' + o.target).join('　或　');
-        let thumb = 'assets/anim/' + encodeURIComponent(p.form) + '/d6/idle_0.png';
+        let _pd = PET_BOOK[p.form] || {};
+        let thumb = 'assets/anim/' + encodeURIComponent(_pd.gfx || p.form) + (_pd.gfxRoot ? '/' : '/d6/') + 'idle_0.png';
         let expPct = Math.min(100, Math.floor((p.exp || 0) / petExpReq(p.lv) * 100));
         let isOut = !!_petCurrentOwnerKey() && String(p.outOwner || '') === _petCurrentOwnerKey();
         let otherOut = !!_petOutStateKey(p) && !isOut;
@@ -1078,7 +1139,7 @@ function renderPetStorageNPC(div, confirmUid) {
             <span class="flex-1 min-w-0">
                 <span class="font-bold ${isOut ? 'text-emerald-300' : 'text-white'}">${p.form}</span>
                 <span class="text-amber-300"> Lv.${p.lv}</span>
-                <span class="text-slate-400 text-xs">（${PET_KIND_LABEL[def.kind] || ''}·魅力${need}${isOut ? '·本角色出戰中' : (otherOut ? '·其他角色出戰中' : '')}）</span><br>
+                <span class="text-slate-400 text-xs">（${PET_KIND_LABEL[def.kind] || ''}·${def.noCharm ? '不占魅力' : '魅力' + need}${isOut ? '·本角色出戰中' : (otherOut ? '·其他角色出戰中' : '')}）</span><br>
                 <span class="text-xs text-slate-300">HP ${p.hp}/${p.mhp}　MP ${p.mp}/${p.mmp + (d.mmpBonus || 0)}　EXP ${expPct}%　攻1D${d.dice}+${d.flat + cb.dmg} 命中${d.hit + cb.hit} AC${d.ac} 減免${d.dr} ER${d.er} MR${d.mr}</span>
             </span>
             <span class="flex gap-1 shrink-0 flex-wrap justify-end" style="max-width:210px">
@@ -1114,7 +1175,8 @@ function renderPetTeamHTML() {
         let hpPct = Math.max(0, Math.min(100, Math.floor(p.hp / Math.max(1, p.mhp) * 100)));
         let mpPct = Math.max(0, Math.min(100, Math.floor(p.mp / Math.max(1, _mmpEff) * 100)));
         let expPct = Math.min(100, Math.floor((p.exp || 0) / petExpReq(p.lv) * 100));
-        let thumb = 'assets/anim/' + encodeURIComponent(p.form) + '/d6/idle_0.png';
+        let _pd = PET_BOOK[p.form] || {};
+        let thumb = 'assets/anim/' + encodeURIComponent(_pd.gfx || p.form) + (_pd.gfxRoot ? '/' : '/d6/') + 'idle_0.png';
         // 🐾 v3.2.33 高度減半（用戶指示·樣式/元素不變）：縮圖 36×32→26×22、內距/條高/字級/間距減半（用 inline style 避開預編譯 Tailwind 任意值缺漏）
         if (p._downed) {
             return `<div class="bg-slate-800/80 border border-red-800 rounded text-xs flex items-center gap-2" style="padding:3px 6px;">
@@ -1148,11 +1210,22 @@ function _pet8Probe(form, dir) {
     let key = form + '#' + dir;
     if (_pet8Cache[key] !== undefined) return;
     _pet8Cache[key] = 'probing';
-    let folder = 'assets/anim/' + encodeURIComponent(form) + '/d' + dir + '/';
+    let rootGfx = Object.values(PET_BOOK).some(d => d && d.gfx === form && d.gfxRoot);
+    let folder = 'assets/anim/' + encodeURIComponent(form) + (rootGfx ? '/' : '/d' + dir + '/');
     let out = { shadow: {} };
     let acts = ['walk', 'idle', 'attack', 'skill', 'hurt', 'death'];
     let pending = acts.length * 2;
-    let finish = () => { if (--pending > 0) return; _pet8Cache[key] = out.idle ? out : null; };
+    let finish = () => {
+        if (--pending > 0) return;
+        if (out.idle) {
+            // 四龍 BOSS 原圖未另輸出 walk/hurt：移動沿用完整待機循環，受擊取攻擊前段幀，保留可辨識動作且不會缺圖。
+            if (!out.walk) out.walk = out.idle;
+            if (!out.hurt) out.hurt = out.attack ? out.attack.slice(0, Math.min(4, out.attack.length)) : out.idle.slice(0, Math.min(3, out.idle.length));
+            if (!out.shadow.walk) out.shadow.walk = out.shadow.idle || null;
+            if (!out.shadow.hurt) out.shadow.hurt = out.shadow.attack ? out.shadow.attack.slice(0, Math.min(4, out.shadow.attack.length)) : (out.shadow.idle || null);
+        }
+        _pet8Cache[key] = out.idle ? out : null;
+    };
     let probeSeq = (target, k, pfx, minF) => {   // 🚀 v3.4.37 平行探測（滑動窗口·共用 js/09 _probeFramesWin）
         _probeFramesWin(i => folder + pfx + i + '.png', PET_ANIM_MAXF, minF || 2, frames => { target[k] = frames; finish(); });
     };
@@ -1241,6 +1314,8 @@ function _petAnimApply() {
             if (!p._downed) _petWanderStep(p, host, hostRect);   // 倒地/死亡殘影不再移動（v3.2.19 修：原本倒地仍會閒晃漂移）
             let dir = (p._dir != null) ? p._dir : 6;
             let gfxForm = p.formGfx || p.form;   // 👑 v3.2.25 動態別名：顯示名≠圖檔資料夾（精靈王借用強力精靈圖·強力精靈改用一般精靈圖）
+            let _petGfxDef = PET_BOOK[p.form] || {};
+            gfxForm = p.formGfx || _petGfxDef.gfx || p.form;
             let a = _pet8Cache[gfxForm + '#' + dir];
             if (a === undefined) _pet8Probe(gfxForm, dir);
             if (!a || a === 'probing') {
@@ -1250,6 +1325,8 @@ function _petAnimApply() {
                 if (!a || a === 'probing') continue;
             } else p._dirLoaded = dir;
             let el = _petSpriteEl(layer, p);
+            let _petVisualDef = PET_BOOK[p.form] || {};
+            let _petVisualScale = Number(_petVisualDef.gfxScale) || 1;
             el.style.left = (p._px * 100) + '%';
             el.style.top = (p._py * 100) + '%';
             // 動作選擇：倒地=death 末幀 hold；單次動作(attack/skill/hurt/death)播完回 walk/idle
@@ -1272,6 +1349,9 @@ function _petAnimApply() {
             }
             let seq = a[act]; if (!seq || !seq[f]) continue;
             let im = el.querySelector('.pet-body'), sh = el.querySelector('.pet-shadow');
+            let _petScaleCss = _petVisualScale === 1 ? '' : 'scale(' + _petVisualScale + ')';
+            if (im.style.transform !== _petScaleCss) { im.style.transform = _petScaleCss; im.style.transformOrigin = '50% 100%'; }
+            if (sh && sh.style.transform !== _petScaleCss) { sh.style.transform = _petScaleCss; sh.style.transformOrigin = '50% 100%'; }
             if (im.src !== seq[f].src) im.src = seq[f].src;
             let sseq = a.shadow && a.shadow[act];
             if (sh) {

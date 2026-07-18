@@ -8,6 +8,7 @@ const ELF_ELE = {
 const ELF_SWITCH_COST = 500000;
 
 const SPECIAL_AREA_BG = {   // 特殊地圖：逐張對應背景
+    ultimate_land: 'assets/area/龍之谷.jpg',
     kent_outer: 'assets/area/1920x1080/肯特外門區.jpg',
     kent_inner: 'assets/area/1920x1080/肯特內城.jpg',
     ww_outer: 'assets/area/1920x1080/風木外門區.jpg',
@@ -312,7 +313,7 @@ function _summaryFromRaw(s){
     if(!s) return null;
     s = _saveUnwrap(s).payload;   // 🛡️ 先解存檔簽章（摘要顯示不驗章、僅取 payload；舊明文檔原樣回傳）
     try { let d = JSON.parse(s); let p = d.p;
-        let clsName = { knight:'騎士', mage:'法師', elf:'妖精', dark:'黑暗妖精', illusion:'幻術士', dragon:'龍騎士', warrior:'戰士', royal:'王族' }[p.cls] || p.cls;
+        let clsName = { knight:'騎士', mage:'法師', elf:'妖精', dark:'黑暗妖精', illusion:'幻術士', dragon:'龍騎士', warrior:'戰士', royal:'王族', omni:'全能師' }[p.cls] || p.cls;
         return {
             name: p.name || '',
             cls: clsName,
@@ -472,7 +473,7 @@ async function exportSave(){
     let sum = slotSummary(currentSlot);
     let cname = (sum && sum.name) ? sum.name : ('slot' + currentSlot);   // 未命名 → 用 slotN 當檔名
     let fname = `fable5_save_${currentSlot}_${cname}.json`;
-    if(window.showSaveFilePicker){
+    if(window.showSaveFilePicker && player.cls !== 'omni'){   // ✨ 全能師範例存檔直接下載，方便隨遊戲整合包一併交付
         try {
             let handle = await window.showSaveFilePicker({
                 suggestedName: fname,
@@ -582,7 +583,8 @@ const CREATION_CLASS_ANIM_FRAMES = {
     m_dark: [90, 162], f_dark: [25, 86],
     m_illusionist: [968, 1036], f_illusionist: [1039, 1125],
     m_Dknight: [841, 905], f_Dknight: [908, 965],
-    m_warrior: [1992, 2076], f_warrior: [1908, 1991]
+    m_warrior: [1992, 2076], f_warrior: [1908, 1991],
+    m_omni: [0, 3], f_omni: [0, 3]
 };
 const LOAD_NONE_ANIM_FRAMES = [1, 24];
 const LOAD_AVATAR_TO_START_KEY = {
@@ -593,11 +595,12 @@ const LOAD_AVATAR_TO_START_KEY = {
     '男黑暗妖精': 'm_dark', '女黑暗妖精': 'f_dark',
     '男幻術士': 'm_illusionist', '女幻術士': 'f_illusionist',
     '男龍騎士': 'm_Dknight', '女龍騎士': 'f_Dknight',
-    '男戰士': 'm_warrior', '女戰士': 'f_warrior'
+    '男戰士': 'm_warrior', '女戰士': 'f_warrior',
+    '普通村民': 'm_omni'
 };
 const LOAD_CLASS_TO_START_KEY = {
     royal: 'prince', knight: 'm_knight', mage: 'm_mage', elf: 'm_elf',
-    dark: 'm_dark', illusion: 'm_illusionist', dragon: 'm_Dknight', warrior: 'm_warrior'
+    dark: 'm_dark', illusion: 'm_illusionist', dragon: 'm_Dknight', warrior: 'm_warrior', omni: 'm_omni'
 };
 let _loadSelectedSlot = 1;
 let _loadPage = 0;
@@ -794,12 +797,14 @@ const CREATION_CLASS_BASE_TO_RAW = {
     royal: { m: 'm_royal', f: 'f_royal' }, knight: { m: 'm_knight', f: 'f_knight' },
     mage: { m: 'm_mage', f: 'f_mage' }, elf: { m: 'm_elf', f: 'f_elf' },
     dark: { m: 'm_dark', f: 'f_dark' }, illusionist: { m: 'm_illusionist', f: 'f_illusionist' },
-    Dknight: { m: 'm_Dknight', f: 'f_Dknight' }, warrior: { m: 'm_warrior', f: 'f_warrior' }
+    Dknight: { m: 'm_Dknight', f: 'f_Dknight' }, warrior: { m: 'm_warrior', f: 'f_warrior' },
+    omni: { m: 'm_omni', f: 'f_omni' }
 };
 let creationSelectedClassBase = null;
 let creationSelectedGender = 'm';
 function creationClassBaseFromRaw(raw){
     if(!raw) return null;
+    if(raw.includes('omni')) return 'omni';
     if(raw.includes('royal')) return 'royal';
     if(raw.includes('Dknight')) return 'Dknight';
     if(raw.includes('illusionist')) return 'illusionist';
@@ -927,7 +932,8 @@ function selectClass(c) {
     setCreationClassAnimation(c);
 
     // 2. 判斷底層職業（⚠️ Dknight 含 'knight' 子字串，須先判斷；royal 無子字串衝突）
-    if(c.includes('royal')) curCreate.cls = 'royal';   // 👑 王族
+    if(c.includes('omni')) curCreate.cls = 'omni';   // ✨ 全能師
+    else if(c.includes('royal')) curCreate.cls = 'royal';   // 👑 王族
     else if(c.includes('Dknight')) curCreate.cls = 'dragon';
     else if(c.includes('illusionist')) curCreate.cls = 'illusion';
     else if(c.includes('dark')) curCreate.cls = 'dark';
@@ -938,7 +944,7 @@ function selectClass(c) {
 
     const titleEl = document.getElementById('creation-class-title');
     if(titleEl){
-        const titleMap = { royal:'王族', knight:'騎士', mage:'法師', elf:'妖精', dark:'黑暗妖精', illusion:'幻術士', dragon:'龍騎士', warrior:'戰士' };
+        const titleMap = { royal:'王族', knight:'騎士', mage:'法師', elf:'妖精', dark:'黑暗妖精', illusion:'幻術士', dragon:'龍騎士', warrior:'戰士', omni:'全能師' };
         titleEl.innerText = titleMap[curCreate.cls] || '角色介紹';
     }
     // 3. 更新說明文字
@@ -950,7 +956,8 @@ function selectClass(c) {
         dark: "黑暗妖精承襲妖精的敏銳與長壽\n卻選擇在陰影中磨練自己的道路。\n他們不以守護森林為使命，\n而是追求更快速、更致命的力量，\n在寂靜之中完成一次決定勝負的攻擊。\n\n黑暗妖精能夠使用匕首、雙刀、鋼爪\n與十字弓等武器，\n並以毒與閃避牽制敵人的行動。\n他們的防禦並不穩固，\n但是敏捷的身手與爆發性的殺傷力\n足以在短時間內扭轉戰局。\n\n你若想以黑暗妖精的身份生存，\n就必須習慣孤獨與危險，\n並相信藏在黑暗中的刀鋒。",
         illusion: "幻術士研究精神與幻象的力量，\n並將不可見的意志化為現實。\n他們不以強壯的肉體戰鬥，\n而是藉由奇古獸與神秘魔法\n動搖敵人的判斷，支援同伴的行動。\n\n幻術士能夠使用獨特的幻術，\n讓敵人在混亂中失去方向，\n也能以魔法強化自己與隊伍。\n在冒險剛開始時他們並不顯眼，\n但當知識與經驗累積之後，\n幻術士便能在戰場上展現\n任何人都難以忽視的影響力。\n\n若你選擇幻術士的道路，\n就必須學會看穿表象，\n並操縱他人看不見的真實。",
         dragon: "龍騎士繼承龍的血脈與戰鬥本能，\n他們相信真正的力量\n來自承受痛苦後仍向前踏出的意志。\n在戰場上，龍騎士總是以強韌的身體\n突破敵人的防線，\n並用龍之力量壓制對手。\n\n龍騎士能夠使用鎖鏈劍與龍魔法，\n以生命力換取強大的攻擊能力。\n他們的戰鬥方式比騎士更加猛烈，\n也比一般戰士更具危險性。\n只要掌握敵人的弱點，\n龍騎士便能在瞬間爆發出\n令人畏懼的破壞力。\n\n若你想成為龍騎士，\n就必須接受血脈的代價，\n並將痛楚化為勝利的力量。",
-        warrior: "戰士是在無數戰場中成長的鬥士，\n他們沒有華麗的魔法，\n也不依靠血統或神秘力量，\n只憑強健的身體、沉重的武器\n以及永不退縮的意志生存。\n\n戰士能夠使用斧頭與鈍器，\n並以連續而沉重的攻擊壓迫敵人。\n他們在近距離戰鬥中擁有\n非常可靠的耐久力與破壞力，\n即使被包圍也能站在最前方\n為同伴開出前進的道路。\n\n想以戰士的身份冒險，\n就必須相信自己的雙手，\n並在每一次揮擊中證明力量。"
+        warrior: "戰士是在無數戰場中成長的鬥士，\n他們沒有華麗的魔法，\n也不依靠血統或神秘力量，\n只憑強健的身體、沉重的武器\n以及永不退縮的意志生存。\n\n戰士能夠使用斧頭與鈍器，\n並以連續而沉重的攻擊壓迫敵人。\n他們在近距離戰鬥中擁有\n非常可靠的耐久力與破壞力，\n即使被包圍也能站在最前方\n為同伴開出前進的道路。\n\n想以戰士的身份冒險，\n就必須相信自己的雙手，\n並在每一次揮擊中證明力量。",
+        omni: "以公主之姿行走於亞丁大陸，\n並理解所有武器、魔法與職業專精的本質。\n\n全能師可以使用全部裝備，\n自一級起掌握所有職業技能，\n並讓全部職業專精同時生效。\n\n喚醒真正力量時，\n會化為被四重神光環繞的死亡騎士，\n以超快攻擊與施法速度席捲戰場。"
     };
     document.getElementById('class-desc').innerText = classDescMap[curCreate.cls] || "";
     // 🖋️ v3.2.5 排版自動適配：先重設回 CSS 預設（15px/行高1.5），若文案超出框高（overflow:hidden 會無聲裁切）則
@@ -1029,7 +1036,8 @@ function startGame() {
         'm_dark': '男黑暗妖精', 'f_dark': '女黑暗妖精',
         'm_illusionist': '男幻術士', 'f_illusionist': '女幻術士',
         'm_Dknight': '男龍騎士', 'f_Dknight': '女龍騎士',
-        'm_warrior': '男戰士', 'f_warrior': '女戰士'
+        'm_warrior': '男戰士', 'f_warrior': '女戰士',
+        'm_omni': '公主', 'f_omni': '公主'
     };
     player.avatar = avatarMap[curCreate.rawCls] || '男騎士';
     player.cls = curCreate.cls;
@@ -1365,7 +1373,6 @@ function loadGame() {
         if(player.panaceaUsed === undefined) player.panaceaUsed = 0;
         if(player.ismaelAccUsed === undefined) player.ismaelAccUsed = ((((player.siege || {}).accCdUntil) || 0) > Date.now());   // 🔧 舊檔遷移：飾品卷軸 24h 冷卻 → 次數制（冷卻中視為本額度已用）
         if(player.cds && player.cds.purifySk === undefined) player.cds.purifySk = 0;   // 🔧 舊檔遷移：淨化技獨立冷卻
-        if(player.cds && player.cds.convertSk === undefined) player.cds.convertSk = 0;   // 🔄 舊檔遷移：轉換技獨立施法冷卻
         if(!player.lastMapByCat) player.lastMapByCat = {};
         if(player.tracking === undefined) player.tracking = null;
         // 相容舊存檔：單一 partner → partners 陣列

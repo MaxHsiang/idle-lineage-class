@@ -1,6 +1,6 @@
 /** 遊戲核心資料庫 */
 // 🏷️ 遊戲版本號（顯示於登入頁面下方·單一真相來源）：更新版本時只改這一行，登入頁面自動同步。
-const GAME_VERSION = 'v3.5.49';
+const GAME_VERSION = 'v3.5.10';
 // ===== 💾 存檔壓縮（LZString compressToUTF16/decompressFromUTF16·MIT, Pieroxy）：localStorage 內部以 UTF-16 壓縮，省 ~89%，繞過 5MB 上限 =====
 //  ⚠️ 只壓 localStorage（存檔位/倉庫/共用桶/_bak）；匯出檔維持明文 JSON（可攜·importSave 用 JSON.parse 驗證）。_lzGet 相容舊明文存檔（無 'LZ1:' 前綴→原樣回傳）。
 var LZString = (function () {
@@ -105,9 +105,8 @@ function _lsSet(k, v) { try { if (_FS) return _FS.set(k, v); localStorage.setIte
 function _lsRemove(k) { try { if (_FS) { _FS.remove(k); return; } localStorage.removeItem(k); } catch (e) {} }
 
 // Web saves are written immediately, then compressed in a Worker so LZString cannot block
-// rendering or combat. A per-key revision plus raw-value guard prevents stale Worker output
-// from replacing a newer save, including writes made by another open tab/window.
-var _lzWorker = null, _lzWorkerSeq = 0, _lzWorkerRev = Object.create(null), _lzWorkerRaw = Object.create(null);
+// rendering or combat. A per-key revision prevents an older Worker result replacing a newer save.
+var _lzWorker = null, _lzWorkerSeq = 0, _lzWorkerRev = Object.create(null);
 // Direct raw replacements (backup restore / migration) must invalidate a queued compression
 // result for the same key, otherwise an older Worker reply can overwrite the restored value.
 function _lzSetStoredRaw(key, value) {
@@ -130,13 +129,11 @@ function _getLzWorker() {
     _lzWorker = new Worker(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })));
     _lzWorker.onmessage = function(e) {
       var d = e.data || {};
-      var token = d.key + '@' + d.rev, raw = _lzWorkerRaw[token];
-      if (d.error || _lzWorkerRev[d.key] !== d.rev) { delete _lzWorkerRaw[token]; return; }
-      delete _lzWorkerRaw[token];
-      if (raw == null || _lsGet(d.key) !== raw) return;
+      if (d.error || _lzWorkerRev[d.key] !== d.rev) return;
+      // Revision matching is enough: every successful write increments this key before queueing.
       _lsSet(d.key, d.packed);
     };
-    _lzWorker.onerror = function() { try { _lzWorker.terminate(); } catch (e) {} _lzWorker = null; _lzWorkerRaw = Object.create(null); };
+    _lzWorker.onerror = function() { try { _lzWorker.terminate(); } catch (e) {} _lzWorker = null; };
   } catch (e) { _lzWorker = null; }
   return _lzWorker;
 }
@@ -144,9 +141,7 @@ function _queueLzCompression(key, value, rev) {
   if (_FS) return;
   var worker = _getLzWorker();
   if (!worker) return;
-  var token = key + '@' + rev;
-  _lzWorkerRaw[token] = value;
-  try { worker.postMessage({ id: ++_lzWorkerSeq, key: key, rev: rev, value: value }); } catch (e) { delete _lzWorkerRaw[token]; }
+  try { worker.postMessage({ id: ++_lzWorkerSeq, key: key, rev: rev, value: value }); } catch (e) {}
 }
 // 一次性遷移：打包版首次啟用檔案存檔時，把舊版存在 Chromium localStorage(userdata/Local Storage)的所有資料複製進檔案存檔，避免玩家存檔「消失」。
 (function _migrateToFileStore() {
@@ -310,7 +305,7 @@ const DB = {
         "wpn_14": { n: "闊矛", type: "wpn", w2h: true, dmgS: 12, dmgL: 16, hit: 0, spd: 1.1, req: "knight,elf", safe: 6, p: 42, gachaWeight: 100, eff: "pierce", pierceChance: 60 },
         "wpn_15": { n: "吉薩", type: "wpn", w2h: true, dmgS: 12, dmgL: 14, hit: 0, spd: 1.1, req: "knight,elf", safe: 6, p: 280, gachaWeight: 100, eff: "pierce", pierceChance: 70 },
         "wpn_16": { n: "戟", type: "wpn", w2h: true, dmgS: 16, dmgL: 12, hit: 0, spd: 1.1, req: "knight", safe: 6, p: 2800, gachaWeight: 50, eff: "pierce", pierceChance: 60 },
-        "wpn_17": { n: "槍", type: "wpn", w2h: true, dmgS: 6, dmgL: 8, hit: 0, spd: 1.1, req: "knight", safe: 6, p: 84, gachaWeight: 100, eff: "pierce", pierceChance: 35 },   // 🔱 雙手矛＝穿透（原漏 eff·唯一沒穿透的雙手矛→補 35%·比照巴迪須/柴刀基礎階）
+        "wpn_17": { n: "槍", type: "wpn", w2h: true, dmgS: 6, dmgL: 8, hit: 0, spd: 1.1, req: "knight", safe: 6, p: 84, gachaWeight: 100 },
         "wpn_18": { n: "露西錘", type: "wpn", w2h: true, dmgS: 15, dmgL: 17, hit: 0, spd: 1.1, req: "knight", safe: 6, p: 14000, gachaWeight: 30, eff: "pierce", pierceChance: 50 },
         "wpn_19": { n: "戰錘", type: "wpn", w2h: true, dmgS: 17, dmgL: 19, hit: 0, spd: 1.2, req: "knight,elf", safe: 6, p: 1400, gachaWeight: 100, eff: "crush" },
         "wpn_20": { n: "流星錘", type: "wpn", dmgS: 9, dmgL: 10, hit: 0, spd: 1.1, req: "knight,elf", safe: 6, p: 4900, gachaWeight: 50 },
@@ -335,7 +330,7 @@ const DB = {
         "wpn_redknight": { n: "紅騎士之劍", type: "wpn", dmgS: 8, dmgL: 12, hit: 0, spd: 0.9, req: "all", safe: 6, p: 2400, str: 1, gachaWeight: 20 },
         "wpn_invader": { n: "侵略者之劍", type: "wpn", dmgS: 9, dmgL: 11, hit: 0, spd: 0.9, req: "all", safe: 6, p: 3500, gachaWeight: 100 },
         "wpn_33": { n: "骰子匕首", type: "wpn", dmgS: 3, dmgL: 3, hit: 0, spd: 0.7, eff: "dice_death", req: "all", safe: 6, p: 444, gachaWeight: 10 },
-        "wpn_damascus": { n: "大馬士革刀", type: "wpn", dmgS: 10, dmgL: 11, hit: 0, spd: 0.9, req: "knight,elf", safe: 6, p: 22000, ignHardSkin: true, gachaWeight: 20 },   // ⚔️ 單手劍：反擊由 WEAPON_TAGS 賦予；貫穿無視硬皮額外減傷
+        "wpn_damascus": { n: "大馬士革刀", type: "wpn", dmgS: 10, dmgL: 11, hit: 0, spd: 0.9, req: "knight,elf", safe: 6, p: 22000, eff: "crush", gachaWeight: 20 },   // 🔧 特效由反擊改為重擊（粉碎；粉碎消磨硬皮 -20）
         "wpn_34": { n: "短劍的劍身", type: "wpn", dmgS: 2, dmgL: 2, hit: 0, spd: 0.8, req: "all", safe: 6, p: 320, unBonus: true, gachaWeight: 100 },
         "wpn_35": { n: "長劍的劍身", type: "wpn", dmgS: 3, dmgL: 3, hit: 0, spd: 0.9, req: "all", safe: 6, p: 360, unBonus: true, gachaWeight: 100 },
         "wpn_36": { n: "奧里哈魯根的劍身", type: "wpn", dmgS: 4, dmgL: 4, hit: 0, spd: 0.9, req: "all", safe: 6, p: 960, unBonus: true, gachaWeight: 100 },
@@ -392,7 +387,7 @@ const DB = {
         "acc_darkmage_amulet": { n: "黑法師項鍊", type: "acc", slot: "amulet", ac: 0, con: -1, int: 2, req: "mage", safe: 0, p: 100000, gachaWeight: 1 },
         "acc_summoner_amulet": { n: "喚獸師項鍊", type: "acc", slot: "amulet", ac: 0, wis: -1, cha: 2, req: "mage", safe: 0, p: 100000, gachaWeight: 1 },
         "acc_law_king_chain": { n: "法令軍王之鍊", legend: true, type: "acc", slot: "amulet", ac: 0, mmp: 15, mpR: 5, req: "mage,elf", safe: 0, p: 100000, gachaWeight: 1 },
-        "acc_laia_ring":     { n: "蕾雅戒指", legend: true, type: "acc", slot: "ring", ac: 5, req: "all", safe: 0, p: 250000, gachaWeight: 1, stunResist: 5, d: "冰之女王蕾雅指間的戒指，冷冽之氣令神智不致動搖。" },
+        "acc_laia_ring":     { n: "蕾雅戒指", legend: true, type: "acc", slot: "ring", ac: 5, req: "all", safe: 0, p: 250000, gachaWeight: 1, stunResist: 5, polyCtrl: true, teleportCtrl: true, summonCtrl: true, d: "冰之女王蕾雅指間的戒指。攜帶即可同時取得變形、傳送與召喚控制功能，不必穿脫控制戒指；冷冽之氣令神智不致動搖。" },
         "acc_orin_amulet": { n: "歐林的項鍊", legend: true, type: "acc", slot: "amulet", ac: 0, req: "all", safe: 0, p: 100000, gachaWeight: 1, set: "orin", d: "歐林珍藏的項鍊，與西瑪戒指本是一對，分離已久。" },
         "acc_sima_ring":   { n: "西瑪戒指", legend: true, type: "acc", slot: "ring", ac: 0, req: "all", safe: 0, p: 100000, gachaWeight: 1, set: "orin", d: "刻著西瑪之名的古老戒指，與歐林的項鍊遙相呼應。" },
         "hlm_icequeen_charm": { n: "冰之女王魅力頭飾", legend: true, type: "arm", slot: "helm",  ac: 3, req: "royal", reqAvatar: "公主", safe: 4, p: 126000, gachaWeight: 1, set: "icequeen_charm", d: "冰之女王魅力套裝之一（公主限定），頭飾上的冰晶折射出懾人的高貴。" },
@@ -855,18 +850,12 @@ const DB = {
         "relic_sr_akaoni_pants": { n: "赤鬼的內褲",         type: "arm", slot: "shin", relic: true, noEnhance: true, ac: 2, str: 2, con: 1, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】赤鬼的虎紋兜襠布，穿上便湧現蠻勇之力。" },
         "relic_sr_aooni_shirt":  { n: "青鬼的虎皮衫",       type: "arm", slot: "armor", relic: true, noEnhance: true, ac: 12, str: 1, con: 2, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】青鬼披掛的虎皮衫，粗獷厚實如鬼族的筋骨。" },
         "relic_sr_nue_tail":     { n: "毒鵺的黑尾",         type: "wpn", chainsword: true, relic: true, noEnhance: true, weakExpose: true, ignHardSkin: true, procPoisonPct: { pct: 50, dur: 6 }, atkSpdPct: 20, dmgS: 26, dmgL: 26, hit: 16, dmgBonus: 18, req: "dragon", p: 10000, gachaWeight: 0, d: "【遺物】鵺的蛇頭黑尾製成的鎖鏈劍，噬咬之毒滲入每一道傷口。" },
-        "relic_sr_tengu_fan":    { n: "天狗的羽扇",         type: "wpn", isBow: true, ranged: true, relic: true, noEnhance: true, rapidfire: 80, ignHardSkin: true, ele: "wind", onHitCastSkill: { skId: "sk_windblade", cdSec: 5 }, mdmg: 2, dmgS: 2, dmgL: 2, hit: 17, dmgBonus: 13, req: "elf,illusion", p: 10000, gachaWeight: 0, d: "【遺物】天狗搧起狂風的羽團扇，每一擊都挾帶撕裂的風刃。" },
+        "relic_sr_tengu_fan":    { n: "天狗的羽扇",         type: "wpn", isBow: true, ranged: true, relic: true, noEnhance: true, rapidfire: 80, ignHardSkin: true, wearerEle: "wind", onHitCastSkill: { skId: "sk_windblade", cdSec: 5 }, mdmg: 2, dmgS: 2, dmgL: 2, hit: 17, dmgBonus: 13, req: "elf,illusion", p: 10000, gachaWeight: 0, d: "【遺物】天狗搧起狂風的羽團扇，每一擊都挾帶撕裂的風刃。" },
         "relic_sr_asura_arm":    { n: "阿修羅的武神技",     type: "arm", slot: "shield", armguard: { stat: "none", base: 0, th: [0, 0, 0] }, relic: true, noEnhance: true, ac: 0, atkSpdPct: 20, extraDmg: 2, extraHit: 2, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】阿修羅像六臂的戰技凝為臂甲，出手快如修羅。臂甲（裝於副手，可與雙手武器並用）。" },
-        "relic_sr_kyuubi_wand":  { n: "九尾妖狐的怒火",     type: "wpn", isWand: true, relic: true, noEnhance: true, ignHardSkin: true, ele: "fire", procSkill: "sk_fireball", procRateBase: 15, procRatePerEn: 0, procSkill2: { skId: "sk_fire_storm", rate: 5 }, mdmg: 4, mpR: 6, dmgS: 2, dmgL: 2, hit: 16, dmgBonus: 16, req: "mage,illusion", p: 10000, gachaWeight: 0, d: "【遺物】九尾妖狐的怒火凝成的妖杖，狐火隨揮舞飛散燎原。" },
+        "relic_sr_kyuubi_wand":  { n: "九尾妖狐的怒火",     type: "wpn", isWand: true, relic: true, noEnhance: true, ignHardSkin: true, wearerEle: "fire", procSkill: "sk_fireball", procRateBase: 15, procRatePerEn: 0, procSkill2: { skId: "sk_fire_storm", rate: 5 }, mdmg: 4, mpR: 6, dmgS: 2, dmgL: 2, hit: 16, dmgBonus: 16, req: "mage,illusion", p: 10000, gachaWeight: 0, d: "【遺物】九尾妖狐的怒火凝成的妖杖，狐火隨揮舞飛散燎原。" },
         "relic_sr_ushioni_horn": { n: "牛鬼的斷角",         type: "wpn", w2h: true, noBleed: true, relic: true, noEnhance: true, eff: "pierce", pierceChance: 100, ignHardSkin: true, procStatusSkill: { skId: "sk_disease", rate: 15 }, heavyBonusDmg: 20, dmgS: 25, dmgL: 25, hit: 17, dmgBonus: 18, req: "royal,knight", p: 10000, gachaWeight: 0, d: "【遺物】牛鬼折斷的巨角削成的長矛，帶著瘴癘之氣貫穿一切。" },
         "relic_sr_child_ring":   { n: "牛鬼之子的黑戒",     type: "acc", slot: "ring", relic: true, noEnhance: true, ac: 0, statusHealHp: 50, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】牛鬼之子甲殼磨成的黑戒，受到異常狀態侵襲時反而激發生機，恢復 50 點 HP。" },
         "relic_sr_gasha_skull":  { n: "巨大骷髏的頭骨",     type: "arm", slot: "armor", relic: true, noEnhance: true, ac: 20, mr: 10, resNone: 10, req: "royal,knight,dragon,warrior", p: 10000, gachaWeight: 0, d: "【遺物】巨大骷髏的頭骨鑿成的胸鎧，怨念的殘響替穿戴者擋下詛咒。" },
-        // ===== 🏺 遺物 第十八批（v3.5.27·5 件）：黑騎士的精銳長槍／水靈的魔力珠／被敲爛的半邊頭盔／黝黑的烈火皮囊／食屍鬼的啃食面容 =====
-        "relic_bk_lance":        { n: "黑騎士的精銳長槍", type: "wpn", relic: true, noEnhance: true, dmgS: 8, dmgL: 10, hit: 15, dmgBonus: 15, req: "royal,knight,warrior", p: 10000, gachaWeight: 0, d: "【遺物】暗黑黑騎士精銳部隊的長槍，槍鋒撕裂之處鮮血難止。與鎧衛隊的漆黑塔盾同時裝備時：格檔機率提升至 100%（經典模式亦可觸發格檔），並額外獲得近距離傷害 +15。" },
-        "relic_water_orb":       { n: "水靈的魔力珠", type: "wpn", isWand: true, relic: true, noEnhance: true, frozenBonusDmg: 50, waterFreezeProc: { pct: 3, dur: 4 }, dmgS: 2, dmgL: 2, hit: 13, dmgBonus: 13, req: "mage", p: 10000, gachaWeight: 0, d: "【遺物】水靈之主的魔力凝成的珠球，寒流隨法術奔湧（共鳴）。施放原本不具冰凍效果的水屬性傷害魔法時，3% 機率附加冰凍 4 秒；一般攻擊命中冰凍中的敵人時，追加 50 點固定傷害。" },
-        "relic_broken_halfhelm": { n: "被敲爛的半邊頭盔", type: "arm", slot: "helm", relic: true, noEnhance: true, ac: 3, immSilence: true, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】被敲爛只剩半邊的頭盔，罩不住頭顱卻護住了心神——免疫沉默。" },
-        "relic_fire_hide":       { n: "黝黑的烈火皮囊", type: "arm", slot: "armor", relic: true, noEnhance: true, ac: 6, firePrisonMult: 2, req: "mage", p: 10000, gachaWeight: 0, d: "【遺物】被烈焰燻得黝黑的皮囊護甲，餘燼與咒火共鳴，使「火牢」造成的傷害加倍。" },
-        "relic_ghoul_visage":    { n: "食屍鬼的啃食面容", type: "arm", slot: "helm", relic: true, noEnhance: true, ac: 10, mhp: 30, killHealHp: 30, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】深淵食屍鬼猙獰面容鑄成的頭盔，HP +30；擊殺敵人時吞噬其殘存的生氣，恢復 30 點 HP。" },
         "clk_elf": { n: "精靈斗篷", type: "arm", slot: "cloak", ac: 1, req: "all", safe: 6, p: 900, gachaWeight: 100 },
         "clk_oasis": { n: "歐西斯斗篷", type: "arm", slot: "cloak", ac: 0, req: "all", safe: 4, p: 15, gachaWeight: 100 },
         "arm_86": { n: "侏儒斗篷", type: "arm", slot: "cloak", ac: 0, req: "all", safe: 4, p: 18, gachaWeight: 100 },
@@ -1034,7 +1023,7 @@ const DB = {
         "mat_emperor_manual":  { n: "真．冥皇製作防具秘笈", type: "etc", p: 0, c: "text-amber-300", noSell: true, gachaWeight: 0, d: "記載 真．冥皇 系列防具鍛造祕法的秘笈，每鍛造一件消耗 1 本。" },
         "mat_de_soul_crystal": { n: "黑暗妖精的靈魂水晶", type: "etc", p: 3000, gachaWeight: 0, d: "受詛咒的黑暗妖精殘留的靈魂結晶，鍛造 真．冥皇 系列防具的材料。" },
         "wpn_giltas_sword":  { n: "吉爾塔斯之劍", type: "wpn", w2h: true, legend: true, dmgS: 43, dmgL: 53, hit: 7, dmgBonus: 30, spd: 1, req: "knight,dragon", safe: 0, p: 990000, gachaWeight: 0, eff: "cleave", ignHardSkin: true, str: 2, con: 1, cha: 2, d: "吉爾塔斯魔力凝成的雙手魔劍，劍身纏繞著異界的沙塵與血氣。切割（一般限定）、貫穿、力量+2、體質+1、魅力+2；擊殺敵人後，獲得額外傷害+10，持續10秒。" },
-"wpn_giltas_wand":   { n: "吉爾塔斯魔杖", type: "wpn", w2h: true, legend: true, dmgS: 15, dmgL: 15, hit: 0, dmgBonus: 0, spd: 1.0, req: "mage,illusion", safe: 0, p: 990000, gachaWeight: 0, eff: "magicburst", int: 2, wis: 2, mpR: 15, d: "吉爾塔斯魔力凝成的雙手魔杖，杖端迴盪著異界的低語。魔爆（一般限定）、貫穿、智力+2、精神+2、MP自然恢復量+15；擊殺敵人後，獲得額外魔法點數+20，持續10秒。" },
+        "wpn_giltas_wand":   { n: "吉爾塔斯魔杖", type: "wpn", w2h: true, legend: true, dmgS: 15, dmgL: 15, hit: 0, dmgBonus: 0, spd: 1.0, req: "mage,illusion", safe: 0, p: 990000, gachaWeight: 0, eff: "magicburst", int: 2, wis: 2, mpR: 15, d: "吉爾塔斯魔力凝成的雙手魔杖，杖端迴盪著異界的低語。魔爆（一般限定）、貫穿、智力+2、精神+2、MP自然恢復量+15；擊殺敵人後，獲得額外魔法點數+10，持續10秒。" },
         "wpn_rotten_longbow":{ n: "腐壞的長弓", type: "wpn", w2h: true, isBow: true, ranged: true, legend: true, dmgS: 5, dmgL: 4, hit: 7, dmgBonus: 5, rapidfire: 100, ignHardSkin: true, req: "elf,illusion", safe: 6, p: 850000, gachaWeight: 1, d: "在聖地深處腐朽多年的長弓，弓身雖朽、殺意未減。連射100%（一般限定）、貫穿（需裝備箭矢）。" },
         "wpn_cursed_emperor_blade": { n: "受詛咒的真．冥皇執行劍", type: "wpn", legend: true, dmgS: 19, dmgL: 22, hit: 4, dmgBonus: 0, spd: 1, ignHardSkin: true, hpR: -30, req: "royal,knight,elf,mage,dark", safe: 6, p: 990000, gachaWeight: 0, d: "冥皇的詛咒滲入劍身的漆黑執行劍，握柄傳來刺骨的死寂。反擊（一般限定）、居合（一般限定）、貫穿、HP自然恢復量-30；裝備時變身為 死亡騎士。" },   // 🌑 v3.4.0 裝備時變身死亡騎士＝js/02 _setPoly 管線；反擊+居合＝WEAPON_TAGS 雙標籤（js/10）
         "shd_rebel":    { n: "反叛者的盾牌", type: "arm", slot: "shield", legend: true, ac: 3, hitstunReduce: 5, dmgReduceProc: { rate: 1, per: 2, amt: 50 }, req: "royal,knight", safe: 4, p: 700000, gachaWeight: 1, d: "反叛者們代代相傳的堅盾。硬質減少0.5秒；受到傷害時 1% 機率使該次傷害減少 50，每強化 +1 機率 +2%。" },
@@ -1104,6 +1093,8 @@ const DB = {
         "pet_arm_cross":    { n: "寵物十字盔甲",   type: "arm", slot: "petarm", req: "all", safe: 0, maxEn: 5, p: 25000, c: "text-white", petAc: 13,                                    d: "胸口鑄有十字徽記的重護甲。", gachaWeight: 0 },
         "pet_arm_chain":    { n: "寵物鏈甲",       type: "arm", slot: "petarm", req: "all", safe: 0, maxEn: 5, p: 45000, c: "text-white", petAc: 20,                                    d: "細密鎖環編成的全身鏈甲。", gachaWeight: 0 },
         "pet_arm_mithril":  { n: "寵物米索莉盔甲", type: "arm", slot: "petarm", req: "all", safe: 0, maxEn: 5, p: 75000, c: "text-white", petAc: 12, petMr: 10, petInt: 1, petWis: 1, d: "米索莉鍛造的名匠護甲，輕盈而蘊含魔力。", gachaWeight: 0 },
+        "pet_four_dragon_fang": { n: "四龍神之牙", type: "acc", slot: "petwpn", req: "all", noEnhance: true, petBound: true, p: 0, c: "text-yellow-300", petDmg: 80, petHit: 80, petBleed: true, d: "迷你四龍專屬神牙（不可卸下）。寵物傷害+80、命中+80，攻擊附加出血。", gachaWeight: 0 },
+        "pet_four_dragon_armor": { n: "四龍神之甲", type: "arm", slot: "petarm", req: "all", noEnhance: true, petBound: true, p: 0, c: "text-yellow-300", petAc: 60, petMr: 60, petInt: 30, petWis: 30, petDmgReduce: 0.80, d: "迷你四龍專屬神甲（不可卸下）。防禦+60、魔防+60、智力與精神+30，受到傷害降低80%。", gachaWeight: 0 },
         // 🪆 魔法娃娃（slot:doll·全職業·裝備後滑鼠游標變成 assets/doll/<物品名稱>.png；亦帶屬性加成）。dollTier=階級(1~6)；袋子開出/合成取得（價格0·無法強化·不可賣）。
         // 特殊效果引擎欄位：procBonusDmg{rate,dmg}=攻擊機率額外傷害、procPoisonRate=攻擊機率中毒、procSkill+procRateBase=攻擊機率觸發技能、procDmgReduce{rate,amount}=受傷機率減免、abnormalResist=機率抵抗異常、freezeResist/stunResist=抵抗(100=免疫)、immParalyze/immSlow/immPoison=免疫、expBonus/goldBonus=經驗/金錢%、potionBonus=藥水恢復%、weightCap=負重、er/magicHit/extraMp/mdmg=ER/魔法命中/額外魔點/固定魔傷。
         // ===== 🦴 席琳遺骸（v3.1.68）：套裝效果新載體 =====
@@ -1310,6 +1301,7 @@ const DB = {
 		"new_item_237": { n: "安特的樹枝", p: 1, gachaWeight: 0 },
 		"new_item_elfwing": { n: "精靈羽翼", p: 10, gachaWeight: 0 },
 		"new_item_mermaid_scale": { n: "人魚之鱗", p: 10, gachaWeight: 0 },
+		"new_item_239": { n: "潘朵拉抽獎卷", p: 0, gachaWeight: 0 },
 		"new_item_240": { n: "變形怪的血", p: 1, c: "text-blue-300", gachaWeight: 0 },
 		"new_item_241": { n: "王族搜索狀", p: 10000, gachaWeight: 0, d: "記載著血盟仇敵行蹤的密令文書，沾染著一絲血誓的氣息。擊敗血盟敵人必定取得。可向血盟盟主交出，換取盟主的祝福。" },
 		
@@ -2686,7 +2678,7 @@ const DB = {
         "sk_tornado": { n: "龍捲風", type: "atk", tier: 7, reqM: 28, mp: 45, dmgType: "magic", ele: "wind", target: "all", multiDmg: [[2, 10], [2, 10], [2, 10], [2, 10], [2, 10], [2, 10]] },
         "sk_berserk": { n: "狂暴術", type: "buff", tier: 7, reqM: 28, mp: 40, dur: 1200, d: { meleeDmg: 5, ac: -10 }, msg: "你的野性逐漸支配理智。" },
         "sk_summon": { n: "召喚術", type: "buff", tier: 7, reqM: 28, mp: 50, dur: 3600, summon: { tiered: true } },
-        "sk_holy_dash": { n: "神聖疾走", type: "buff", tier: 7, reqM: 28, mp: 20, dur: 64, moveSpeedMult: 1.33, msg: "你覺得身體變輕了。" },
+        "sk_holy_dash": { n: "神聖疾走", type: "buff", tier: 7, reqM: 28, mp: 20, dur: 64, d: { er: 15 }, msg: "你覺得身體變輕了。" },
         "sk_disease": { n: "疾病術", type: "atk", tier: 7, reqM: 28, mp: 30, dmgType: "magic", status: { kind: "disease", pbase: 150, dur: 30 } },
 
         // 八階魔法 (Lv 32)
@@ -2736,7 +2728,7 @@ const DB = {
         "sk_elf_singleres": { n: "單屬性防禦", type: "buff", tier: 3, reqE: 30, mp: 10, dur: 64, reqEleAny: true },
         "sk_elf_firewpn": { n: "火焰武器", type: "buff", tier: 3, reqE: 30, mp: 20, dur: 1200, reqEle: "fire", d: { meleeDmg: 3 } },
         "sk_elf_windshot": { n: "風之神射", type: "buff", tier: 3, reqE: 30, mp: 15, dur: 1200, reqEle: "wind", d: { rangedHit: 5 } },
-        "sk_elf_winddash": { n: "風之疾走", type: "buff", tier: 3, reqE: 30, mp: 20, dur: 1200, reqEle: "wind", moveSpeedMult: 1.33, moveSpeedReplacesCookie: true },
+        "sk_elf_winddash": { n: "風之疾走", type: "buff", tier: 3, reqE: 30, mp: 20, dur: 1200, reqEle: "wind", d: { er: 10 } },
         "sk_elf_earthguard": { n: "大地防護", type: "buff", tier: 3, reqE: 30, mp: 15, dur: 1200, reqEle: "earth", d: { ac: 4 } },
         "sk_elf_groundtrap": { n: "地面障礙", type: "atk", tier: 3, reqE: 30, mp: 20, dmgType: "magic", reqEle: "earth", target: "all", status: { kind: "slow", pbase: 150, dur: 30 } },   // 🤝 Phase4：改為全體緩速
         "sk_elf_watervital": { n: "水之元氣", type: "buff", tier: 3, reqE: 30, mp: 1, dur: 64, reqEle: "water", noRefresh: true, msg: "水之元氣環繞著你。" },   // 🔧 buff 期間內「下次」受到治癒術（玩家自身瞬間治癒，不含持續回復HoT）時恢復量加倍、觸發後7秒冷卻（見 waterVitalHeal）；noRefresh：效果結束才可再施放
@@ -3397,7 +3389,8 @@ function _origAuthorizedHost() {
     // 官方網域以字元碼還原，避免整包 find/replace「shines871.github.io」一次抹除 = shines871.github.io
     var official = String.fromCharCode(115,104,105,110,101,115,56,55,49,46,103,105,116,104,117,98,46,105,111);
     var localhost = String.fromCharCode(108,111,99,97,108,104,111,115,116);
-    _origAuthCache = (h === official || h === localhost || h === '127.0.0.1' || h === '');
+    // 個人非商業 GitHub Pages 部署：來源已在登入頁保留，不再顯示遮住遊戲畫面的頂端橫幅。
+    _origAuthCache = (h === official || h === 'maxhsiang.github.io' || h === localhost || h === '127.0.0.1' || h === '');
   } catch (_) { _origAuthCache = true; }   // 例外一律放行，絕不誤傷合法玩家
   return _origAuthCache;
 }

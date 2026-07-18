@@ -7,7 +7,7 @@ function playerAttack() {
     // 🔮 幻術士 奇古獸攻擊：裝備奇古獸(必中魔法)或魔劍精通(任意非弓武器套用奇古獸公式) → 走奇古獸路徑，繞過物理命中/迴避
     if (player.cls === 'illusion') {
         let _qw = player.eq.wpn ? DB.items[player.eq.wpn.id] : null;
-        if (_qw && !_qw.isBow && (_qw.qigu || (player.mastery === 'i_magicsword' && !isWandWeapon(_qw)))) { qiguPlayerAttack(target, _qw); return; }   // 🔮 魔劍精通：排除魔杖（魔杖不轉奇古獸必中路徑）
+        if (_qw && !_qw.isBow && (_qw.qigu || (hasMastery('i_magicsword') && !isWandWeapon(_qw)))) { qiguPlayerAttack(target, _qw); return; }   // 🔮 魔劍精通：排除魔杖（魔杖不轉奇古獸必中路徑）
     }
 
     let _sureHit = !!player._darkEvadeSure;   // 🔧 迴避精通：下一次一般攻擊必中（🔮 麗人5/5 已改為「未命中堆疊命中」，不再走必中）
@@ -116,7 +116,7 @@ function playerAttack() {
         if (player.buffs.sk_dragon_flameslash > 0 && !result.ranged) { result.dmg += 7; player.buffs.sk_dragon_flameslash = 0; player._flameSlashFire = true; }   // 🐉 燃燒擊砍：下一次近戰一般攻擊額外傷害+7並轉火屬性（一次性消耗）
         // 🏅 鎖刃精通：「每層弱點曝光最終傷害+10%」改為僅屠宰者生效（一般攻擊不再套用 weakExposeDmgMult）
         if (player.skills.includes('sk_warrior_berserk') && !result.ranged && Math.random() < 0.05) result.dmg *= 2;   // ⚔️ 狂暴：一般攻擊5%機率傷害x2
-        if (player.buffs.sk_royal_bravewill > 0 && Math.random() < (player.mastery === 'k_royal_sword' ? 0.2 : 0.1)) result.dmg = Math.max(1, Math.floor(result.dmg * 1.5));   // 👑 勇猛意志：10%(🏅劍術精通20%)機率一般攻擊傷害×1.5
+        if (player.buffs.sk_royal_bravewill > 0 && Math.random() < (hasMastery('k_royal_sword') ? 0.2 : 0.1)) result.dmg = Math.max(1, Math.floor(result.dmg * 1.5));   // 👑 勇猛意志：10%(🏅劍術精通20%)機率一般攻擊傷害×1.5
         if (wpn && wpn.hardSkinMult && _mainHardSkin > 0) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.hardSkinMult));   // 🦀 巨大鱷魚的狩獵牙：目標有硬皮值時一般攻擊傷害 ×1.5（貫穿故傷害未被硬皮扣減）
         if (wpn && wpn.softMult && _mainHardSkin <= 0) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.softMult));   // 🏺 不死將軍的珍愛巨劍：一般攻擊對「沒有硬皮值」的敵人傷害 ×1.3
         if (wpn && wpn.fullHpMult && target.curHp === target.hp) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.fullHpMult));   // 🏺 遺忘者的狙擊弓：一般攻擊對滿血敵人傷害 ×3（傷害尚未扣、target.curHp 仍為滿血）
@@ -240,8 +240,6 @@ function playerAttack() {
         if (wpn && wpn.onHitCastSkill && target.curHp > 0 && state.ticks >= (player._onHitCastCd || 0)) { player._onHitCastCd = state.ticks + ((wpn.onHitCastSkill.cdSec || 5) * 10); procFreeMagicSkill(target, wpn.onHitCastSkill.skId, capWpnEn((player.eq.wpn && player.eq.wpn.en) || 0), false, wpn); }
         // 🏺 遺物 命中附加固定屬性傷害（幽光的殘念 30火／冰石的強襲鎚 10水·不受魔抗/防禦影響）
         if (target.curHp > 0 && wpn && wpn.onHitEleDmg && (!wpn.onHitEleDmg.rate || Math.random() * 100 < wpn.onHitEleDmg.rate)) { let _oh = wpn.onHitEleDmg; target.curHp -= _oh.dmg; target.justHit = _oh.ele; mobWake(target); logCombat(`<span class="font-bold" style="color:${RELIC_ELE_COLOR[_oh.ele] || '#e2e8f0'};">附加 ${_oh.dmg} 點${RELIC_ELE_LABEL[_oh.ele] || ''}屬性傷害。</span>`, 'player-special'); }   // 🏺 rate：灰燼戰士的火焰長劍 3% 機率；無 rate→必定（幽光/冰石鎚）
-        // 🏺 v3.5.27 水靈的魔力珠：一般攻擊命中「冰凍中」的敵人 → 追加 50 點固定傷害（不受魔抗/防禦影響）
-        if (target.curHp > 0 && wpn && wpn.frozenBonusDmg && target.st && target.st.freeze > 0) { target.curHp -= wpn.frozenBonusDmg; target.justHit = 'water'; mobWake(target); logCombat(`<span class="font-bold text-sky-300">【${wpn.n}】</span>寒氣共鳴，對冰凍目標追加 ${wpn.frozenBonusDmg} 點傷害。`, 'player-special'); }
         // 🏺 遺物 弱點洞察（巨大螞蟻的複眼）：以剋制目標屬性的武器屬性命中→額外固定傷害
         if (target.curHp > 0) { let _whb = _relicWeakHitBonus(player); if (_whb > 0) { let _we = getWpnEle(player.eq.wpn, wpn); if (_we && _we !== 'none' && elementCounterMult(_we, target.e) > 1) { target.curHp -= _whb; target.justHit = _we; mobWake(target); logCombat(`<span class="font-bold text-amber-300">【弱點洞察】</span>擊中屬性弱點，額外造成 ${_whb} 點傷害。`, 'player-special'); } } }
         if (target.curHp <= 0) killMob(mapState.targetIdx);
@@ -330,7 +328,6 @@ function stormBuffTick(sk, noMageBonus) {
         let d = Math.floor(core * mrFactor);
         d = Math.max(1, Math.floor(Math.max(1, d) * elementCounterMult(sk.ele, t.e)));   // ⚔️ 屬性剋制 ×1.4(剋)/×0.6(被剋)（取代舊 +6 固定）
         d = Math.floor(d * mageDmgMult);
-        if (sk.n === '火牢' && player.eq && player.eq.armor && (DB.items[player.eq.armor.id] || {}).firePrisonMult) d = d * DB.items[player.eq.armor.id].firePrisonMult;   // 🏺 v3.5.27 黝黑的烈火皮囊：火牢傷害加倍
         d = Math.max(1, Math.floor(d * rlFuryMult()));   // 🔮 紅獅5/5＋😡狂怒5/5 最終傷害
         d = Math.max(1, Math.floor(d * fragileMult(t) * wpnEnFinalMult(player.eq && player.eq.wpn)));    // 🔮 脆弱（白鳥5）；🔧 武器強化 +11~+20 最終倍率（魔法 DoT，與玩家傷害魔法 castSkill 一致）
         d = illusionMagicDmg(d, true, _illusionIdx === 0); t.curHp -= d; t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic'; mobWake(t);   // 🔮 幻覺2件每次法術僅回一次MP；5件仍逐目標二次傷害
@@ -969,10 +966,9 @@ function _enemyPhysicalAttackInner(mob, idx, stunChance = 0, atkDmg = null, atkD
         // 盾牌格檔：受到傷害減少50%。發動率＝受重擊時為盾牌格檔值（如100%盾→100%）；受非重擊一般攻擊時為其 30%（如100%盾→30%）
         let blocked = false;
         let blockReduced = 0;
-        let _lancePair = player.eq.shield && player.eq.shield.id === 'relic_guard_towershield' && player.eq.wpn && player.eq.wpn.id === 'relic_bk_lance';   // 🏺 v3.5.27 黑騎士的精銳長槍＋漆黑塔盾：格檔100%（重擊/非重擊皆同）·經典模式亦可觸發
-        if(player.eq.shield && (!player.classicMode || _lancePair)) {   // 🎮 經典模式：盾牌無格檔（長槍＋塔盾成對＝例外放行）
+        if(player.eq.shield && !player.classicMode) {   // 🎮 經典模式：盾牌無格檔
             let _sh = DB.items[player.eq.shield.id];
-            let _blockChance = _lancePair ? 100 : ((_sh && _sh.block) ? (heavy ? _sh.block : _sh.block * 0.3) : 0);   // 🛡️ 非重擊：格檔發動率為重擊的 30%
+            let _blockChance = (_sh && _sh.block) ? (heavy ? _sh.block : _sh.block * 0.3) : 0;   // 🛡️ 非重擊：格檔發動率為重擊的 30%
             if(_blockChance > 0 && Math.random() * 100 < _blockChance) { let _before = totalDmg; totalDmg = Math.floor(totalDmg * 0.5); blockReduced = _before - totalDmg; blocked = true; }
         }
 
@@ -1223,9 +1219,8 @@ function enemyAttackAlly(mob, ally) {
     totalDmg = Math.floor(totalDmg * allyBuffDmgReduceMult(ally));   // 🆕 v2.6.12 #5a：傭兵聖結界-30%/龍裔-15%/狂怒5-20%（讀傭兵自身 buff/套裝）
     if (heavy && (d.crushDr || 0) > 0) totalDmg = Math.floor(totalDmg * (1 - Math.min(80, d.crushDr) / 100));   // 🏺 v3.1.76 妖魔的兜襠布（傭兵）：受重擊傷害 -crushDr%（上限80%·鏡像玩家 js/04:811）
     if ((d.physDrGated || 0) > 0 && state.ticks >= (ally._physDrCd || 0)) { totalDmg = Math.floor(totalDmg * (1 - Math.min(90, d.physDrGated) / 100)); ally._physDrCd = state.ticks + 30; }   // 🐍 v3.1.76 祭祀儀式陶罐（傭兵）：受一般攻擊傷害 -%·每 3 秒 1 次（每傭兵獨立節流·鏡像玩家 js/04:812）
-    // 盾牌/臂甲格檔（同玩家公式；經典模式停用·🏺 v3.5.27 長槍＋塔盾成對＝100%且經典亦可·鏡像玩家）
-    { let _alp = ally.eq && ally.eq.shield && ally.eq.shield.id === 'relic_guard_towershield' && ally.eq.wpn && ally.eq.wpn.id === 'relic_bk_lance';
-      if (ally.eq && ally.eq.shield && (!player.classicMode || _alp)) { let _sh = DB.items[ally.eq.shield.id]; let _bc = _alp ? 100 : ((_sh && _sh.block) ? (heavy ? _sh.block : _sh.block * 0.3) : 0); if (_bc > 0 && Math.random() * 100 < _bc) totalDmg = Math.floor(totalDmg * 0.5); } }
+    // 盾牌/臂甲格檔（同玩家公式；經典模式停用）
+    if (ally.eq && ally.eq.shield && !player.classicMode) { let _sh = DB.items[ally.eq.shield.id]; let _bc = (_sh && _sh.block) ? (heavy ? _sh.block : _sh.block * 0.3) : 0; if (_bc > 0 && Math.random() * 100 < _bc) totalDmg = Math.floor(totalDmg * 0.5); }
     totalDmg = Math.floor(totalDmg * mobRageDmgMult(mob));   // 🔥 HP<門檻：攻擊傭兵也套用狂暴傷害
     totalDmg = Math.max(1, Math.floor(Math.max(1, totalDmg) * riftDamageMult()));   // 🌀 裂痕加成（與玩家一致）
     totalDmg = allyDollDamageReduced(ally, totalDmg);   // 🆕 v2.6.10 #3：魔法娃娃機率減免（受物理傷害）
@@ -1654,10 +1649,7 @@ function _applyMobMagicInner(mob, sk) {
         let base = (sk.pbase !== undefined ? sk.pbase : 60);
         if(sk.cd === 100 && mob.n === "卡司特王") base = 100;
         let chance = Math.max(0, (base - player.d.mr) / 2);
-        if(Math.random() * 100 < chance && !player.dead) {
-            if (player.d && player.d.immSilence) { logCombat(`<span class="text-amber-300 font-bold">【被敲爛的半邊頭盔】</span>抵擋了 <span class="${getMobColor(mob.lv)}">${mob.n}</span> 的沉默！`, 'player-special'); }   // 🏺 v3.5.27 免疫沉默
-            else { player.statuses.silence = 60; logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放${sk.skn || '魔法'}，你被沉默了！`, 'enemy'); }
-        }
+        if(Math.random() * 100 < chance && !player.dead) { player.statuses.silence = 60; logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放${sk.skn || '魔法'}，你被沉默了！`, 'enemy'); }
         return;
     }
     if(sk.type === 'magicseal') {
@@ -2014,7 +2006,7 @@ function rollPledgeDropEnhance(safe) {
     return Math.min(lvl, safe);
 }
 
-// 野外+血盟敵人擊殺掉寶：1% 機率獲得 1 件物品（抽法同潘朵拉黑市權重 getWeightedGachaResult；詞綴走新制——只可能獲得「祝福的」1%，屬性/遠古改由象牙塔『碧恩』取得；仍依安定值附帶強化等級）
+// 野外+血盟敵人擊殺掉寶：1% 機率獲得 1 件物品（抽法同潘朵拉抽獎卷；詞綴走新制——只可能獲得「祝福的」1%，屬性/遠古改由象牙塔『碧恩』取得；仍依安定值附帶強化等級）
 function pledgeBonusDrop(mob) {
     if (Math.random() >= 0.01 * classicDropMult()) return;   // 1% 機率（🎮 經典模式：×1/10）
     let id = getWeightedGachaResult(true);   // 🔧 血盟野外＋攻城敵人：權重 1 以外的物品以 2 倍權重抽取（權重100→200）
