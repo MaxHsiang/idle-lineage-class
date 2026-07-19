@@ -450,7 +450,7 @@ function renderUniversalCraft(div, npcId) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -504,7 +504,7 @@ function buildDemonKingCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -567,7 +567,7 @@ function buildLumielCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -632,7 +632,7 @@ function buildMysticWandCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -689,7 +689,7 @@ function buildSlayerCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -738,7 +738,7 @@ function renderMoliCraft(div) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -769,7 +769,7 @@ function renderBraboCraft(div) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -799,7 +799,7 @@ function renderFinnCraft(div, npcId) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -829,7 +829,7 @@ function renderJoelCraft(div, npcId) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -1097,6 +1097,8 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine 參數保留簽�
 
     saveGame();
 }
+let gachaRolling = false; // 防止玩家狂點按鈕
+
 function renderPandoraGacha(div) {
     // 🔧 潘朵拉黑市（取代舊抽獎機）：每 10 分鐘上架一件商品，可直接購買
     _pandoraDiv = div;
@@ -1105,8 +1107,79 @@ function renderPandoraGacha(div) {
     try { renderPandoraBanner(); } catch (e) {}
     try { saveGame(); } catch (e) {}          // 🔧 點擊潘朵拉即自動存檔，鎖定當下商品與剩餘時間
     pandoraRenderMarket(div);
+    return;
+    /* ===== 以下為舊抽獎機 UI，已停用（保留不執行） ===== */
+    let ticketId = "new_item_239";
+    let ticketItem = player.inv.find(i => i.id === ticketId);
+    let ticketCount = (ticketItem && ticketItem.cnt > 0) ? ticketItem.cnt : 0;
+    if (!window._gachaMode) window._gachaMode = 'single';
+    let mode = window._gachaMode;
+
+    let cells = '';
+    for (let k = 0; k < 10; k++) {
+        cells += `<div class="bg-slate-900 border-2 border-purple-700 rounded-lg aspect-square overflow-hidden"><div class="gacha10-icon w-full h-full flex items-center justify-center text-xl" data-idx="${k}">❓</div></div>`;
+    }
+
+    let html = `
+    <div class="flex flex-col items-center justify-start h-full p-4 w-full">
+        <h3 class="text-3xl font-bold text-purple-400 mb-1 drop-shadow-md">潘朵拉的黑市</h3>
+        <p class="text-slate-300 text-xs mb-1 text-center">擁有潘朵拉抽獎卷：<span id="gacha-ticket-count" class="text-green-400 font-bold">${ticketCount}</span> 張</p>
+        <p class="text-slate-400 text-xs mb-3 text-center">抽中的武器 / 防具 / 飾品各有 1% 機率帶有 屬性 / 遠古 / 祝福 詞綴！</p>
+
+        <div class="flex gap-2 mb-4">
+            <button id="gacha-tab-single" class="btn py-1.5 px-4 text-sm rounded-full ${mode==='single'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}" onclick="setGachaMode('single')">單抽</button>
+            <button id="gacha-tab-ten" class="btn py-1.5 px-4 text-sm rounded-full ${mode==='ten'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}" onclick="setGachaMode('ten')">10 連抽</button>
+        </div>
+
+        <div id="gacha-single" class="${mode==='single'?'':'hidden'} flex flex-col items-center w-full">
+            <div id="gacha-display" class="w-44 h-44 bg-slate-900 border-4 border-purple-700 rounded-xl shadow-[0_0_30px_rgba(126,34,206,0.6)] flex flex-col items-center justify-center mb-4 relative overflow-hidden">
+                <span class="text-6xl" id="gacha-icon">❓</span>
+                <div id="gacha-name" class="absolute bottom-0 w-full text-center text-sm font-bold text-white bg-black/80 px-2 py-1.5 hidden"></div>
+            </div>
+            <button id="btn-gacha" class="btn bg-purple-700 hover:bg-purple-600 border-purple-500 py-3 px-8 text-lg font-bold rounded-full shadow-[0_0_15px_rgba(126,34,206,0.5)] transition-all transform hover:scale-105" onclick="doPandoraGacha()">
+                🎰 抽獎（${ticketCount>0?'1 張抽獎卷':(shopPrice(30000).toLocaleString()+' 金幣')}）
+            </button>
+        </div>
+
+        <div id="gacha-ten" class="${mode==='ten'?'':'hidden'} flex flex-col items-center w-full">
+            <div class="grid grid-cols-5 gap-1.5 w-full max-w-sm mb-3">${cells}</div>
+            <button id="btn-gacha10" class="btn bg-purple-700 hover:bg-purple-600 border-purple-500 py-3 px-8 text-lg font-bold rounded-full shadow-[0_0_15px_rgba(126,34,206,0.5)] transition-all transform hover:scale-105" onclick="doPandoraGacha10()">
+                🎰 10 連抽（${ticketCount>=10?'10 張抽獎卷':(shopPrice(300000).toLocaleString()+' 金幣')}）
+            </button>
+            <div id="gacha10-results" class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-3 text-sm"></div>
+        </div>
+
+        <p id="gacha-msg" class="text-yellow-300 mt-3 font-bold text-base min-h-8 text-center"></p>
+    </div>
+    `;
+
+    div.innerHTML = html;
 }
 
+// 切換單抽 / 10連抽（抽獎進行中不可切換）
+function setGachaMode(m) {
+    if (gachaRolling) return;
+    window._gachaMode = m;
+    document.getElementById('gacha-single').classList.toggle('hidden', m !== 'single');
+    document.getElementById('gacha-ten').classList.toggle('hidden', m !== 'ten');
+    document.getElementById('gacha-tab-single').className = `btn py-1.5 px-4 text-sm rounded-full ${m==='single'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}`;
+    document.getElementById('gacha-tab-ten').className = `btn py-1.5 px-4 text-sm rounded-full ${m==='ten'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}`;
+    document.getElementById('gacha-msg').innerHTML = '';
+}
+
+// 更新面板上顯示的抽獎卷數量，並依目前卷數重新判斷兩個抽獎按鈕的成本顯示：
+//   單抽：有 ≥1 張→只顯示「1 張抽獎卷」；不足→只顯示「30,000 金幣」。
+//   10連：有 ≥10 張→只顯示「10 張抽獎卷」；不足（含有卷但<10）→只顯示「300,000 金幣」。
+function refreshGachaTicketCount() {
+    let t = player.inv.find(i => i.id === 'new_item_239');
+    let cnt = t ? t.cnt : 0;
+    let el = document.getElementById('gacha-ticket-count');
+    if (el) el.innerText = cnt;
+    let b1 = document.getElementById('btn-gacha');
+    if (b1) b1.innerHTML = `🎰 抽獎（${cnt > 0 ? '1 張抽獎卷' : (shopPrice(30000).toLocaleString()+' 金幣')}）`;
+    let b10 = document.getElementById('btn-gacha10');
+    if (b10) b10.innerHTML = `🎰 10 連抽（${cnt >= 10 ? '10 張抽獎卷' : (shopPrice(300000).toLocaleString()+' 金幣')}）`;
+}
 
 
 // 🔧 已刪除重複定義的 getWeightedGachaResult（死碼）：與下方版本逐行等價，僅後者生效。
@@ -1170,14 +1243,13 @@ function getWeightedGachaResult(doubleNonRare) {
 }
 
 // ==========================================
-// 🔧 潘朵拉黑市：一次陳列 24 件商品（桌面 3 欄 × 8 列；icon/名稱/價格/購買·能力走 tooltip）。
-//    每 10 分鐘輪換 1 格（round-robin），每件商品自上架起持續 240 分鐘（24 格 × 10 分鐘一圈）才再刷新。
-//    以遊戲 tick 計時（存讀檔保留·離線經補跑自然推進）；離線超過一圈(240分鐘)直接全面換貨。
+// 🔧 潘朵拉黑市 v3.0.81：一次陳列 20 件商品（緊湊格·icon/名稱/價格/購買·能力走 tooltip）。
+//    每 5 分鐘輪換 1 格（round-robin），每件商品自上架起持續 100 分鐘（20 格 × 5 分鐘一圈）才再刷新。
+//    以遊戲 tick 計時（存讀檔保留·離線經補跑自然推進）；離線超過一圈(100分鐘)直接全面換貨。
 //    出現機率＝原始 gachaWeight（v3.0.81 起 initGachaWeights 的 ≥50 ×2 加倍已移除）。
 // ==========================================
-const PANDORA_SLOT_COUNT = 24;
-const PANDORA_SLOT_TICKS = 6000;   // 10 分鐘 = 600 秒 × 10 tick/秒
-const PANDORA_LIFETIME_TICKS = PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT;   // 240 分鐘
+const PANDORA_SLOT_COUNT = 20;
+const PANDORA_SLOT_TICKS = 3000;   // 5 分鐘 = 300 秒 × 10 tick/秒（每 5 分鐘輪換一格 → 每格 100 分鐘刷新一次）
 let _pandoraDiv = null;            // 目前黑市面板容器（購買/輪換後重繪用）
 
 // 🔧 v3.0.81 售價公式（使用者規格）：權重 w 夾 [1,100]
@@ -1194,15 +1266,62 @@ function pandoraPrice(id) {
     return Math.max(1, Math.round(base * mult));
 }
 
+const PANDORA_BUY_EQUIP_SLOTS = new Set(['helm', 'armor', 'cloak', 'gloves', 'boots', 'tshirt', 'shield', 'ring', 'amulet', 'belt']);
+
+function pandoraIsEarring(id, d) {
+    let n = String((d && d.n) || '');
+    let slot = String((d && d.slot) || '');
+    return slot === 'ear' || slot === 'ear1' || slot === 'ear2' || /^acc_.*ear/.test(String(id || '')) || n.includes('耳環');
+}
+
+function pandoraIsPlayerWearableEquip(id, d) {
+    if (!d || d.relic || d.remains || d.doll || d.isArrow) return false;
+    if (d.slot === 'petwpn' || d.slot === 'petarm') return false;
+    if (d.type === 'wpn') return true;
+    if (d.type === 'arm') return PANDORA_BUY_EQUIP_SLOTS.has(String(d.slot || ''));
+    if (d.type === 'acc') return PANDORA_BUY_EQUIP_SLOTS.has(String(d.slot || '')) && !pandoraIsEarring(id, d);
+    return false;
+}
+
+function pandoraBuyOrderAllowed(id) {
+    let d = DB.items[id];
+    if (!d || !d.n || d.relic || d.remains || d.doll) return false;
+    if (pandoraIsEarring(id, d)) return false;
+    if (/^item_pride_dom_/.test(String(id || '')) || String(d.n || '').includes('支配符')) return false;
+    if (d.type === 'skillbk') return true;
+    return pandoraIsPlayerWearableEquip(id, d);
+}
+
+function pandoraBuyOrderPriceProfile(id) {
+    let d = DB.items[id] || {};
+    let premium = d.type === 'skillbk' || (d.legend && pandoraIsPlayerWearableEquip(id, d));
+    let minMult = premium ? 100 : 10;
+    let maxMult = premium ? 2000 : 1000;
+    let base = Math.max(0, Number(d.p) || 0);
+    if (base <= 0 && pandoraIsPlayerWearableEquip(id, d)) base = 100000;
+    if (base <= 0) base = 1000;
+    return {
+        base: base,
+        minMult: minMult,
+        maxMult: maxMult
+    };
+}
+
+function pandoraBuyOrderPrice(id) {
+    let r = pandoraBuyOrderPriceProfile(id);
+    let mult = r.minMult + Math.floor(Math.random() * (r.maxMult - r.minMult + 1));
+    return Math.max(1, Math.round(r.base * mult));
+}
+
 // 上架一件新商品：若有收購單，先替指定物品擲一次市場價；市場價不高於喊價才命中，
 // 並以玩家喊價上架。失敗時不影響收購單，改走正常權重抽選。
 function _pandoraStock(nowT, market) {
     let order = market && market.buyOrder;
-    if (order && DB.items[order.id] && (DB.items[order.id].gachaWeight || 0) > 0 && Number.isSafeInteger(order.price) && order.price > 0) {
-        let rolledPrice = pandoraPrice(order.id);
+    if (order && pandoraBuyOrderAllowed(order.id) && Number.isSafeInteger(order.price) && order.price > 0) {
+        let rolledPrice = pandoraBuyOrderPrice(order.id);
         if (rolledPrice <= order.price) {
             let od = DB.items[order.id];
-            let hit = { id: order.id, price: order.price, weight: od.gachaWeight || 100, setTick: nowT, sold: false, buyOrder: true };
+            let hit = { id: order.id, price: order.price, weight: od.gachaWeight || (od.legend ? 1 : 100), setTick: nowT, sold: false, buyOrder: true };
             market.buyOrder = null;   // 單一收購單命中即完成，不再重複上架
             market.notice = { type: 'success', text: `玩家收購物品上架了：${od.n}（${order.price.toLocaleString()} 金幣）` };
             return hit;
@@ -1228,7 +1347,7 @@ function _pandoraNoticeHTML(m) {
     return `<span class="${c}">${_pandoraEsc(n.text)}</span>`;
 }
 
-// 收購名稱自動提示：輸入至少 2 個連續字元後，以名稱片段搜尋實際可進潘朵拉市場的物品。
+// 收購名稱自動提示：輸入至少 2 個連續字元後，搜尋可指定收購的魔法書與一般穿著裝備。
 function pandoraSuggestBuyItems(value) {
     let box = document.getElementById('pandora-buy-suggestions');
     if (!box) return;
@@ -1247,19 +1366,20 @@ function pandoraSuggestBuyItems(value) {
         }
     } catch (e) {}
     let seen = new Set();
-    let names = Object.keys(DB.items).map(id => DB.items[id]).filter(d => {
-        if (!d || !d.n || (d.gachaWeight || 0) <= 0 || !d.n.includes(q) || seen.has(d.n)) return false;
-        seen.add(d.n); return true;
-    }).map(d => d.n).sort((a, b) => {
-        let ap = a.startsWith(q) ? 0 : 1, bp = b.startsWith(q) ? 0 : 1;
-        return ap - bp || a.length - b.length || a.localeCompare(b, 'zh-Hant');
+    let suggestions = Object.keys(DB.items).reduce((arr, id) => {
+        let d = DB.items[id];
+        if (!d || !d.n || !pandoraBuyOrderAllowed(id) || !d.n.includes(q) || seen.has(d.n)) return arr;
+        seen.add(d.n); arr.push({ id: id, n: d.n }); return arr;
+    }, []).sort((a, b) => {
+        let ap = a.n.startsWith(q) ? 0 : 1, bp = b.n.startsWith(q) ? 0 : 1;
+        return ap - bp || a.n.length - b.n.length || a.n.localeCompare(b.n, 'zh-Hant');
     }).slice(0, 8);
-    if (!names.length) {
-        box.innerHTML = '<div class="pandora-buy-suggestion-empty">沒有可販售的相符物品</div>';
+    if (!suggestions.length) {
+        box.innerHTML = '<div class="pandora-buy-suggestion-empty">沒有可指定收購的相符物品</div>';
     } else {
-        box.innerHTML = names.map(n =>
-            `<button type="button" class="pandora-buy-suggestion" data-name="${encodeURIComponent(n)}"
-                onclick="pandoraChooseBuyItem(decodeURIComponent(this.dataset.name))">${_pandoraEsc(n)}</button>`
+        box.innerHTML = suggestions.map(it =>
+            `<button type="button" class="pandora-buy-suggestion" data-name="${encodeURIComponent(it.n)}"
+                onclick="pandoraChooseBuyItem(decodeURIComponent(this.dataset.name))"><span class="${getItemColor({ id: it.id })}">${_pandoraEsc(it.n)}</span></button>`
         ).join('');
     }
     box.classList.remove('hidden');
@@ -1273,7 +1393,7 @@ function pandoraChooseBuyItem(name) {
     if (box) { box.innerHTML = ''; box.classList.add('hidden'); }
 }
 
-// 設定單一收購單：物品名稱必須完全吻合，且必須屬於潘朵拉會販售的權重池。
+// 設定單一收購單：物品名稱必須完全吻合，且僅限魔法書與耳環以外的一般穿著裝備。
 function pandoraSetBuyOrder() {
     let m = player && player.pandoraMarket2;
     if (!m) return;
@@ -1289,13 +1409,13 @@ function pandoraSetBuyOrder() {
     if (!name || !matches.length) {
         _pandoraSetNotice(m, 'error', '無此物品，請輸入完整且正確的物品名稱。');
     } else {
-        let sellable = matches.filter(id => (DB.items[id].gachaWeight || 0) > 0);
-        if (!sellable.length) {
-            _pandoraSetNotice(m, 'error', '目前沒人販售此物品。');
+        let orderable = matches.filter(id => pandoraBuyOrderAllowed(id));
+        if (!orderable.length) {
+            _pandoraSetNotice(m, 'error', '此物品不可指定收購；耳環、消耗品、材料、支配符等無法指定。');
         } else if (!Number.isSafeInteger(price) || price <= 0) {
             _pandoraSetNotice(m, 'error', '請輸入正確的正整數收購價格。');
         } else {
-            let id = sellable[0];
+            let id = orderable[0];
             m.buyOrder = { id: id, price: price, setTick: (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0 };
             _pandoraSetNotice(m, 'info', `已登記收購：${DB.items[id].n}，最高 ${price.toLocaleString()} 金幣。`);
             try { saveGame(); } catch (e) {}
@@ -1321,12 +1441,7 @@ function _pandoraLogLatest(slot) {
     let d = DB.items[slot.id]; if (!d) return;
     try { document.querySelectorAll('#sys-log .pandora-stock-log').forEach(sp => { let le = sp.closest('.log-entry'); if (le) le.remove(); }); } catch (e) {}
     let rare = slot.weight === 1;
-    let lead = slot.buyOrder ? '玩家收購物品上架了：' : (rare ? '珍稀商品 ' : '新上架 ');
-    logSys(`<span class="pandora-stock-log"><span class="text-purple-300 font-bold">📢【潘朵拉黑市】</span>${lead}<span class="${getItemColor({ id: slot.id })}">${d.n}</span>（${slot.price.toLocaleString()} 金幣）${rare ? '！' : '。'}</span>`);
-}
-function _pandoraLogBuyOrder(slot) {
-    let d = slot && DB.items[slot.id]; if (!d) return;
-    logSys(`<span class="pandora-buyorder-log"><span class="text-amber-300 font-bold">📢【潘朵拉收購】</span>玩家收購物品上架了：<span class="${getItemColor({ id: slot.id })}">${d.n}</span>（${slot.price.toLocaleString()} 金幣）。</span>`);
+    logSys(`<span class="pandora-stock-log"><span class="text-purple-300 font-bold">📢【潘朵拉黑市】</span>${rare ? '珍稀商品 ' : '新上架 '}<span class="${getItemColor({ id: slot.id })}">${d.n}</span>（${slot.price.toLocaleString()} 金幣）${rare ? '！' : '。'}</span>`);
 }
 
 // 黑市輪換（js/03 每 10 秒呼叫一次；force＝全面換貨）。回傳本次是否有商品刷新。
@@ -1334,30 +1449,19 @@ function refreshPandoraMarket(force) {
     if (typeof player === 'undefined' || !player) return false;
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
     let m = player.pandoraMarket2;
-    let changed = false, latest = null, orderHit = null;
+    let changed = false, latest = null;
     let bad = !m || !Array.isArray(m.slots) || m.slots.length !== PANDORA_SLOT_COUNT || m.slots.some(s => !s || !DB.items[s.id]);
-    if (force || bad || (nowT - (m ? (m.lastTick || 0) : 0)) >= PANDORA_LIFETIME_TICKS) {
+    if (force || bad || (nowT - (m ? (m.lastTick || 0) : 0)) >= PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT) {
         // 初次進場／資料損壞／離線超過一圈：全面換貨（日誌只公告最新一件，不洗版）
-        let nextMarket = {
-            slots: [], seq: 0, lastTick: nowT, lastIdx: PANDORA_SLOT_COUNT - 1,
-            buyOrder: m && m.buyOrder ? m.buyOrder : null,
-            notice: m && m.notice ? m.notice : null
-        };
-        for (let i = 0; i < PANDORA_SLOT_COUNT; i++) {
-            let s = _pandoraStock(nowT, nextMarket);
-            if (s.buyOrder) orderHit = s;
-            nextMarket.slots.push(s);
-        }
-        let slots = nextMarket.slots;
-        m = player.pandoraMarket2 = nextMarket;
+        let slots = []; for (let i = 0; i < PANDORA_SLOT_COUNT; i++) slots.push(_pandoraStock(nowT));
+        m = player.pandoraMarket2 = { slots: slots, seq: 0, lastTick: nowT, lastIdx: PANDORA_SLOT_COUNT - 1 };
         latest = slots[PANDORA_SLOT_COUNT - 1]; changed = true;
     } else {
         let n = 0;
         while ((nowT - m.lastTick) >= PANDORA_SLOT_TICKS && n < PANDORA_SLOT_COUNT) {
             m.lastTick += PANDORA_SLOT_TICKS;
-            let i = (m.seq || 0) % PANDORA_SLOT_COUNT;   // round-robin：每格恰好 240 分鐘輪到一次
-            m.slots[i] = _pandoraStock(nowT, m);
-            if (m.slots[i].buyOrder) orderHit = m.slots[i];
+            let i = (m.seq || 0) % PANDORA_SLOT_COUNT;   // round-robin：每格恰好 100 分鐘輪到一次
+            m.slots[i] = _pandoraStock(nowT);
             latest = m.slots[i]; m.lastIdx = i;
             m.seq = (m.seq || 0) + 1; n++; changed = true;
         }
@@ -1365,9 +1469,8 @@ function refreshPandoraMarket(force) {
     if (!changed) return false;
     if (latest) {
         _pandoraLogLatest(latest);   // 🔧 物品系統日誌只顯示最新刷新的物品
-        if (orderHit && orderHit !== latest) _pandoraLogBuyOrder(orderHit);   // 離線補跑／全面換貨中若較早的格命中收購，仍要獨立提示玩家
         // 珍稀(權重1)橫幅：最新上架為珍稀→公告之；否則若原公告品仍在架上未售出則保留、已下架/售出則清除
-        player.pandoraAnnounce = (orderHit && orderHit.weight === 1) ? orderHit.id : (latest.weight === 1) ? latest.id
+        player.pandoraAnnounce = (latest.weight === 1) ? latest.id
             : (player.pandoraAnnounce && m.slots.some(s => s && s.id === player.pandoraAnnounce && !s.sold) ? player.pandoraAnnounce : null);
     }
     try { renderPandoraBanner(); } catch (e) {}
@@ -1425,7 +1528,7 @@ function pandoraTipShow(ev, i) {
     let inst = { id: s.id };
     let desc = ''; try { desc = buildItemDescHTML(inst); } catch (e) {}
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
-    let mins = Math.max(1, Math.ceil((PANDORA_LIFETIME_TICKS - (nowT - (s.setTick || 0))) / 600));
+    let mins = Math.max(1, Math.ceil((PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT - (nowT - (s.setTick || 0))) / 600));
     let el = _pandoraTipEl();
     el.innerHTML = `<div class="font-bold ${getItemColor(inst)}">${getItemFullName(inst)}</div>
         <div class="text-yellow-300 font-bold">售價 ${s.price.toLocaleString()} 金幣${s.weight === 1 ? '<span style="color:#c084fc;">（珍稀）</span>' : ''}${s.sold ? '<span style="color:#64748b;">（已售出）</span>' : ''}</div>
@@ -1444,7 +1547,7 @@ function pandoraTipMove(ev) {
 }
 function pandoraTipHide() { let el = document.getElementById('pandora-tooltip'); if (el) el.style.display = 'none'; }
 
-// 繪製黑市面板：24 件商品（桌面 3×8）·只顯示 icon／名稱／價格／購買·能力用 tooltip
+// 繪製黑市面板：20 件商品緊湊格（4×5）·只顯示 icon／名稱／價格／購買·能力用 tooltip
 function pandoraRenderMarket(div) {
     if (!div) return;
     _pandoraDiv = div;
@@ -1453,36 +1556,22 @@ function pandoraRenderMarket(div) {
     if (!m) { div.innerHTML = '<div class="p-6 text-center text-slate-300">黑市目前沒有商品，請稍候。</div>'; return; }
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
     let nextMin = Math.max(1, Math.ceil((PANDORA_SLOT_TICKS - (nowT - (m.lastTick || 0))) / 600));
-    let order = m.buyOrder;
-    let orderItem = order && DB.items[order.id];
-    let buyerName = String(player.name || '').trim() || ({
-        royal: '王族', knight: '騎士', mage: '法師', elf: '妖精',
-        dark: '黑暗妖精', illusion: '幻術士', dragon: '龍騎士', warrior: '戰士'
-    }[player.cls] || '玩家');
-    let orderName = orderItem ? orderItem.n : '';
-    let orderPrice = order && Number.isSafeInteger(order.price) ? String(order.price) : '';
-    let relicBalance = '';
-    let relicBoard = '';
-    try {
-        if (typeof pandoraRelicBalanceHTML === 'function') relicBalance = pandoraRelicBalanceHTML();
-        if (typeof pandoraRelicBoardHTML === 'function') relicBoard = pandoraRelicBoardHTML();
-    } catch (e) {}
     let cards = m.slots.map((s, i) => {
         let d = s && DB.items[s.id]; if (!d) return '';
         let inst = { id: s.id };
         let rare = s.weight === 1;
         let afford = (player.gold || 0) >= s.price;
         let border = s.sold ? 'border-slate-700' : rare ? 'border-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.45)]' : 'border-slate-600';
-        // 三欄橫條：圖示｜名稱/價格｜購買鈕；卡片加寬後保留完整名稱與清楚點擊區。
+        // 🔧 v3.0.87 緊湊「單行橫條」：圖示｜名稱/價格｜購買鈕（右側·窄）→ 每列高度約砍半，5 橫排可完整顯示、少捲動
         let btn = s.sold
-            ? `<button disabled class="btn shrink-0 bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed font-bold rounded pandora-card-buy">售出</button>`
-            : `<button onclick="buyPandoraItem(${i})" ${afford ? '' : 'disabled'} class="btn shrink-0 ${afford ? 'bg-purple-700 hover:bg-purple-600 border-purple-500' : 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed'} font-bold rounded pandora-card-buy">購買</button>`;
-        return `<div class="pandora-market-card rounded-md border ${border} bg-slate-900/80 flex items-center ${s.sold ? 'opacity-70' : ''}"
+            ? `<button disabled class="btn shrink-0 bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed font-bold rounded" style="font-size:10px;padding:2px 6px;">售出</button>`
+            : `<button onclick="buyPandoraItem(${i})" ${afford ? '' : 'disabled'} class="btn shrink-0 ${afford ? 'bg-purple-700 hover:bg-purple-600 border-purple-500' : 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed'} font-bold rounded" style="font-size:10px;padding:2px 7px;">購買</button>`;
+        return `<div class="rounded-md border ${border} bg-slate-900/80 flex items-center gap-1 ${s.sold ? 'opacity-70' : ''}" style="padding:2px 4px;"
             onmouseenter="pandoraTipShow(event,${i})" onmousemove="pandoraTipMove(event)" onmouseleave="pandoraTipHide()">
-            <img src="${getIconUrl(d)}" onerror="this.src='https://placehold.co/40x40/1e293b/ffffff?text=?';" class="pandora-card-icon shrink-0 object-contain ${s.sold ? 'grayscale opacity-40' : getGlowClass(inst, d)}">
+            <img src="${getIconUrl(d)}" onerror="this.src='https://placehold.co/40x40/1e293b/ffffff?text=?';" class="shrink-0 object-contain ${s.sold ? 'grayscale opacity-40' : getGlowClass(inst, d)}" style="width:22px;height:22px;">
             <div class="min-w-0 flex-1">
-                <div class="pandora-card-name font-bold leading-none truncate ${getItemColor(inst)}">${d.n}${s.buyOrder ? '<span class="pandora-order-tag">收購</span>' : ''}</div>
-                <div class="pandora-card-price text-yellow-300 font-bold leading-none truncate">${s.price.toLocaleString()}<span class="text-slate-500"> 金</span></div>
+                <div class="font-bold leading-none truncate ${getItemColor(inst)}" style="font-size:11px;">${d.n}</div>
+                <div class="text-yellow-300 font-bold leading-none truncate" style="font-size:10px;margin-top:2px;">${s.price.toLocaleString()}<span class="text-slate-500" style="font-size:8px;"> 金</span></div>
             </div>
             ${btn}
         </div>`;
@@ -1507,7 +1596,7 @@ function pandoraRenderMarket(div) {
                 <button class="btn pandora-buy-submit font-bold" onclick="pandoraSetBuyOrder()">確認收購</button>
             </div>
             <div class="pandora-buy-status">
-                <span>${orderItem ? `<b class="text-amber-200">${_pandoraEsc(buyerName)}</b>：<b class="text-yellow-300">${order.price.toLocaleString()}</b> 金幣收 <b class="${getItemColor({ id: order.id })}">${_pandoraEsc(orderItem.n)}</b>，意者自行上架` : '目前沒有收購單；輸入完整物品名稱與最高收購價。'}</span>
+                <span>${orderItem ? `<b class="text-amber-200">${_pandoraEsc(buyerName)}</b>：<b class="text-yellow-300">${order.price.toLocaleString()}</b> 金幣收 <b class="${getItemColor({ id: order.id })}">${_pandoraEsc(orderItem.n)}</b>，意者自行上架` : '目前沒有收購單；可指定魔法書與耳環以外的穿著裝備，未指定仍依原黑市池上架。'}</span>
                 ${orderItem ? '<button class="pandora-buy-cancel" onclick="pandoraCancelBuyOrder()">取消收購</button>' : ''}
             </div>
         </div>
@@ -1515,7 +1604,6 @@ function pandoraRenderMarket(div) {
         ${relicBoard}
         <p id="pandora-msg" class="font-bold text-center shrink-0 empty:hidden">${_pandoraNoticeHTML(m)}</p>
     </div>`;
-    try { if (typeof pandoraRelicBindBoardCountdowns === 'function') pandoraRelicBindBoardCountdowns(); } catch (e) {}
 }
 
 // 購買指定格商品（即所見、不附帶詞綴；售出格保持「已售出」直到該格輪換）
@@ -1540,6 +1628,252 @@ function buyPandoraItem(i) {
     let e2 = msgEl(); if (e2) e2.innerHTML = '<span class="text-green-400">購買成功！</span>';
 }
 
+// ==========================================
+// 修改後的潘朵拉黑市抽獎主程式 (支援抽獎卷與大獎特效版)
+// ==========================================
+function doPandoraGacha() {
+    if (gachaRolling) return;
+    
+    let cost = shopPrice(30000); // 金幣消耗（攻城獲勝期間 8 折）
+    let ticketId = "new_item_239"; // 潘朵拉抽獎卷的 ID
+    let usedTicket = false;
+    
+    // 1. 判斷是否有抽獎卷 (假設玩家背包為 player.inv 陣列，請依實際情況調整)
+    let ticketIndex = player.inv.findIndex(i => i.id === ticketId);
+    let hasTicket = (ticketIndex !== -1 && player.inv[ticketIndex].cnt > 0);
+
+    if (hasTicket) {
+        // 優先消耗抽獎卷
+        player.inv[ticketIndex].cnt -= 1;
+        if (player.inv[ticketIndex].cnt <= 0) {
+            player.inv.splice(ticketIndex, 1); // 數量歸零時從背包移除
+        }
+        usedTicket = true;
+    } else {
+        // 沒有抽獎卷才消耗金幣
+        if (player.gold < cost) {
+            document.getElementById('gacha-msg').innerHTML = `<span class="text-red-400">潘朵拉抽獎卷與金幣皆不足！(需 ${cost} 金幣)</span>`;
+            return;
+        }
+        player.gold -= cost;
+    }
+
+    // 紀錄這次花費了什麼，用於最後的廣播訊息
+    let costText = usedTicket ? "1 張潘朵拉抽獎卷" : `${cost} 金幣`;
+
+    // 扣款後【立刻存檔】
+    updateUI(); 
+    saveGame(); 
+    
+    refreshGachaTicketCount();
+
+    // 🔧 修復：結果在扣款後「立即」結算入包並存檔，動畫純為展示。
+    // 原本結算寫在動畫回呼內：動畫期間切換面板會令 getElementById 取得 null 而拋錯，
+    // gachaRolling 永遠無法復位 → 單抽/十連按鈕全部失效；且扣款後關頁會付費未取貨。
+    let finalId = getWeightedGachaResult();
+    _tradLootCtx = true;                                         // 🏛️ 傳統模式：潘朵拉抽獎裝備隨機自帶強化值
+    let gainedItem; try { gainedItem = gainItem(finalId, 1, false, false, true); } finally { _tradLootCtx = false; }   // 潘朵拉：詞綴維持舊制（各1%）（try/finally 防殘留洩漏）
+    if (!gainedItem) gainedItem = { id: finalId, en: 0, bless: false, anc: false, attr: false, cnt: 1 };
+    saveGame();
+
+    gachaRolling = true;
+    let btn = document.getElementById('btn-gacha');
+    btn.disabled = true;
+    btn.classList.remove('hover:scale-105');
+    document.getElementById('gacha-msg').innerHTML = '<span class="text-slate-300">命運的齒輪開始轉動...</span>';
+    document.getElementById('gacha-name').classList.add('hidden');
+    
+    // 👇 特效重置：確保每次拉霸前，把框線恢復成原本的「紫色」
+    let gachaBox = document.getElementById('gacha-display');
+    gachaBox.classList.remove('border-yellow-400', 'shadow-[0_0_60px_rgba(250,204,21,0.8)]', 'animate-pulse');
+    gachaBox.classList.add('border-purple-700', 'shadow-[0_0_30px_rgba(126,34,206,0.6)]');
+    
+    let displayIcon = document.getElementById('gacha-icon');
+    let itemIds = Object.keys(DB.items);
+    
+    let rollCount = 0;
+    let rollInterval = setInterval(() => {
+        if (!displayIcon.isConnected) {   // 🔧 面板已被切換/覆寫：中止動畫並復位（獎品已入包、已存檔）
+            clearInterval(rollInterval);
+            gachaRolling = false;
+            return;
+        }
+        // 動畫期間：繼續保持完全隨機展示，營造期待感
+        let randomTempId = itemIds[Math.floor(Math.random() * itemIds.length)];
+        let tempImg = getIconUrl(DB.items[randomTempId]);
+        displayIcon.innerHTML = `<img src="${tempImg}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-24 h-24 object-contain opacity-60">`;
+        rollCount++;
+        
+        if (rollCount > 15) { 
+            clearInterval(rollInterval);
+            
+            // 🔧 獎品已於動畫前結算（finalId/gainedItem 由外層閉包帶入），此處僅做展示
+            let d = DB.items[gainedItem.id] || DB.items[finalId];
+            let finalImg = getIconUrl(d);
+            let glowClass = getGlowClass(gainedItem, d);
+            
+            let fullName = getItemFullName(gainedItem);
+            let colorClass = getItemColor(gainedItem);
+            let nameBox = document.getElementById('gacha-name');
+            nameBox.innerHTML = `<span class="${colorClass}">${fullName}</span>`;
+            nameBox.classList.remove('hidden');
+
+            // 🌟🌟🌟 判斷是否為「傳說大獎」 (權重等於 1) 🌟🌟🌟
+            let isJackpot = (d.gachaWeight === 1);
+
+            if (isJackpot) {
+                // 1. 外框變色：移除紫色，換上閃爍的「金色強光」
+                gachaBox.classList.remove('border-purple-700', 'shadow-[0_0_30px_rgba(126,34,206,0.6)]');
+                gachaBox.classList.add('border-yellow-400', 'shadow-[0_0_60px_rgba(250,204,21,0.8)]', 'animate-pulse');
+
+                // 2. 圖片特效：稍微放大一點，加上 bounce (彈跳) 動畫與極亮的光暈
+                displayIcon.innerHTML = `<img src="${finalImg}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-32 h-32 object-contain ${glowClass} drop-shadow-[0_0_25px_rgba(255,255,255,1)] animate-bounce">`;
+                
+                // 3. 專屬誇張文字
+                document.getElementById('gacha-msg').innerHTML = `🌟 <span class="text-yellow-300 font-extrabold text-2xl drop-shadow-[0_0_10px_rgba(253,224,71,0.8)]">傳說降臨！</span> 獲得 <span class="${colorClass} text-2xl font-bold">${fullName}</span>！🌟`;
+                
+                // 4. ✨ 全螢幕白光閃爍特效 ✨ (經典抽卡特效)
+                let flash = document.createElement('div');
+                flash.className = 'fixed inset-0 bg-white z-50 pointer-events-none transition-opacity duration-1000 ease-out';
+                document.body.appendChild(flash);
+                // 觸發重繪後立刻開始淡出
+                void flash.offsetWidth; 
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 1000); // 1秒後刪除該白光元素
+
+                // 5. 系統廣播更具儀式感
+                logSys(`【系統廣播】一道金光劃破天際！玩家在黑市幸運抽中了傳說級的 <span class="${colorClass} font-bold">${fullName}</span>！`);
+
+            } else {
+                // 一般獎品的原本顯示方式
+                displayIcon.innerHTML = `<img src="${finalImg}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-28 h-28 object-contain ${glowClass} drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">`;
+                document.getElementById('gacha-msg').innerHTML = `恭喜獲得 <span class="${colorClass} text-xl">${fullName}</span>！`;
+                // 動態顯示花費了什麼
+                logSys(`在潘朵拉黑市花費 ${costText}，抽中了 <span class="${colorClass} font-bold">${fullName}</span>！`);
+            }
+            
+            gachaRolling = false;
+            btn.disabled = false;
+            btn.classList.add('hover:scale-105');
+            
+            refreshGachaTicketCount();   // 依現有卷數重新判斷按鈕該顯示金幣抽或抽獎卷抽（獎品已於動畫前存檔）
+        }
+    }, 80); 
+}
+
+// 10 連抽：10 格同時旋轉，一次抽 10 樣（每樣各自 1% 機率帶屬性/遠古/祝福詞綴）
+function doPandoraGacha10() {
+    if (gachaRolling) return;
+    let ticketId = "new_item_239";
+    let cost = shopPrice(300000);
+    let usedTicket = false;
+    let ticketIndex = player.inv.findIndex(i => i.id === ticketId);
+    let ticketCnt = (ticketIndex !== -1) ? player.inv[ticketIndex].cnt : 0;
+
+    if (ticketCnt >= 10) {
+        player.inv[ticketIndex].cnt -= 10;
+        if (player.inv[ticketIndex].cnt <= 0) player.inv.splice(ticketIndex, 1);
+        usedTicket = true;
+    } else if (player.gold >= cost) {
+        player.gold -= cost;
+    } else {
+        document.getElementById('gacha-msg').innerHTML = `<span class="text-red-400">10 連抽需要 10 張潘朵拉抽獎卷，或 ${cost} 金幣！</span>`;
+        return;
+    }
+    let costText = usedTicket ? "10 張潘朵拉抽獎卷" : `${cost} 金幣`;
+
+    updateUI();
+    saveGame();
+    refreshGachaTicketCount();
+
+    // 🔧 修復：10 件獎品於動畫前一次結算入包並存檔，動畫純為展示（理由同單抽）
+    let results = [];
+    _tradLootCtx = true;                                  // 🏛️ 傳統模式：潘朵拉十連裝備隨機自帶強化值
+    try {
+        for (let k = 0; k < 10; k++) {
+            let fid = getWeightedGachaResult();
+            let gi = gainItem(fid, 1, false, false, true);   // 潘朵拉10連：詞綴維持舊制（各1%）
+            if (!gi) gi = { id: fid, en: 0, bless: false, anc: false, attr: false, cnt: 1 };
+            results.push(gi);
+        }
+    } finally { _tradLootCtx = false; }   // try/finally 防殘留洩漏
+    saveGame();
+
+    gachaRolling = true;
+    let btn = document.getElementById('btn-gacha10');
+    btn.disabled = true;
+    btn.classList.remove('hover:scale-105');
+    document.getElementById('gacha-msg').innerHTML = '<span class="text-slate-300">命運的齒輪開始轉動...</span>';
+    document.getElementById('gacha10-results').innerHTML = '';
+
+    let iconEls = Array.from(document.querySelectorAll('.gacha10-icon'));
+    iconEls.forEach(el => {
+        let cell = el.parentElement;
+        cell.classList.remove('border-yellow-400', 'animate-pulse');
+        cell.classList.add('border-purple-700');
+    });
+
+    let itemIds = Object.keys(DB.items);
+    let rollCount = 0;
+    let rollInterval = setInterval(() => {
+        if (!iconEls.length || !iconEls[0].isConnected) {   // 🔧 面板已被切換/覆寫：中止動畫並復位（獎品已入包、已存檔）
+            clearInterval(rollInterval);
+            gachaRolling = false;
+            return;
+        }
+        // 10 格同時隨機展示（與單抽相同的旋轉呈現）
+        iconEls.forEach(el => {
+            let rid = itemIds[Math.floor(Math.random() * itemIds.length)];
+            let img = getIconUrl(DB.items[rid]);
+            el.innerHTML = `<img src="${img}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-full h-full object-contain opacity-60">`;
+        });
+        rollCount++;
+
+        if (rollCount > 15) {
+            clearInterval(rollInterval);
+
+            // 🔧 獎品已於動畫前結算（results 由外層閉包帶入），此處僅做展示
+            let jackpotNames = [];
+            results.forEach((gi, k) => {
+                let d = DB.items[gi.id];
+                let img = getIconUrl(d);
+                let glow = getGlowClass(gi, d);
+                let el = iconEls[k];
+                if (!el) return;
+                el.innerHTML = `<img src="${img}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-full h-full object-contain ${glow}">`;
+                if (d.gachaWeight === 1) {   // 傳說大獎：該格金框高亮
+                    let cell = el.parentElement;
+                    cell.classList.remove('border-purple-700');
+                    cell.classList.add('border-yellow-400', 'animate-pulse');
+                    jackpotNames.push(getItemFullName(gi));
+                }
+            });
+
+            // 結果清單（10 個彩色名稱）
+            document.getElementById('gacha10-results').innerHTML =
+                results.map(gi => `<span class="${getItemColor(gi)}">${getItemFullName(gi)}</span>`).join('、');
+
+            if (jackpotNames.length > 0) {
+                document.getElementById('gacha-msg').innerHTML = `🌟 <span class="text-yellow-300 font-extrabold text-xl drop-shadow-[0_0_10px_rgba(253,224,71,0.8)]">傳說降臨！</span> 本次 10 連抽出 ${jackpotNames.length} 件傳說！`;
+                let flash = document.createElement('div');
+                flash.className = 'fixed inset-0 bg-white z-50 pointer-events-none transition-opacity duration-1000 ease-out';
+                document.body.appendChild(flash);
+                void flash.offsetWidth;
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 1000);
+                jackpotNames.forEach(nm => logSys(`【系統廣播】一道金光劃破天際！玩家在黑市 10 連抽中抽中了傳說級的 <span class="text-yellow-300 font-bold">${nm}</span>！`));
+            } else {
+                document.getElementById('gacha-msg').innerHTML = `恭喜完成 10 連抽，獲得 10 件物品！`;
+            }
+            logSys(`在潘朵拉黑市花費 ${costText} 進行 10 連抽，獲得 10 件物品。`);
+
+            gachaRolling = false;
+            btn.disabled = false;
+            btn.classList.add('hover:scale-105');
+            refreshGachaTicketCount();   // 依現有卷數重新判斷按鈕該顯示金幣抽或抽獎卷抽（獎品已於動畫前存檔）
+        }
+    }, 80);
+}
 
 /* ===== 玩家自訂名稱：點擊左上狀態欄名稱 → 輸入框 → 確認 ===== */
 function startEditName() {
@@ -1623,13 +1957,6 @@ window.onload = () => {
         if(sk.summon) eff.push('召喚協力單位');
         if(sk.mEff) eff.push(SK_MEFF[sk.mEff]||'特殊效果');
         if(sk.darkPoison) eff.push('一般攻擊命中 50% 機率使目標中毒：每秒該次攻擊 60% 傷害、持續 5 秒、最多 1 層（取較高傷害並刷新；劇毒精通→100%、每秒 200%）');
-        if(sk.moveSpeedMult){
-            let moveSpeedText = '移動速度+'+Math.round((sk.moveSpeedMult - 1) * 100)+'%（速度×'+sk.moveSpeedMult;
-            if(sid === 'sk_holy_dash') moveSpeedText += '，與風之疾走互斥';
-            else if(sid === 'sk_elf_winddash') moveSpeedText += '，與神聖疾走互斥，取代精靈餅乾移速';
-            moveSpeedText += '）';
-            eff.push(moveSpeedText);
-        } else if(sk.moveSpeedReplacesCookie) eff.push('取代精靈餅乾的移動速度提升');
         if(sk.d && typeof sk.d==='object'){
             let dd = sk.d, s = [], _resK = ['resFire','resWater','resEarth','resWind'];
             if(dd.resFire && dd.resFire===dd.resWater && dd.resFire===dd.resEarth && dd.resFire===dd.resWind){
@@ -1704,7 +2031,7 @@ window.onload = () => {
             if(d.procSkill) {
                 let _procName = (DB.skills[d.procSkill] && DB.skills[d.procSkill].n) || '技能';
                 let _rateText = `${d.procRateBase || 1}%${d.procRatePerEn ? `＋每強化${d.procRatePerEn}%` : ''}`;
-                _eff.push(`${d.procOnHit ? '命中施法' : '攻擊施法'} ${_rateText}（觸發${_procName}）`);
+                _eff.push(`攻擊施法 ${_rateText}（觸發${_procName}）`);
             }
             if(d.procSkill2 && d.procSkill2.skId) _eff.push(`攻擊施法 ${d.procSkill2.rate || 5}%（觸發${(DB.skills[d.procSkill2.skId] && DB.skills[d.procSkill2.skId].n) || '技能'}）`);   // 🌅 九尾妖狐的怒火：第二觸發槽
             if(d.procPoisonPct) _eff.push(`附毒（命中附加每秒該次傷害${d.procPoisonPct.pct || 50}%的中毒，最多1層，持續${d.procPoisonPct.dur || 6}秒）`);   // 🌅 毒鵺的黑尾
@@ -1759,7 +2086,6 @@ window.onload = () => {
                 if(_tg.includes('雙刀'))     _eff.push('雙刃 5%（傷害×2）');   // ⚔️ 雙刀內建特性
                 if(_tg.includes('鋼爪'))     _eff.push('重擊 +5%（重擊取武器最大傷害）');   // ⚔️ 鋼爪內建特性：一般攻擊額外 5% 重擊
             }
-            if(d.type === 'wpn' && typeof weaponPurposeLabels === 'function') _eff.push(...weaponPurposeLabels(d));
             if(d.relic && typeof relicPurposeLabels === 'function') _eff.push(...relicPurposeLabels(d));
             _eff = [...new Set(_eff)];
             _eff = filterClassicEffLabels(_eff, d);   // 🎮 經典模式：移除已停用特效字樣（classicOk 物品不過濾）
@@ -1788,7 +2114,6 @@ window.onload = () => {
         let tSkill = host.getAttribute('data-tip-skill');
         let tUid = host.getAttribute('data-tip-uid');
         let tId = host.getAttribute('data-tip-id');
-        let tCraft = host.getAttribute('data-tip-craft');
         if(tSkill){
             // 技能頁：依技能 ID 顯示能力
             if(el._id !== 'SK:'+tSkill){ let h = buildSkillTipHTML(tSkill); if(!h){ hideTip(); return; } el.innerHTML = h; el._id = 'SK:'+tSkill; }
@@ -1804,20 +2129,8 @@ window.onload = () => {
                 el._id = key;
             }
         } else if(tId){
-            if(tCraft){
-                // ⚒️ 製作成品：直接綁定 result ID，不再以 icon 反查（共用圖片不會抓錯物品）；沿用背包／裝備欄完整 tooltip，含寵物裝備能力。
-                let key = 'CRAFT:' + tId;
-                if(el._id !== key){
-                    let d = DB.items[tId]; if(!d){ hideTip(); return; }
-                    let it = { id:tId, uid:'craft-tip', cnt:1, en:0, bless:false, anc:false, attr:false, seteff:false };
-                    el.innerHTML = `<div class="font-bold text-base ${getItemColor(it)}" style="margin-bottom:4px;">${getItemFullName(it)}</div>`
-                        + `<div class="text-slate-300" style="font-size:12px;line-height:1.5;">${buildItemDescHTML(it)}</div>`;
-                    el._id = key;
-                }
-            } else {
-                // 🗡️ 收集冊：依基底物品 ID 顯示資訊（已收集裝備）
-                if(el._id !== ('BID:'+tId)){ let h = buildItemTipHTML(tId, true); if(!h){ hideTip(); return; } el.innerHTML = h; el._id = 'BID:'+tId; }   // 🗡️ 收集冊隱藏售價
-            }
+            // 🗡️ 收集冊：依基底物品 ID 顯示資訊（已收集裝備）
+            if(el._id !== ('BID:'+tId)){ let h = buildItemTipHTML(tId, true); if(!h){ hideTip(); return; } el.innerHTML = h; el._id = 'BID:'+tId; }   // 🗡️ 收集冊隱藏售價
         } else {
             // 商店/製作圖示：依 icon → 基底物品 ID 顯示
             if(!ICON2ID) buildMap();

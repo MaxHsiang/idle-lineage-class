@@ -698,14 +698,6 @@
         ['袋鼠', 'relic_kangaroo_gloves', 0.0001],
         ['猴子', 'relic_monkey_staff', 0.0001],
     ].forEach(function (r) { (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], r[2]]); });
-    // 🏺 v3.5.27 遺物第十八批掉落（5 件·各 0.0001%·push 追加安全）
-    [
-        ['暗黑黑騎士', 'relic_bk_lance', 0.0001],
-        ['水靈之主', 'relic_water_orb', 0.0001],
-        ['遺忘之島阿魯巴', 'relic_broken_halfhelm', 0.0001],
-        ['遺忘之島食人妖精王', 'relic_fire_hide', 0.0001],
-        ['深淵食屍鬼', 'relic_ghoul_visage', 0.0001],
-    ].forEach(function (r) { (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], r[2]]); });
     // 🐾 v3.2.17 夥伴更新：新捕捉動物一般掉落（皮革／專屬飼料 10%·依「夥伴更新.md」）
     [
         ['老虎', 'new_item_179', 10], ['貓', 'new_item_179', 10], ['浣熊', 'new_item_179', 10], ['聖伯納犬', 'new_item_179', 10],
@@ -762,7 +754,7 @@
 // ===== 🔧 計時慣例（單一事實來源，新增任何計時效果前先讀這裡）=====
 // • player.statuses（異常狀態）：以 tick(0.1秒) 計，於 tick() 開頭的通用迴圈「統一」遞減，勿在他處再扣
 // • player.buffs（增益）：以「秒」計，於 tick() 的每秒區塊（state.ticks % 10）「統一」遞減，勿在他處再扣
-// • player.cds.atkSk / healSk / purifySk / convertSk：以 tick 計（施法節奏只看職業／變身 cast，不受攻擊速度影響）
+// • player.cds.atkSk / healSk / purifySk：以 tick 計（施法節奏需受攻速細緻影響）
 // • player.cds.pot / reviveScrollCd / magicShieldCd：以秒計（tick() 的每秒區塊遞減）
 // • player.blessings / player.siege（盟主祝福、攻城勝利8折、宣戰冷卻）：牆鐘 Date.now()，刻意設計為關閉遊戲仍流逝
 // • 召喚物 / 迷魅 endTick：絕對 tick，已隨存檔保存（saveGame 的 ticks 欄位），重載後仍有效
@@ -794,7 +786,7 @@ const SAVE_DEFAULTS = {
     manualCd: {}, blessings: {}, blessingAuto: {}, cardDex: {}, cardDexV: 0, equipDex: {}, miscDex: {},
     alloc:   { str:0, dex:0, con:0, int:0, wis:0, cha:0 },
     panacea: { str:0, dex:0, con:0, int:0, wis:0, cha:0 },
-    cds:     { pot:0, atkSk:0, healSk:0, purifySk:0, convertSk:0 },
+    cds:     { pot:0, atkSk:0, healSk:0, purifySk:0 },
     buffs:   { haste:0, brave:0, blue:0, cautious:0, elfcookie:0, poly:0, shield:0, sk_magic_shield:0 },
     statuses:{ stun:0, freeze:0, stone:0, poison:0, poisonDmg:0, poisonTick:0, burn:0, burnDmg:0, burnTick:0,
                scald:0, scaldDmg:0, scaldTick:0, bleed:0, bleedDmg:0, bleedTick:0, sleep:0, silence:0, paralyze:0, magicseal:0, armorBreak:0, slowAtk:0, cleave:0 },
@@ -843,7 +835,7 @@ let _lootMobInfo = null;   // 🐾 擊殺掉落期間設 {n,lv}＝掉落來源�
 // 觸發＝「相同套裝名、不同部位」的件數（同名不同部位即累計，5 個不同部位＝5 件效果）。
 // 套裝名冠在裝備名稱前（如「紅獅環甲」），資訊欄列出 2/3/5 件加成；名稱顏色規則同前（c-sherine 鮮綠＋光暈）。
 // ⚠️ 舊存檔的具名 seteff（如「紅獅的復仇」）仍相容：各處一律以 seteff.slice(0,2) 取組名。
-const SHERINE_EFFECTS = ['紅獅','白鳥','鐵衛','麗人','疾風','月光','學徒','魔女','暗影','幻覺','龍血','狂怒'];   // ⚠️ 各名稱 slice(0,2) 須唯一（計件用）：幻覺/龍血/狂怒 與既有皆不撞
+const SHERINE_EFFECTS = ['紅獅','白鳥','鐵衛','麗人','疾風','月光','學徒','魔女','暗影','幻覺','龍血','狂怒','席琳'];   // 席琳＝十二組效果合一
 // 套裝加成說明（資訊欄顯示用；計數=身上「不重複效果」數，同效果兩件只算 1）
 const SHERINE_SET_TEXT = {
     '紅獅': ['2件：額外傷害+5、額外魔法點數+3', '3件：傷害減免+10', '5件：最終傷害+20%（普攻與技能皆適用）'],
@@ -1086,7 +1078,7 @@ function fragileMult(t) {
         if (player.buffs && player.buffs.sk_royal_precise > 0) _pp = player;
         else if (player.allies) { for (let _a of player.allies) { if (_a && !_a._downed && _a.buffs && _a.buffs.sk_royal_precise > 0) { _pp = _a; break; } } }
     }
-    if (_pp) { let _div = (_pp.mastery === 'k_royal_pledge') ? 10 : 15; m *= (1 + (1 + (_pp.lv || 1) / _div) / 100); }
+    if (_pp) { let _div = entityHasMastery(_pp, 'k_royal_pledge') ? 10 : 15; m *= (1 + (1 + (_pp.lv || 1) / _div) / 100); }
     return m;
 }   // 🔮 脆弱(白鳥5)+20%、🔧 破壞盔甲+58%；👑 精準目標（隊長或傭兵擇一）
 
@@ -1153,8 +1145,9 @@ const MASTERY_POS_STYLE = {   // 四向按鈕四色（上紅/左藍/右紫/下�
     bottom: 'bg-emerald-950/80 border-emerald-500 hover:bg-emerald-900'
 };
 const MAGIC_MASTERY_SKILLS = ['sk_blizzard', 'sk_tornado', 'sk_quake', 'sk_fire_storm'];   // 魔導精通可學的法師法術
-function hasMastery(id) { return !!(player && player.mastery === id); }
-function allyHasMastery(ally, id) { return !!(ally && ally.mastery === id); }   // 🔧 傭兵吃「自身存檔」的精通（不吃主玩家精通）
+function entityHasMastery(entity, id) { return !!(entity && (entity.cls === 'omni' || entity.mastery === id)); }
+function hasMastery(id) { return entityHasMastery(player, id); }
+function allyHasMastery(ally, id) { return entityHasMastery(ally, id); }   // ✨ 全能師的所有職業專精同時生效
 // 🌟 v3.0.99 隊長團隊光環：任一隊員(玩家或未倒地傭兵)維持該 buff 即全隊生效。清單供「傭兵可維持/隊伍面板可開關/避免重複施放」使用。
 //   ⚠️不含完全免疫類(絕對屏障/大地屏障/魔法屏障·刻意不給傭兵)。golem/ogre/lich 為幻術幻象召喚(illuSummon)·此處僅列其「光環」由玩家提供·傭兵暫不維持(見 _isMercSelfBuff)。
 const TEAM_AURA_SKILLS = ['sk_elf_earthbless', 'sk_royal_burnweapon', 'sk_royal_shield'];   // 傭兵可維持的團隊光環（大地祝福AC-7·灼熱武器傷害/命中+5·閃亮之盾AC-8）。任一來源施放一次即惠及玩家、傭兵、寵物與召喚物，同技能不重複疊加。鋼鐵防護為施法者自身 AC-10，不列入團隊光環。⚠️v3.4.45 水之元氣/化身已改「單體共享」(TEAM_SHARE_BUFFS)→移出此清單。
@@ -1172,6 +1165,7 @@ function _teamAuraHas(sid, exclude) {
 function masteryChangeCost() { return { gold: 3000000, warrants: 10 }; }   // 🔧 固定費用：每次更換都維持 300 萬金幣＋10 張王族搜索狀，不再隨次數遞增
 // 技能職業需求等級（單一事實來源）：🏅 魔導精通的妖精可學四項法師法術（需求等級沿用法師）
 function skillReqLv(sk, skId) {
+    if (player.cls === 'omni') return 1;   // ✨ 全能師：所有玩家技能自 Lv.1 起可用
     if (player.cls === 'dark') {
         if (sk.reqD !== undefined) return sk.reqD;                                  // 黑暗妖精專屬魔法
         if (sk.reqM !== undefined && (sk.tier === 1 || sk.tier === 2)) return sk.tier === 1 ? 12 : 24;   // 基礎法師魔法：一階 Lv12 / 二階 Lv24（學不到精靈水晶與高階法師魔法）
@@ -1188,11 +1182,11 @@ function skillReqLv(sk, skId) {
         if (sk.reqRoy !== undefined) return sk.reqRoy;
         if (sk.reqM !== undefined && sk.tier === 1) return 10;
         if (sk.reqM !== undefined && sk.tier === 2) return 20;
-        if (player.mastery === 'k_royal_magic' && sk.reqM !== undefined && (sk.tier === 3 || sk.tier === 4 || sk.tier === 5)) return sk.reqM;   // 🏅 魔法精通：可學法師三~五階魔法
+        if (hasMastery('k_royal_magic') && sk.reqM !== undefined && (sk.tier === 3 || sk.tier === 4 || sk.tier === 5)) return sk.reqM;   // 🏅 魔法精通：可學法師三~五階魔法
         return undefined;
     }
     let lv = player.cls === 'mage' ? sk.reqM : (player.cls === 'knight' ? sk.reqK : sk.reqE);
-    if (lv === undefined && player.cls === 'elf' && player.mastery === 'e_magic' && skId && MAGIC_MASTERY_SKILLS.includes(skId)) lv = sk.reqM;
+    if (lv === undefined && player.cls === 'elf' && hasMastery('e_magic') && skId && MAGIC_MASTERY_SKILLS.includes(skId)) lv = sk.reqM;
     return lv;
 }
 let _echoFree = false;        // 🏅 迴響精通：免費連發旗標（連發那次不耗MP、不再連鎖）
@@ -1204,7 +1198,7 @@ const TICK_MS = 100;                 // 一個邏輯 tick 代表的真實時間
 const JUNK_AUTOSELL_TICKS = 100;    // 🗑️ 廢品自動賣出間隔：10 秒（100 tick × 100ms·2026-07-01 由 1800/3分鐘改快）；玩家手動標示廢品會把倒數重置為此值（標完 10 秒無新動作才賣）。⚠️自動賣出這條路徑不 saveGame(見 autoSellJunk)，靠其他既有存檔點落地
 const MERC_EXP_SHARE = 0.5;          // ⚠️v3.0.86 已停用：傭兵經驗改「主玩家＋未倒地傭兵」4 人均分制（見 js/05 partyExpShareCount／killMob）；常數保留避免外部殘留引用報錯
 // 🤝 Phase4：設為「全體」的怪物攻擊技能名（依 mag.skn 比對·同名全部生效）→ 同時打玩家＋全部非倒地傭兵。其餘怪物傷害/狀態魔法仍可依仇恨權重隨機打單一目標(玩家或某傭兵)。
-const MOB_PARTY_AOE_SKILLS = new Set(['闇黑波動','毒霧','鐮刀波動','火焰之舞','燃燒的火球','火焰之陣','地面震裂','跳躍波動','冰雪暴','震裂術','火焰噴吐','流星雨','火牢','寒冰噴吐','巨水炮','大地怒吼','毒氣風暴','閃電風暴','火焰雨','寒冰吐息','地獄犬噴吐','火風暴','龍捲風','爆炎的火球','噴火','漩渦','防身電擊','震裂踏擊','火焰放射','黑霧','火焰氣息','黑暗流星雨','放射斬','迴旋鞭打','衝擊波動','千刃破軍','靈魂波動','火焰爆發','迴旋斬','龍的一擊','地獄火','黑魔法力場','鐮刀劍氣斬','腐蝕之血','冰錐流星雨','水氣爆裂','集體衝暈','巨石爆裂','地面障礙','邪靈之氣','血夜月彎刀','夜魔飛襲','幻象光線','集體相消','劇毒龍捲風','麻痺蜘蛛網','雷霆風暴','沙塵暴','震裂重擊','冰雪颶風','衝擊之暈','岩漿流星雨','火焰散落','鎌鼬旋風','寒冰氣息','妖狐之火','牛鬼突進','大地崩裂','幽魂怨念','枯竭詛咒']);   // 🐍 提卡爾杰弗雷庫雙BOSS 全體技能；🌑 v3.3.33 聖地；🌅 枯竭詛咒對每位玩家/傭兵各自以 MR 判定藥水霜化
+const MOB_PARTY_AOE_SKILLS = new Set(['闇黑波動','毒霧','鐮刀波動','火焰之舞','燃燒的火球','火焰之陣','地面震裂','跳躍波動','冰雪暴','震裂術','咆哮','燃燒立方','火焰噴吐','流星雨','火牢','寒冰噴吐','巨水炮','大地怒吼','毒氣風暴','閃電風暴','火焰雨','寒冰吐息','地獄犬噴吐','火風暴','龍捲風','爆炎的火球','噴火','漩渦','防身電擊','震裂踏擊','火焰放射','黑霧','火焰氣息','黑暗流星雨','放射斬','迴旋鞭打','衝擊波動','千刃破軍','靈魂波動','火焰爆發','迴旋斬','龍的一擊','地獄火','黑魔法力場','鐮刀劍氣斬','腐蝕之血','冰錐流星雨','水氣爆裂','集體衝暈','巨石爆裂','地面障礙','邪靈之氣','血夜月彎刀','夜魔飛襲','幻象光線','集體相消','劇毒龍捲風','麻痺蜘蛛網','雷霆風暴','沙塵暴','震裂重擊','冰雪颶風','衝擊之暈','岩漿流星雨','火焰散落','鎌鼬旋風','寒冰氣息','妖狐之火','牛鬼突進','大地崩裂','幽魂怨念','枯竭詛咒']);   // 🐍 提卡爾杰弗雷庫雙BOSS 全體技能；🌑 v3.3.33 聖地；🌅 枯竭詛咒對每位玩家/傭兵各自以 MR 判定藥水霜化
 const MAX_CATCHUP_MS = 5 * 60 * 1000; // 單次最多補算 5 分鐘，避免長時間離開後一次模擬過久
 let _loopLast = null;                // 上次主迴圈時間戳 (performance.now)
 let _tickDebt = 0;                   // 尚未換算成 tick 的累積時間 (ms)
@@ -1263,7 +1257,7 @@ let player = {
     inv: [], eq: { wpn: null, arrow: null, helm: null, armor: null, shin: null, shield: null, cloak: null, tshirt: null, gloves: null, boots: null, ring1: null, ring2: null, ring3: null, ring4: null, amulet: null, ear1: null, ear2: null, belt: null, pet: null, doll: null },
     skills: [], buffs: { haste: 0, brave: 0, blue: 0, cautious: 0, elfcookie: 0, poly: 0, shield: 0, sk_magic_shield: 0 }, poly: null, allies: [],
     summon: null, charmed: null, manualCd: {}, elfEle: null, hot: null,
-    cds: { pot: 0, atkSk: 0, healSk: 0, purifySk: 0, convertSk: 0 }, dead: false, statuses: { stun: 0, freeze: 0, stone: 0, poison: 0, poisonDmg: 0, poisonTick: 0, burn: 0, burnDmg: 0, burnTick: 0, scald: 0, scaldDmg: 0, scaldTick: 0, bleed: 0, bleedDmg: 0, bleedTick: 0, sleep: 0, silence: 0, paralyze: 0, magicseal: 0, armorBreak: 0, slowAtk: 0, cleave: 0 },
+    cds: { pot: 0, atkSk: 0, healSk: 0, purifySk: 0 }, dead: false, statuses: { stun: 0, freeze: 0, stone: 0, poison: 0, poisonDmg: 0, poisonTick: 0, burn: 0, burnDmg: 0, burnTick: 0, scald: 0, scaldDmg: 0, scaldTick: 0, bleed: 0, bleedDmg: 0, bleedTick: 0, sleep: 0, silence: 0, paralyze: 0, magicseal: 0, armorBreak: 0, slowAtk: 0, cleave: 0 },
     d: { str:0, dex:0, con:0, int:0, wis:0, cha:8,
          meleeDmg: 0, meleeHit: 0, meleeCrit: 0,           // 近距離（力量）
          rangedDmg: 0, rangedHit: 0, rangedCrit: 0,         // 遠距離（敏捷）
@@ -1285,8 +1279,14 @@ let createBase = {
     illusion: {str:11, dex:10, con:12, int:12, wis:12, cha:8, pts:10}, // 幻術士基底（可分配10點，以0計）
     dragon: {str:13, dex:11, con:14, int:11, wis:12, cha:8, pts:6}, // 龍騎士基底（可分配6點，以0計）
     warrior: {str:16, dex:13, con:16, int:10, wis:7, cha:8, pts:5}, // ⚔️ 戰士基底（可分配5點，以0計）
-    royal: {str:13, dex:10, con:10, int:10, wis:11, cha:13, pts:8} // 👑 王族基底（可分配8點，以0計）
+    royal: {str:13, dex:10, con:10, int:10, wis:11, cha:13, pts:8}, // 👑 王族基底（可分配8點，以0計）
+    omni: {str:18, dex:18, con:18, int:18, wis:18, cha:18, pts:0} // ✨ 全能師：六項均衡的全能基底
 };
+
+// 「席琳」套裝的說明與能力皆由既有十二套組合而成，保留每套原本的 2／3／5 件規則文字。
+SHERINE_SET_TEXT['席琳'] = SHERINE_EFFECTS
+    .filter(name => name !== '席琳')
+    .flatMap(name => (SHERINE_SET_TEXT[name] || []).map((text, index) => `${name}${[2,3,5][index]}件：${text.replace(/^\d件：/, '')}`));
 let curCreate = { rawCls: 'm_royal', cls: 'royal', str:0, dex:0, con:0, int:0, wis:0, cha:0 };
 
 // 🚫 v3.2.17 舊項圈夥伴 PET_DEF 已移除——新夥伴系統唯一真相＝js/22-pets.js 的 PET_BOOK（39 型態·獨立等級/技能）。
@@ -1734,7 +1734,7 @@ Object.assign(ITEM_WEIGHTS, {"雷神之鎚":40,"帕格里奧之怒":40,"馬普�
 Object.assign(ITEM_WEIGHTS, {"吉爾塔斯之劍":100,"吉爾塔斯魔杖":100,"腐壞的長弓":100,"反叛者的盾牌":110,"武官之盾":45,"苦痛項鍊":10,"厄運項鍊":10,"受詛咒的黑色耳環":10,"賢者之戒":5,"真．冥皇披風":10,"真．冥皇護手":30,"真．冥皇鎧甲":100,"真．冥皇鋼靴":100,"真．冥皇面甲":100,"死亡騎士之書":5,"吉爾塔斯的封印":2,"修行者經典":5,"召喚球之核":10,"召喚球碎片":3,"完整的召喚球":15,"真．冥皇製作防具秘笈":5,"黑暗妖精的靈魂水晶":2,"受詛咒的真．冥皇執行劍":100});   // 🌑 v3.4.0 +受詛咒的真．冥皇執行劍
 Object.assign(ITEM_WEIGHTS, {"解除詛咒的真死亡騎士．冥皇執行劍":100});   // 🌑 v3.4.67 +解除詛咒版冥皇執行劍（負重100）
 Object.assign(ITEM_WEIGHTS, {"淨化藥水":3,"靈魂耳環(法師)":3,"靈魂耳環(鬥士)":3,"靈魂耳環(騎士)":3});   // 🌑 亞提利歐 靈魂耳環系列＋淨化藥水（依名稱）
-Object.assign(ITEM_WEIGHTS, {"妖魔的鍋蓋":50,"哥布林的石刃":70,"妖魔弓箭手的彈簧弓":30,"地靈的木棍":30,"菌菇傘帽":3,"髒汙的地精靈T恤":5,"狼毛披肩":30,"哈士奇的骨棒":30,"侏儒的舊床單":10,"吃剩的魚骨頭":15,"放牧者的皮靴":10,"殭屍的小腿骨":15,"杜賓的尖銳犬齒":10,"安普長老的拐杖":15,"安特的乾枯樹皮":30,"通透的水晶體":30,"鬥士的歷戰彎刀":40,"冰原十字鎬":15,"怪手皮":10,"狼人的釘錘":15,"侏儒的笨重鎖甲":300,"風化的頭蓋骨":30,"惡臭的妖魔指甲":10,"妖魔的拳擊套":10,"牧神的放牧棍":80,"鱷魚皮內衣":5,"侍女的贈禮":5,"巨蟻的誘導觸角":20,"妖魔法師的餐桌巾":5,"有彈性的肋骨":30,"蟑螂的黑光甲殼":30,"石頭高崙的重拳":50,"妖魔的老舊菜刀":40,"強韌的大腿骨":30,"遺忘士兵的老舊長槍":30,"巨大蜘蛛的恐懼尖爪":20,"巡守的望遠鏡":3,"哈柏哥布林的研磨刀":70,"妖魔的屠刀":40,"妖魔的曬衣桿":30,"歐熊的柔軟毛皮":50,"蜥蜴人的鋼鐵圓盾":100,"穴居人的蹼":15,"史巴托的怨念":30,"食屍鬼的手環":3,"鯊魚的千刃牙":10,"鎧衛隊的漆黑塔盾":120,"黑騎士的精銳長槍":180,"水靈的魔力珠":15,"被敲爛的半邊頭盔":150,"黝黑的烈火皮囊":50,"食屍鬼的啃食面容":30});   // 🏺 遺物重量（依名稱·v3.5.27 +5 件）
+Object.assign(ITEM_WEIGHTS, {"妖魔的鍋蓋":50,"哥布林的石刃":70,"妖魔弓箭手的彈簧弓":30,"地靈的木棍":30,"菌菇傘帽":3,"髒汙的地精靈T恤":5,"狼毛披肩":30,"哈士奇的骨棒":30,"侏儒的舊床單":10,"吃剩的魚骨頭":15,"放牧者的皮靴":10,"殭屍的小腿骨":15,"杜賓的尖銳犬齒":10,"安普長老的拐杖":15,"安特的乾枯樹皮":30,"通透的水晶體":30,"鬥士的歷戰彎刀":40,"冰原十字鎬":15,"怪手皮":10,"狼人的釘錘":15,"侏儒的笨重鎖甲":300,"風化的頭蓋骨":30,"惡臭的妖魔指甲":10,"妖魔的拳擊套":10,"牧神的放牧棍":80,"鱷魚皮內衣":5,"侍女的贈禮":5,"巨蟻的誘導觸角":20,"妖魔法師的餐桌巾":5,"有彈性的肋骨":30,"蟑螂的黑光甲殼":30,"石頭高崙的重拳":50,"妖魔的老舊菜刀":40,"強韌的大腿骨":30,"遺忘士兵的老舊長槍":30,"巨大蜘蛛的恐懼尖爪":20,"巡守的望遠鏡":3,"哈柏哥布林的研磨刀":70,"妖魔的屠刀":40,"妖魔的曬衣桿":30,"歐熊的柔軟毛皮":50,"蜥蜴人的鋼鐵圓盾":100,"穴居人的蹼":15,"史巴托的怨念":30,"食屍鬼的手環":3,"鯊魚的千刃牙":10,"鎧衛隊的漆黑塔盾":120});   // 🏺 遺物重量（依名稱）
 Object.assign(ITEM_WEIGHTS, {"鎧衛隊的漆黑長槍":180,"人魚的淚滴":3,"妖魔的兜襠布":30,"月牙耳環":3,"楊果里恩的腹甲":50,"蟹人的巨鉗":50,"狂野的鬃毛外套":30,"劇毒的獠牙":150,"歐姆的腳鐐":50,"兵蟻的光澤背甲":450,"鼠人的烤肉叉":60,"海星的分裂腕足":80,"被遺忘的鱷魚靈魂":10,"破舊的蜥蜴甲":30,"資深蜥蜴族護手":10,"黑色疾風":60,"長老的雷電能量":20,"綠色妖鬼的指甲":10,"歐姆的粗皮褲":30,"食人妖精的相撲褌":50,"蛇女的尾鱗甲":30,"飛蝠之翼":10,"曼陀羅之靈":10,"歐姆士兵的重裝鎧甲":450,"三頭犬魔杖":15,"水靈的琴弦":40,"龍龜的背殼":100,"藍尾蜥蜴的斷尾":1,"蜥蜴人的大砍刀":120});   // 🏺 遺物 第二批重量（依名稱·v3.1.1）
 Object.assign(ITEM_WEIGHTS, {"歐姆裝甲兵的超重鎚":130,"暗靈的迷霧披肩":1,"犰狳尖刺頭盔":30,"白螞蟻蛋殼":30,"高等蜥蜴鱗臂甲":30,"七彩鸚鵡喙":150,"海賊經典彎刀":40,"毒蠍的尾刺":10,"哈維的吸血爪":40,"隱蔽的死亡草葉":10,"黑魔法學徒魔杖":15,"巨熊的生命力":3,"民兵的萬用護甲":150,"神射手的重弦弓":40,"警衛的穿心矛":30,"旋風十字弓":30,"黑暗殘兵的訓練靴":10,"歐吉的巨大戰斧":130,"多羅的生命能量":5});   // 🏺 遺物 第三批重量（依名稱·v3.1.2）
 Object.assign(ITEM_WEIGHTS, {"深海魚的電擊皮":5,"盜掠者的信物":3,"雪人之拳":20,"雪人手套":20,"輕薄的紙披風":1,"黑暗盜賊的兇殺爪":30,"暗精靈鎖鏈劍":35,"浸泡海水的內衣":5,"鬥士的老舊戰斧":120,"寄居蟹的巨大背殼":140,"爆彈花蕊":20,"古代聖甲蟲脛甲":20});   // 🏺 遺物 第四批重量＋雪人手套（依名稱·v3.1.4）
@@ -1899,14 +1899,14 @@ const ATK_APM = {
 };
 // ⚔️ 硬直：被直接命中時延遲下次攻擊的 tick 數（天堂 damage 動作幀 ÷2.4·帶職業）
 const HITSTUN_TICKS = { '王子':6, '公主':6, '男騎士':5, '女騎士':6, '男妖精':5, '女妖精':5, '男法師':5, '女法師':5, '男黑暗妖精':5, '女黑暗妖精':5, '男龍騎士':5, '女龍騎士':6, '男戰士':6, '女戰士':6, '男幻術士':5, '女幻術士':5 };
-// 🔮 施法：攻擊、治癒、淨化、轉換與手動法術共用的職業基礎間隔 tick（天堂 spell 動作幀 ÷2.4·法師最快10、黑妖/王族最慢14）
+// 🔮 施法：攻擊魔法自動施放的職業冷卻下限 tick 數（天堂 spell 動作幀 ÷2.4·法師最快10、黑妖/王族最慢14）
 const CAST_TICKS = { '王子':14, '公主':14, '男騎士':13, '女騎士':13, '男妖精':12, '女妖精':12, '男法師':10, '女法師':10, '男黑暗妖精':14, '女黑暗妖精':14, '男龍騎士':13, '女龍騎士':13, '男戰士':14, '女戰士':14, '男幻術士':10, '女幻術士':10 };
 const ATK_APM_DEFAULT = { '單手劍':72, '單手鈍器':65, '弓':60, '十字弓':60, '單手矛':68, '雙手矛':66, '魔杖':72, '匕首':75, '雙手劍':65, '雙手鈍器':65, '雙刀':72, '鋼爪':72, '鎖鏈劍':68, '雙斧':72, '奇古獸':72 };   // 表A基準（未知頭像後備）
 const ATK_AV_BY_CLS = { royal:'王子', knight:'男騎士', elf:'男妖精', mage:'男法師', dark:'男黑暗妖精', dragon:'男龍騎士', warrior:'男戰士', illusion:'男幻術士' };   // 舊檔缺 avatar → 依職業取男性列
 // 🗂️ 武器 → 攻速種類：WEAPON_TAGS 優先，再依旗標（isBow/qigu/chainsword/isWandWeapon），最後名稱後備；結果快取於 def._spdFam
 function atkSpdFamily(id) {
     let d = DB.items[id]; if (!d || d.type !== 'wpn') return null;
-    if (d.isArrow || (!d.isBow && /箭$/.test(d.n || ''))) return null;   // 箭矢（箭/銀箭/米索莉箭/沙哈之箭／🏺 改造便利箭筒 isArrow·type:wpn 但裝於箭矢欄·非揮擊武器）；🏹 v3.5.8 isBow 放行：隱藏的魔族弓箭/艾庫尤卡的吹箭是弓非箭矢·原被「箭」字尾誤殺→動態變空手、攻速/tooltip 掉單手劍 fallback
+    if (d.isArrow || /箭$/.test(d.n || '')) return null;   // 箭矢（箭/銀箭/米索莉箭/沙哈之箭／🏺 改造便利箭筒 isArrow·type:wpn 但裝於箭矢欄·非揮擊武器）
     if (d._spdFam) return d._spdFam;
     let tg = (typeof getWeaponTags === 'function') ? getWeaponTags(id) : [], n = d.n || '', fam = null;
     if (tg.includes('雙刀')) fam = '雙刀';
@@ -1940,18 +1940,6 @@ function atkSpdApm(p, id) {
 function atkSpdBaseItv(p) { return Math.round(6000 / Math.max(1, atkSpdApm(p))) / 100; }   // 基礎攻擊間隔（秒·2位小數·未含加速/精通等倍率）
 function hitstunTicks(p) { let av = (p && p.avatar && HITSTUN_TICKS[p.avatar]) ? p.avatar : ATK_AV_BY_CLS[(p && p.cls) || '']; return HITSTUN_TICKS[av] != null ? HITSTUN_TICKS[av] : 5; }   // ⚔️ 職業硬直 tick（被擊時延遲攻擊）
 function castLockTicks(p) { let av = (p && p.avatar && CAST_TICKS[p.avatar]) ? p.avatar : ATK_AV_BY_CLS[(p && p.cls) || '']; return CAST_TICKS[av] != null ? CAST_TICKS[av] : 12; }   // 🔮 職業施法冷卻下限 tick
-function castIntervalTicks(p, support) {
-    let key = support ? 'supportCastLock' : 'castLock';
-    let v = (p && p.d && p.d[key] != null) ? p.d[key]
-          : ((p && p.d && p.d.castLock != null) ? p.d.castLock : castLockTicks(p));
-    return Math.max(1, Number(v) || 12);
-}   // 🔮 施法間隔：攻擊／輔助可分流；保留小數 tick 才能準確呈現 CSV 的每分鐘次數，攻擊速度增減不介入。
-function nextCastCooldown(current, p, support) {
-    let carry = Number(current);
-    carry = Number.isFinite(carry) && carry < 0 ? Math.max(-0.999999, carry) : 0;
-    let next = Math.round((castIntervalTicks(p, support) + carry) * 1000000) / 1000000;
-    return Math.max(0.000001, next);
-}   // 🔮 小數施法間隔補差：例如 7.5 tick 會交替 8/7 tick，長期維持 80 次／分。
 // 防具強化 → AC 減免量（值越大防禦越好）：v3.0.69 用戶要求改「線性·每 +1 固定 AC−1」（原 +11~+15 每階多給 +2 已取消→ +11 以上不再大幅提升，每階仍只 −1；+15＝AC−15）。
 function enhanceArmAc(en) {
     return Math.max(0, Number(en) || 0);   // 每 +1 固定 AC−1

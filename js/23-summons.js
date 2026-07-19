@@ -135,7 +135,7 @@ function _sumDerive(mob, owner) {
     const mean = (squadDps / designCount) * (m.aspd / 10);
     const flat = Math.round(mean * 0.55);
     const dice = Math.max(1, Math.round((mean - flat) * 2));
-    const mastery = (owner.mastery === 'm_summon');   // 🧙 召喚精通沿用：傷害×1.2、命中+5
+    const mastery = entityHasMastery(owner, 'm_summon');   // 🧙 召喚精通沿用：傷害×1.2、命中+5
     return {
         flat, dice, aspd: m.aspd,
         dmgMult: (mastery ? 1.2 : 1) * (1 + Math.min(12, Math.max(0, (owner.d && owner.d.magicDmg) || 0)) / 80),
@@ -172,7 +172,7 @@ function _zmbDerive(s, owner) {
     const mean = dps * (ZOMBIE_ASPD / 10);
     const flat = Math.round(mean * 0.55);
     const dice = Math.max(1, Math.round((mean - flat) * 2));
-    const mastery = (owner.mastery === 'm_summon');   // 🧙 召喚精通沿用：造屍術隨從傷害×1.2、命中+5
+    const mastery = entityHasMastery(owner, 'm_summon');   // 🧙 召喚精通沿用：造屍術隨從傷害×1.2、命中+5
     return {
         flat, dice, aspd: ZOMBIE_ASPD,
         dmgMult: (mastery ? 1.2 : 1) * (1 + Math.min(12, Math.max(0, (owner.d && owner.d.magicDmg) || 0)) / 80),
@@ -214,7 +214,7 @@ function _spiritSpec(skId, ele, king) {   // 實體規格（依技能/屬性/是
     const e = (base.ele && (base.ele[ele] || base.ele.water)) || {};
     return { lv: base.lv, mrPenBase: base.mrPenBase, hitLvOff: base.hitLvOff, dmgMult: base.dmgMult, aoe: king ? SPIRIT_KING.aoe : null, hp: e.hp || 400, aspd: e.aspd || 16, dice: e.dice || [1, 40], scale: e.scale || 20 };
 }
-function _spiritIsKing(skId) { return skId === 'sk_elf_summon2' && player && player.mastery === 'e_spirit'; }
+function _spiritIsKing(skId) { return skId === 'sk_elf_summon2' && player && hasMastery('e_spirit'); }
 function _spiritFormName(skId, ele) {
     if (_spiritIsKing(skId)) return (SPIRIT_ELE_ZH[ele] || '') + '之精靈王';   // 🏷️ v3.2.27 更名：〈屬〉之精靈系（圖檔資料夾仍為 X屬性精靈·由 formGfx 對應）
     return (SPIRIT_DEF[skId].strong ? '強力' : '') + (SPIRIT_ELE_ZH[ele] || '') + '之精靈';
@@ -288,18 +288,19 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
         if (!t) { if (!silent) logSys('<span class="text-red-400">等級不足，無法施展造屍術。</span>'); return false; }
         ents.push({ uid: uid(), skId: skId, form: '人形殭屍', lv: t.lv, hp: t.hp, mhp: t.hp, _atkCd: 5 });
         castMsg = `你施放造屍術，喚起了 <span class="text-purple-300">人形殭屍</span>（Lv.${t.lv}·HP ${t.hp}）。`;
-    } else if (skId === 'sk_elf_summon' || skId === 'sk_elf_summon2') {   // 🧝 屬性精靈：依玩家屬性·一律 1 隻（👑 v3.2.25 精靈精通改為昇華精靈王·不再加隻數）
-        const ele = player.elfEle;
-        if (!ele || !SPIRIT_ELE_ZH[ele]) { if (!silent) logSys('<span class="text-red-400">尚未選擇屬性，無法召喚屬性精靈。</span>'); return false; }
+    } else if (skId === 'sk_elf_summon' || skId === 'sk_elf_summon2') {   // 🧝 屬性精靈；全能師同時召喚火水風地四系
+        const eles = (player.cls === 'omni' || player.elfEle === 'all') ? ['fire','water','wind','earth'] : [player.elfEle];
+        if (!eles[0] || !SPIRIT_ELE_ZH[eles[0]]) { if (!silent) logSys('<span class="text-red-400">尚未選擇屬性，無法召喚屬性精靈。</span>'); return false; }
         const king = _spiritIsKing(skId);
-        const spec = _spiritSpec(skId, ele, king);
-        const form = _spiritFormName(skId, ele);
-        // 動態分派：精靈王＝原「強力X屬性精靈」圖（專屬）；強力屬性精靈（無精通）與一般精靈＝「X屬性精靈」圖
-        const gfx = (king ? '強力' : '') + SPIRIT_ELE_ZH[ele] + '屬性精靈';
-        ents.push({ uid: uid(), skId: skId, form: form, formGfx: gfx, ele: ele, lv: spec.lv, hp: spec.hp, mhp: spec.hp, _king: king, _atkCd: 5 });
-        castMsg = king
-            ? `精靈之力在你的精通下昇華——你召喚了 <span class="text-purple-300 font-bold">${form}</span>！`
-            : `你召喚了 <span class="text-purple-300">${form}</span>。`;
+        eles.forEach((ele, i) => {
+            const spec = _spiritSpec(skId, ele, king);
+            const form = _spiritFormName(skId, ele);
+            const gfx = (king ? '強力' : '') + SPIRIT_ELE_ZH[ele] + '屬性精靈';
+            ents.push({ uid: uid(), skId: skId, form: form, formGfx: gfx, ele: ele, lv: spec.lv, hp: spec.hp, mhp: spec.hp, _king: king, _atkCd: 5 + i * 2 });
+        });
+        castMsg = (player.cls === 'omni' || player.elfEle === 'all')
+            ? `全屬性契約共鳴——你同時召喚了 <span class="text-purple-300 font-bold">火、水、風、地四系${king ? '精靈王' : '屬性精靈'}</span>！`
+            : (king ? `精靈之力在你的精通下昇華——你召喚了 <span class="text-purple-300 font-bold">${ents[0].form}</span>！` : `你召喚了 <span class="text-purple-300">${ents[0].form}</span>。`);
     } else return false;
     // 同時只能有一種召喚：清除其他召喚 buff＋舊管線殘留（比照 setupSummon 的清除迴圈）
     (player.skills || []).forEach(s => { const d = DB.skills[s]; if (d && d.summon) player.buffs[s] = 0; });
@@ -427,14 +428,15 @@ function spiritAttackOnce(s, t, owner) {
     const spec = _spiritSpec(s.skId, s.ele, !!s._king);   // 🧝 v3.2.26 四屬性獨立參數（dice/scale/攻速依屬性·王含 AOE）
     const cha = (owner.d && owner.d.cha) || 0;
     const _sgb = (typeof summonGearBonus === 'function') ? summonGearBonus(owner) : { dmg: 0, hit: 0 };
+    const _omniEcho = (owner === player && typeof omniCompanionEcho === 'function') ? omniCompanionEcho(s) : null;
     const _ia = (typeof teamIlluAura === 'function') ? teamIlluAura(s, true) : null;   // 🩹 幻覺光環：精靈命中吃 eh；md 由 owner.d＋下方其他隊員差額進 summonDamageMult，避免重複計算
     const _ownerIa = (owner !== player && !((owner.buffs || {}).sk_illu_lich > 0) && typeof teamIlluAura === 'function') ? teamIlluAura(owner, true) : null;   // 傭兵補其他隊員的巫妖魔傷；自身光環已在 owner.d。🩹 v3.4.47：owner 自身已持有巫妖→不再補差額（共享使全隊持有＝原寫法必雙算）
     const smLike = { skId: s.skId, hitLvOff: spec.hitLvOff || 0, dmgMult: spec.dmgMult || 1 };
     _petAnimAct(s, 'attack', t.uid);   // 🎬 v3.2.73 補跑中不設→回前景不同步爆播
-    const hv = summonHitValue(smLike, owner, t, _sgb.hit + (_ia ? _ia.eh : 0));
+    const hv = summonHitValue(smLike, owner, t, _sgb.hit + (_ia ? _ia.eh : 0) + (_omniEcho ? _omniEcho.hit : 0));
     const r = roll(1, 20);
     if (!((r === 20) || (r !== 1 && hv >= r))) { if (typeof vfxMiss === 'function') vfxMiss(t); logCombat(`<span class="text-purple-300">${s.form}</span> 的攻擊未命中。`, 'miss'); return; }
-    const flat = Math.floor(cha * (owner.lv || 1) / (spec.scale || 20));
+    const flat = Math.floor(cha * (owner.lv || 1) / (spec.scale || 20)) + (_omniEcho ? (_omniEcho.physical + _omniEcho.magic) : 0);
     const mrPen = (spec.mrPenBase || 0) + Math.floor(cha / 10);
     const mult = summonDamageMult(smLike, owner, true, (_ownerIa && _ownerIa.md) || 0);
     const dmg = summonElementDamage(spec.dice || [1, 40], s.ele, t, flat + _sgb.dmg + ((_ia && _ia.royalEd) || 0), mult, mrPen);   // 👑 灼熱武器：魔法型屬性精靈的一般攻擊亦取得全隊額外傷害

@@ -193,6 +193,7 @@ function getItemColor(item) {
 //   單祝福→金光、單遠古→紫光（原樣）；屬性+遠古→紫光(加強)、屬性+祝福→金光(加強)，顯眼度比照雙詞綴；
 //   遠古+祝福→紫金交替(顯眼)；三詞綴→變色循環，顯眼度最高。
 function getGlowClass(item, d) {
+    if ((item && item.id === 'wpn_four_dragon_god_sword') || (d && d.fourDragonSword)) return 'four-dragon-glow';
     // 🔮 席琳結晶：圖示帶與套裝文字同款的呼吸綠光
     if ((item && item.id === 'sherine_crystal') || (d && d.n === '席琳結晶')) return 'sherine-glow-icon';
     // 🔮 席琳套裝效果裝備：套裝光芒優先於傳說圖示光（名稱仍由 getItemColor 決定為琥珀金）
@@ -282,8 +283,34 @@ function batchUseItem(u) {
     let item = player.inv.find(i => i.uid === u);
     if (!item) return;
     let d = DB.items[item.id];
-    if (!d || !d.batchUse || d.eff !== 'expsoul') return;
+    if (!d || !d.batchUse) return;
     if (player.dead) { logSys(`死亡狀態無法使用道具，請先復活。`); return; }
+    // 💊 v3.5.50 萬能藥批量使用：一次輸入數量，自動夾限「持有數／60 瓶總額度／該屬性距上限 60」三者取小
+    if (d.eff === 'panacea') {
+        const STAT_CN = { str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'精神', cha:'魅力' };
+        let st = d.pstat, cap = 60;
+        let remainQuota = 60 - (player.panaceaUsed || 0);
+        let remainStat = cap - naturalStat(st);
+        if (remainQuota <= 0) { logSys(`萬能藥最多只能使用 60 瓶，使用回憶蠟燭後可重新使用。`); return; }
+        if (remainStat <= 0) { logSys(`${STAT_CN[st]}已達上限（${cap}），無法再使用 ${d.n}。`); return; }
+        let maxN = Math.min(item.cnt, remainQuota, remainStat);
+        let rawP = prompt(`要使用幾瓶 ${d.n}？（持有 ${item.cnt} 瓶·${STAT_CN[st]}距上限 ${remainStat}·萬能藥剩餘額度 ${remainQuota} 瓶·本次最多 ${maxN} 瓶）`, maxN);
+        if (rawP === null) return;
+        let nP = Math.floor(Number(rawP));
+        if (!nP || nP <= 0) { logSys('已取消批量使用。'); return; }
+        nP = Math.min(nP, maxN);
+        if (!player.panacea) player.panacea = { str:0, dex:0, con:0, int:0, wis:0, cha:0 };
+        player.panacea[st] = (player.panacea[st] || 0) + nP;
+        player.panaceaUsed = (player.panaceaUsed || 0) + nP;
+        item.cnt -= nP;
+        if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);
+        calcStats();
+        logSys(`使用了 <span class="${d.c || 'text-pink-300'} font-bold">${d.n}</span> ×${nP}，${STAT_CN[st]} 永久 +${nP}！（萬能藥已使用 ${player.panaceaUsed}/60）`);
+        renderTabs(); updateUI(); saveGame();
+        if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
+        return;
+    }
+    if (d.eff !== 'expsoul') return;
     let raw = prompt(`要使用幾個 ${d.n}？（持有 ${item.cnt} 個·每個 +${(d.expGain || 1000000).toLocaleString()} 經驗）`, item.cnt);
     if (raw === null) return;
     let n = Math.floor(Number(raw));
@@ -423,11 +450,11 @@ function useItem(u, silent = false) {
                 openPolySelect(item.uid);
                 return;
             }
-            if (silent && ringOn && player.poly && polyFormMatchesEquippedWeapon(player.poly)) {
+            if (silent && ringOn && player.poly) {
                 // 自動使用 + 持有變形控制戒指：維持上次的變身狀態（不重抽、不跳選單）
                 // 保留 player.poly 不變，僅於下方重置持續時間。
             } else {
-                // 其餘情況（手動且無戒指／尚無紀錄／換成不同攻擊類型武器）：依等級與武器類型隨機抽取。
+                // 其餘情況（手動且無戒指 / 自動但尚無變身紀錄）：依等級隨機抽取一種
                 player.poly = getPolyState();
             }
             player.buffs.poly = d.dur;
@@ -682,6 +709,7 @@ function royalEquipOk(d, id) {
 }
 function checkCanEquip(item) {
     let d = DB.items[item.id];
+    if (player.cls === 'omni') return !!d;   // ✨ 全能師：可使用所有職業、性別與武器種類的裝備
     if (d && d.reqAvatar && player && ((d.strictAvatar && player.avatar !== d.reqAvatar) || (!d.strictAvatar && player.avatar && player.avatar !== d.reqAvatar))) return false;   // 👸 性別頭像限定；strictAvatar（純潔少女的憐愛）要求必須明確為女妖精，舊檔缺 avatar 亦不放行
     if (isRelic(d)) return reqAllowsClass(d, player.cls);   // 🏺 遺物：職業限制純以 req 白名單為準（略過各職業專屬 *EquipOk 武器/防具清單，否則戰士等會被拒）
     if (player.cls === 'dark') return darkEquipOk(d, item.id);   // 🔧 黑暗妖精專屬裝備規則
@@ -743,15 +771,15 @@ function equipItem(item) {
     if (slot === 'ring') {
         if(!player.eq.ring1) slot = 'ring1';
         else if(!player.eq.ring2) slot = 'ring2';
-        else if(player.lv >= 76 && !player.eq.ring3) slot = 'ring3';   // 第3戒指欄：需 Lv76
-        else if(player.lv >= 81 && !player.eq.ring4) slot = 'ring4';   // 第4戒指欄：需 Lv81
+        else if(player.lv >= 1 && !player.eq.ring3) slot = 'ring3';   // 🐉 創世版：第3戒指欄 Lv1 開放
+        else if(player.lv >= 1 && !player.eq.ring4) slot = 'ring4';   // 🐉 創世版：第4戒指欄 Lv1 開放
         else slot = 'ring1';
     }
 
-    // 🦻 耳環欄位分配：一開始 1 個（ear1），Lv59 開放第 2 個（ear2），最多 2 個
+    // 🦻 創世版：兩個耳環欄從 Lv1 起皆可使用。
     if (slot === 'ear') {
         if(!player.eq.ear1) slot = 'ear1';
-        else if(player.lv >= 59 && !player.eq.ear2) slot = 'ear2';   // 第2耳環欄：需 Lv59
+        else if(player.lv >= 1 && !player.eq.ear2) slot = 'ear2';   // 🐉 創世版：第2耳環欄 Lv1 開放
         else slot = 'ear1';
     }
     // 🦻 不能同時裝備兩個名字相同的耳環
@@ -1042,7 +1070,7 @@ function renderStatusIconBar() {
     let bar=document.getElementById('status-icon-bar'); if(!bar||!player||!player.buffs)return;
     let rows=[],seen=new Set();
     // player.buffs 的數值單位就是「秒」，主迴圈每 10 tick（1 秒）扣 1；不可再除以 10。
-    let add=(name,seconds,label,icon,ally)=>{if(!name||seen.has(name))return;seen.add(name);let sec=Math.max(0,Math.ceil(Number(seconds)||0));rows.push({name,ticks:Number(seconds)||0,label:label||name,sec,icon:icon||name,ally:!!ally});};   // 🐾 v3.2.17 icon 參數：多狀態共用同一圖示檔（如 7 種誘捕）；🤝 ally 旗標：隊友提供的全隊光環（圖示加藍點區別）
+    let add=(name,seconds,label,icon)=>{if(!name||seen.has(name))return;seen.add(name);let sec=Math.max(0,Math.ceil(Number(seconds)||0));rows.push({name,ticks:Number(seconds)||0,label:label||name,sec,icon:icon||name});};   // 🐾 v3.2.17 icon 參數：多狀態共用同一圖示檔（如 7 種誘捕）
     if((player.buffs.sk_greater_haste||0)>0)add('加速術',player.buffs.sk_greater_haste,'強力加速術');   // 💨 v3.0.94 強力加速術優先：沿用加速術圖示·先登錄→seen 去重蓋掉下行的一般加速
     if(player.buffs.haste>0||player._equipHaste)add('加速術',player.buffs.haste||0,'加速');
     if(player.buffs.brave>0)add('勇敢藥水',player.buffs.brave,'勇敢藥水');
@@ -1053,8 +1081,6 @@ function renderStatusIconBar() {
     if(typeof PET_LURES!=='undefined')Object.keys(PET_LURES).forEach(k=>{if((player.buffs[k]||0)>0)add('誘捕|'+k,player.buffs[k],PET_LURES[k].n,'誘捕');});
     if(player._setPoly||(player.buffs.poly>0&&player.poly))add('變形術',player.buffs.poly||0,'變身');
     Object.keys(STATUS_ICON_SKILLS).forEach(id=>{if((player.buffs[id]||0)>0)add(STATUS_ICON_SKILLS[id],player.buffs[id],DB.skills[id]?DB.skills[id].n:STATUS_ICON_SKILLS[id]);});
-    // 🤝 v3.5.36 全隊光環（大地祝福/灼熱武器/閃亮之盾等 TEAM_AURA_SKILLS）：玩家未自持 buff 但隊友維持中→也亮圖示（標「隊友提供」·倒數取隊友最長剩餘）。玩家自持時上方主迴圈已加(seen 去重)→此段只補「純受益」情形。TEAM_SHARE_BUFFS 類會給玩家自己一份 buff·已由主迴圈顯示故不列入。寵物/召喚無此圖示列不涵蓋。
-    if(typeof TEAM_AURA_SKILLS!=='undefined'&&typeof _teamAuraHas==='function'){TEAM_AURA_SKILLS.forEach(sid=>{if((player.buffs[sid]||0)>0||!STATUS_ICON_SKILLS[sid]||!_teamAuraHas(sid))return;let remain=0,al=player.allies||[];for(let i=0;i<al.length;i++){let a=al[i];if(a&&!a._downed&&a.buffs&&(a.buffs[sid]||0)>remain)remain=a.buffs[sid];}add(STATUS_ICON_SKILLS[sid],remain,(DB.skills[sid]?DB.skills[sid].n:STATUS_ICON_SKILLS[sid])+'（隊友提供）',STATUS_ICON_SKILLS[sid],true);});}
     // 持續治療不存於 player.buffs，而是以 0.1 秒 tick 記在 player.hots；換算成真正剩餘秒數後顯示。
     [['sk_regen','體力回復術'],['sk_elf_lifebless','生命的祝福']].forEach(([id,name])=>{let h=player.hots&&player.hots[id];if(h&&h.ticksLeft>0){let remainTicks=Math.max(0,(h.ticksLeft-1)*(h.interval||0)+(h.cd||0));add(name,Math.ceil(remainTicks/10),DB.skills[id]?DB.skills[id].n:name);}});
     // 🔧 v2.7.5 合併 2683「狀態圖示狂閃修正」：renderStatusEffects 每 tick(0.1秒) 呼叫本函式；原本每次都重建整排 innerHTML→所有 <img> 反覆重新解碼/重繪而狂閃。
@@ -1063,7 +1089,7 @@ function renderStatusIconBar() {
     let sig=rows.map(x=>x.name+'|'+x.label).join('||');
     if(bar.dataset.statusSig!==sig){
         bar.dataset.statusSig=sig;
-        bar.innerHTML=rows.map((x,i)=>{let title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');return `<div class="status-icon${x.ally?' status-icon--ally':''}" data-status-index="${i}" title="${title}"><img src="assets/state-icons/${encodeURIComponent(x.icon||x.name)}.jpg" alt="${x.label}"></div>`;}).join('');
+        bar.innerHTML=rows.map((x,i)=>{let title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');return `<div class="status-icon" data-status-index="${i}" title="${title}"><img src="assets/state-icons/${encodeURIComponent(x.icon||x.name)}.jpg" alt="${x.label}"></div>`;}).join('');
     } else {
         rows.forEach((x,i)=>{let icon=bar.querySelector(`[data-status-index="${i}"]`);if(!icon)return;icon.title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');});
     }
@@ -1096,11 +1122,12 @@ function renderStatusEffects() {
     // 🐾 v3.2.17 誘捕狀態（新夥伴系統·7 種）；舊「夥伴：項圈」與 taming 顯示已隨項圈系統移除
     if(typeof PET_LURES!=='undefined')Object.keys(PET_LURES).forEach(k=>{if((player.buffs[k]||0)>0)buffs.push(`<span class="text-pink-300 font-bold">${PET_LURES[k].n}</span>`);});
 
-    // 🔮 席琳套裝：達 2 件以上（觸發套裝能力）的組別顯示於資訊面板（n/5）
+    // 🔮 席琳套裝：達 2 件以上顯示 n/5；創世第二頁套裝共有 8 件，顯示 n/8。
     if (player._sherineSetCnt) {
         for (let _g in player._sherineSetCnt) {
-            let _n = Math.min(5, player._sherineSetCnt[_g]);
-            if (_n >= 2) buffs.push(`<span class="c-sherine font-bold">${_g} ${_n}/5</span>`);
+            let _max = _g === '創世' ? 8 : 5;
+            let _n = Math.min(_max, player._sherineSetCnt[_g]);
+            if (_n >= 2) buffs.push(`<span class="c-sherine font-bold">${_g} ${_n}/${_max}</span>`);
         }
     }
 
@@ -1277,14 +1304,11 @@ function _updateUIImpl() {
 	if(document.getElementById('dt-hpr')) document.getElementById('dt-hpr').innerText = formatBonus(player.d.hpR || 0);
     document.getElementById('dt-er').innerText = `${effResistPct(player.d.er)}%`;   // 🔧 顯示有效迴避率（>50 每+5才+1%）
     document.getElementById('dt-dr').innerText = player.d.dr;
-    { let _attackSec = (typeof playerAttackIntervalTicks === 'function')
-            ? playerAttackIntervalTicks(false) / 10
-            : Math.max(0.1, Number(player.d.aspd) || 0.1);
-      document.getElementById('dt-spd').innerText = `${_attackSec.toFixed(2)}s`; }
+    document.getElementById('dt-spd').innerText = `${player.d.aspd.toFixed(2)}s`;
     { let _potionPct = (typeof getConPotionPct === 'function' ? getConPotionPct(player.d.con || 0) : 0);
       try { _potionPct += (typeof dollFieldVal === 'function' ? dollFieldVal('potionBonus') : 0) + (player._miscPotionBonus || 0); } catch (e) {}
       let _el = document.getElementById('dt-potion'); if (_el) _el.innerText = `${_potionPct}%`;
-      _el = document.getElementById('dt-movespeed'); if (_el) _el.innerText = `${typeof playerEffectiveMoveSpeedPct === 'function' ? playerEffectiveMoveSpeedPct() : 100 + (player.d.moveSpeedPct || 0)}%`;
+      _el = document.getElementById('dt-movespeed'); if (_el) _el.innerText = `${100 + (player.d.moveSpeedPct || 0)}%`;
       _el = document.getElementById('dt-mpkill'); if (_el) _el.innerText = (typeof getWisMpOnKill === 'function' ? getWisMpOnKill(player.d.wis || 0) : 0);
       _el = document.getElementById('dt-mr'); if (_el) _el.innerText = player.d.mr || 0;
       _el = document.getElementById('dt-resnone'); if (_el) _el.innerText = Math.round(player.d.resNone || 0); }

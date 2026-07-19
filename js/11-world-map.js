@@ -1,3 +1,9 @@
+// ===== 終極之地：收錄資料庫內全部可戰鬥 BOSS（排除攻城建築） =====
+DB.maps.ultimate_land = Object.keys(DB.mobs).filter(id => {
+    let m = DB.mobs[id];
+    return !!(m && m.boss && m.race !== '建築' && !m.noAttack && !m.siegeEnemy && Number(m.hp) > 0);
+});
+
 // ===== 地圖分類選單（村莊／野外／地監／特殊） =====
 const MAP_CATEGORIES = {
     village: [
@@ -39,6 +45,7 @@ const MAP_CATEGORIES = {
     ],
     special: [
         {v:'training',t:'新兵修練場'}, {v:'dream_island',t:'夢幻之島'},
+        {v:'ultimate_land',t:'終極之地',c:'#f0abfc'},
         {v:'king_baranka_room',t:'魔獸軍王之室',c:'#f87171',needKey:'item_king_key'},
         {v:'law_king_room',t:'法令軍王之室',c:'#f87171',needKey:'item_king_key'},
         {v:'necro_king_room',t:'冥法軍王之室',c:'#f87171',needKey:'item_king_key'},
@@ -86,6 +93,9 @@ const MAP_CATEGORIES = {
 //  攻城獲勝城堡：不再獨立成「城堡」分類，改依位置注入所屬地區(肯特/風木/海音·castleCity+castleAt)；風木地監隨風木城一起進風木地區。攻城進行中(動態 getSiegeAreas) 仍由 rebuildMapCategoryOptions 視狀態插「攻城」。
 //  ⚠️新增地圖時：除了加進 MAP_CATEGORIES，也要在此對應地區補一筆，否則該圖不會出現在下拉。
 const MAP_REGIONS = [
+    { key: 'ultimate', label: '終極之地', maps: [
+        {v:'ultimate_land', t:'終極之地'}
+    ]},
     { key: 'silverknight', label: '銀騎士村', maps: [
         {v:'town_silver_knight', t:'銀騎士村莊'}, {v:'silver_knight', t:'銀騎士村周邊'}, {v:'training', t:'新兵修練場'}
     ]},
@@ -1271,6 +1281,7 @@ function renderSherinePray(div) {
 
 // ===== 🏅 威頓村 漢：職業精通任務 =====
 function hanAcceptQuest() {
+    if (player.cls === 'omni') return;
     if ((player.lv || 1) < 50) return;
     player.masteryQuest = 'active';
     let boss = MASTERY_DATA[player.cls].boss;
@@ -1289,6 +1300,7 @@ function hanSubmitProof() {
     let el = document.getElementById('interaction-content'); if (el) renderHanNPC(el);
 }
 function chooseMastery(id) {
+    if (player.cls === 'omni') return;
     if (player.masteryQuest !== 'done') return;
     let md = MASTERY_DATA[player.cls];
     if (!md || !md.list[id] || player.mastery === id) return;
@@ -1359,6 +1371,10 @@ function chooseMastery(id) {
     let el = document.getElementById('interaction-content'); if (el) renderHanNPC(el);
 }
 function renderHanNPC(div) {
+    if (player.cls === 'omni') {
+        div.innerHTML = `<div class="flex flex-col gap-4 p-5 items-center text-center"><div class="text-2xl font-bold text-yellow-300">✨ 全職業專精</div><div class="text-slate-200 leading-relaxed">全能師已超越單一道路的限制。<br>騎士、法師、妖精、黑暗妖精、幻術士、龍騎士、戰士與王族的全部專精會同時生效。</div><div class="text-emerald-300 font-bold">不需任務、不需切換，也不會收取更換費用。</div></div>`;
+        return;
+    }
     let md = MASTERY_DATA[player.cls];
     if ((player.lv || 1) < 50) {
         div.innerHTML = `<div class="p-6 text-slate-400">漢瞇起眼打量著你……<br><span class="text-red-400">「還不夠。等你站上 50 級的高度，再來與我談『精通』二字。」</span></div>`;
@@ -1552,14 +1568,15 @@ function sanctuaryEnter(mapKey, costId) {
 }
 function renderDantesGate(div) {
     let books = _sanctItemCount('item_dk_book'), seals = _sanctItemCount('item_giltas_seal'), orbs = _sanctItemCount('item_summonorb_full');
+    let completePass = typeof hasCompletePass === 'function' && hasCompletePass();
     div.innerHTML = `
         <div class="text-sm text-slate-300 space-y-2">
             <p>「嗚！嗚！嗚！……你也為了嘲笑我的愚蠢而來的嗎？<br><br>快離開吧，已經太遲了。」</p>
-            <p class="text-xs text-slate-400">持有：死亡騎士之書 ×${books}．吉爾塔斯的封印 ×${seals}．完整的召喚球 ×${orbs}</p>
+            <p class="text-xs ${completePass ? 'text-fuchsia-300 font-bold' : 'text-slate-400'}">${completePass ? '🎟 完全通行證有效：以下入口免材料且不消耗通行證' : `持有：死亡騎士之書 ×${books}．吉爾塔斯的封印 ×${seals}．完整的召喚球 ×${orbs}`}</p>
             <div class="space-y-2 pt-2">
-                <button class="w-full text-left px-3 py-2 rounded bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/40 ${books < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('dark_elf_sanctuary','item_dk_book')">⚔️ 進入 黑暗妖精聖地</button>
-                <button class="w-full text-left px-3 py-2 rounded bg-rose-900/60 hover:bg-rose-800 border border-rose-500/40 ${books < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('cursed_dark_elf_sanctuary','item_dk_book')">💀 進入 受詛咒的黑暗妖精聖地</button>
-                <button class="w-full text-left px-3 py-2 rounded bg-purple-900/60 hover:bg-purple-800 border border-purple-500/40 ${seals < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('collapsed_elder_council_hall','item_giltas_seal')">👑 交出 吉爾塔斯的封印</button>
+                <button class="w-full text-left px-3 py-2 rounded bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/40 ${!completePass && books < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('dark_elf_sanctuary','item_dk_book')">⚔️ 進入 黑暗妖精聖地</button>
+                <button class="w-full text-left px-3 py-2 rounded bg-rose-900/60 hover:bg-rose-800 border border-rose-500/40 ${!completePass && books < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('cursed_dark_elf_sanctuary','item_dk_book')">💀 進入 受詛咒的黑暗妖精聖地</button>
+                <button class="w-full text-left px-3 py-2 rounded bg-purple-900/60 hover:bg-purple-800 border border-purple-500/40 ${!completePass && seals < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('collapsed_elder_council_hall','item_giltas_seal')">👑 進入 崩壞的長老會議廳</button>
             </div>
             <p class="text-xs text-slate-500 pt-1">挑戰吉爾塔斯時若身上持有 完整的召喚球：戰敗回村將消耗 1 顆，吉爾塔斯的 HP 會保持不變（暫停回血）直到你再次進入；沒有完整的召喚球則重新進入將是全新的吉爾塔斯。</p>
         </div>`;
@@ -1606,16 +1623,6 @@ function arkataBuyback(i) {
     updateUI(); saveGame();
     renderArkataBuyback(document.getElementById('interaction-content'));
 }
-
-// 🏴 潘朵拉黑市快捷鍵：不切換地圖，直接沿用村莊 NPC 的同一個浮動視窗與市場狀態。
-// 浮動視窗原本位於 #town-view；狩獵中父層會隱藏，因此首次使用時移至 body，之後所有 NPC 互動仍共用此視窗。
-function openPandoraShortcut() {
-    let panel = document.getElementById('town-interaction-container');
-    if (!panel) return;
-    if (panel.parentElement && panel.parentElement.id === 'town-view') document.body.appendChild(panel);
-    interactNPC('npc_pandora', 'town_talking');
-}
-
 function interactNPC(npcId, townId) {
     let npc = DB.towns[townId].npcs.find(n => n.id === npcId);
     if(!npc) return;
@@ -1960,6 +1967,95 @@ function _townMapBg(townId) {
 }
 
 let _townNpcSprites = [];
+function _renderTownPlayerSprite(map) {
+    if (!map || !player || !player.cls) return;
+    let activePoly = player.poly && player.buffs && (player.buffs.poly || 0) > 0;
+    let alias = { '終極死亡騎士':'死亡騎士', '全能覺醒・死亡騎士':'死亡騎士', '真‧死亡騎士':'死亡騎士', '真‧克特':'克特', '高等黑暗精靈':'黑暗精靈' };
+    let folder = activePoly ? (alias[player.poly.n] || player.poly.n) : (player.avatar || '公主');
+    let root = activePoly ? ('assets/morphanim/' + encodeURIComponent(folder) + '/') : ('assets/classanim/' + encodeURIComponent(folder) + '/');
+    let prefix = activePoly ? 'idle' : 'unarmed_idle';
+    let el = document.createElement('div');
+    el.className = 'town-player-character';
+    el.style.left = '50%'; el.style.top = '62%'; el.style.zIndex = '620';
+    el.innerHTML = '<img class="tpc-shadow" src="' + root + prefix + '_s_0.png" alt="" onerror="this.remove()">' +
+        '<img class="tpc-body" src="' + root + prefix + '_0.png" alt="角色" onerror="if(!this.dataset.fallback){this.dataset.fallback=\'1\';this.src=\'assets/classanim/%E5%85%AC%E4%B8%BB/unarmed_idle_0.png\';}">';
+    map.appendChild(el);
+}
+let _townPlayerState = { act:null, t:0, key:null, el:null, imgs:null };
+function _townPlayerTrigger(act) {
+    if (!document.getElementById('town-npc-map') || document.getElementById('town-npc-map').classList.contains('hidden')) return;
+    _townPlayerState.act = act || 'skill';
+    _townPlayerState.t = Date.now();
+}
+
+_renderTownPlayerSprite = function(map) {
+    if (!map || !player || !player.cls) return;
+    let el = document.createElement('div');
+    el.className = 'town-player-character';
+    el.style.left = '50%'; el.style.top = '62%'; el.style.zIndex = '620';
+    let sh = document.createElement('img'); sh.className = 'tpc-shadow'; sh.alt = '';
+    let bd = document.createElement('img'); bd.className = 'tpc-body'; bd.alt = '角色';
+    let wp = document.createElement('img'); wp.className = 'tpc-weapon'; wp.alt = '';
+    el.append(sh, bd, wp); map.appendChild(el);
+    _townPlayerState.el = el; _townPlayerState.imgs = { sh:sh, bd:bd, wp:wp }; _townPlayerState.key = null;
+    _townPlayerAnimApply();
+};
+
+function _townPlayerAnimApply() {
+    try {
+        let map = document.getElementById('town-npc-map');
+        let st = _townPlayerState;
+        if (!map || map.classList.contains('hidden') || !st.el || !st.el.isConnected) return;
+        let form = (typeof _playerBattleForm === 'function') ? _playerBattleForm() : null;
+        if (!form || typeof _morphBattleCache === 'undefined') return;
+        let a = _morphBattleCache[form.key];
+        if (a === undefined) { _battleSpriteProbe(form); return; }
+        if (!a || a === 'probing') return;
+        if (st.key !== form.key) { st.key = form.key; st.act = st.act || 'skill'; st.t = Date.now(); }
+        let act = st.act, seq = act && a[act], useW = false, frame = 0;
+        if (act === 'skill' && a.wskill) { seq = a.wskill; useW = true; }
+        if (seq && seq.length) {
+            let ms = act === 'skill' && typeof _skillFrameMs === 'function' ? _skillFrameMs(seq.length) : 125;
+            frame = Math.floor((Date.now() - st.t) / ms);
+            if (frame >= seq.length) { st.act = null; act = null; seq = null; }
+        }
+        if (!seq) { act = 'idle'; seq = a.idle; frame = seq && seq.length ? Math.floor(Date.now() / 125) % seq.length : 0; useW = false; }
+        if (!seq || !seq[frame]) return;
+        let I = st.imgs;
+        if (I.bd.src !== seq[frame].src) I.bd.src = seq[frame].src;
+        let ss = useW ? a.shadow.wskill : a.shadow[act];
+        if (ss && ss.length) { let sf = frame % ss.length; I.sh.style.visibility = ''; if (I.sh.src !== ss[sf].src) I.sh.src = ss[sf].src; }
+        else I.sh.style.visibility = 'hidden';
+        let ws = a.weapon && a.weapon[act];
+        if (ws && ws[frame]) { I.wp.style.visibility = ''; if (I.wp.src !== ws[frame].src) I.wp.src = ws[frame].src; }
+        else I.wp.style.visibility = 'hidden';
+        let w = seq[frame].naturalWidth || 100; st.el.style.width = w + 'px';
+        st.el.classList.toggle('omni-awakened', !!(player.poly && player.buffs && player.buffs.poly > 0));
+    } catch (e) {}
+}
+setInterval(_townPlayerAnimApply, 125);
+
+if (typeof castSkill === 'function' && !castSkill._townAnimWrapped) {
+    const _townOriginalCastSkill = castSkill;
+    castSkill = function() { let r = _townOriginalCastSkill.apply(this, arguments); if (r) _townPlayerTrigger('skill'); return r; };
+    castSkill._townAnimWrapped = true;
+}
+if (typeof manualCast === 'function' && !manualCast._townAnimWrapped) {
+    const _townOriginalManualCast = manualCast;
+    manualCast = function() { let r = _townOriginalManualCast.apply(this, arguments); _townPlayerTrigger('skill'); return r; };
+    manualCast._townAnimWrapped = true;
+}
+if (typeof confirmPolySelect === 'function' && !confirmPolySelect._townAnimWrapped) {
+    const _townOriginalConfirmPolySelect = confirmPolySelect;
+    confirmPolySelect = function() { let r = _townOriginalConfirmPolySelect.apply(this, arguments); _townPlayerState.key = null; _townPlayerTrigger('skill'); return r; };
+    confirmPolySelect._townAnimWrapped = true;
+}
+if (typeof cancelCurrentPoly === 'function' && !cancelCurrentPoly._townAnimWrapped) {
+    const _townOriginalCancelCurrentPoly = cancelCurrentPoly;
+    cancelCurrentPoly = function() { let r = _townOriginalCancelCurrentPoly.apply(this, arguments); _townPlayerState.key = null; _townPlayerTrigger('skill'); return r; };
+    cancelCurrentPoly._townAnimWrapped = true;
+}
+
 function renderTownNPCMap(townId) {
     let map = document.getElementById('town-npc-map');
     if (!map) return;
@@ -1967,6 +2063,7 @@ function renderTownNPCMap(townId) {
     map.innerHTML = '';
     _townNpcSprites = [];
     try { map.style.backgroundImage = _townMapBg(townId); } catch (e) {}
+    _renderTownPlayerSprite(map);   // 角色固定顯示在村莊中央；pointer-events:none，不遮擋 NPC 點擊
     let td = DB.towns[townId];
     if (!td) return;
     // 與舊卡片清單相同的可見性過濾
@@ -1983,13 +2080,6 @@ function renderTownNPCMap(townId) {
     // 🗼🌀 v3.2.89 傲慢之塔／時空裂痕：入口告示改成地圖上的可點 NPC（_spr 專屬圖·_float 專屬點擊→浮動視窗）
     if (townId === 'town_pride') vis.push({ id: '_pride_entrance', n: '傲慢之塔', title: '入口', _spr: '1148', _float: 'pride' });
     if (townId === 'town_rift') vis.push({ id: '_rift_entrance', n: '時空裂痕', title: '入口', _spr: '1149', _float: 'rift' });
-    // 🏴 潘朵拉玩家 NPC：每個符合條件的安全區各自最多一名，並沿用玩家職業站立動畫。
-    try {
-        if (typeof getWanderingBuyerForTown === 'function') {
-            let wandering = getWanderingBuyerForTown(townId);
-            if (wandering) vis.push(wandering);
-        }
-    } catch (e) {}
     if (!vis.length) return;
     let pos = _townNpcLayout(vis.length, townId);
     let ovr = TOWN_NPC_POS_OVERRIDE[townId] || {};
@@ -2000,7 +2090,7 @@ function renderTownNPCMap(townId) {
     vis.forEach((npc, i) => {
         let ov = ovr[npc.id];
         let p = ov ? { x: ov[0], y: ov[1] } : (pos[i] || { x: 50, y: 60 });
-        // 玩家 NPC 使用 classanim 的無武器正面 idle，本體與影子各自同步播放。
+        // 玩家 NPC 使用 classanim 的無武器 idle（三方向隨機·由 wanderingBuyerSpriteData 依 id 決定），本體與影子各自同步播放。
         if (npc._wanderer && typeof wanderingBuyerSpriteData === 'function') {
             let spr = wanderingBuyerSpriteData(npc);
             let body0 = spr.frames && spr.frames[0] ? spr.frames[0].src : '';

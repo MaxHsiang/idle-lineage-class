@@ -126,7 +126,7 @@ function renderClassicSkillBook(sDiv) {
         let learned = (player.skills || []).includes(id);
         let grantedSkill = granted.includes(id);
         let needLv = grantedSkill ? 0 : skillReqLv(sk, id);
-        let elementOk = !sk.reqEle || player.elfEle === sk.reqEle;
+        let elementOk = !sk.reqEle || player.elfEle === sk.reqEle || player.elfEle === 'all';
         let elementChosen = !sk.reqEleAny || !!player.elfEle;
         let usable = learned && elementOk && elementChosen && (grantedSkill || needLv === undefined || player.lv >= needLv);
         let dim = learned ? (usable ? '' : ' classic-skill-unavailable') : ' classic-skill-unlearned';
@@ -212,6 +212,8 @@ function renderTabs(force) {
     if(setCheck['icequeen_charm'] >= 3) activeSets.push('icequeen_charm');   // ❄️👸 冰之女王魅力套裝：3 件齊→欄位底色亮起
     if(setCheck['frost'] >= 3) activeSets.push('frost');   // ❄️ 寒冰套裝：3 件齊→欄位底色亮起
     if(setCheck['bluepirate'] >= 4) activeSets.push('bluepirate');   // 🏴‍☠️ 藍海賊套裝：4 件齊→欄位底色亮起
+    if(setCheck['genesis_armor'] >= 2) activeSets.push('genesis_armor');   // 🐉 創世防具：2/4/6/8 件分段發動
+    if(setCheck['genesis_acc'] >= 2) activeSets.push('genesis_acc');       // 🐉 創世飾品：2/4/6/8 件分段發動
 
     slots.forEach(s => {
         if (s.filler) {   // 🦴 v3.1.75 填充格：與 decorateClassicInventoryTab 尾端補的空格同款（無邊框互動·非 .list-item）
@@ -256,7 +258,7 @@ function renderTabs(force) {
             el.innerHTML = `<div class="classic-icon-box">${imgHtml}${_equippedBadge}${_cornerValue}</div><div class="classic-name-box"><span class="classic-slot-name">${s.n}</span><span class="${getItemColor(eq)} font-bold">${getItemFullName(eq)}</span></div>${eq.lock ? '<span class="classic-item-lock-badge" aria-hidden="true">🔒</span>' : ''}`;
             el.onclick = () => openModal(eq, true, s.k);
         } else {
-            let _rlv = (s.k === 'ring3') ? 76 : (s.k === 'ring4') ? 81 : (s.k === 'ear2') ? 59 : 0;   // 🔧 第3/4戒指欄、第2耳環欄等級需求
+            let _rlv = (s.k === 'ring3' || s.k === 'ring4' || s.k === 'ear2') ? 1 : 0;   // 🐉 創世版：全部飾品欄 Lv1 開放
             let _locked = _rlv && player.lv < _rlv;
             el.title = _locked ? `${s.n}（需 Lv${_rlv}）` : `${s.n}（空）`;
             el.innerHTML = `<div class="classic-icon-box"></div><div class="classic-name-box"><span class="classic-slot-name">${s.n}</span><span class="${_locked ? 'text-red-400' : 'text-slate-500'}">${_locked ? '需 Lv' + _rlv : '- 空 -'}</span></div>`;
@@ -320,7 +322,9 @@ player.inv.forEach(i => {
     let imgUrl = getIconUrl(d);
     let glowClass = getGlowClass(i, d);
     let _dimStyle = dimIcon ? ' style="opacity:0.3;filter:grayscale(0.6);"' : '';   // 🔅 無法裝備→圖示黯淡＋去彩度
-    let imgHtml = `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="w-6 h-6 object-contain pointer-events-none ${glowClass}"${_dimStyle}>`;
+    let imgHtml = (d.eff === 'card' && typeof cardInventoryIconHtml === 'function')
+        ? cardInventoryIconHtml(d, glowClass, _dimStyle)
+        : `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="w-6 h-6 object-contain pointer-events-none ${glowClass}"${_dimStyle}>`;
     let _invCornerValue = (Number(i.en) || 0) > 0
         ? `<span class="classic-icon-corner-value is-enhance">+${capEn(i.en, d)}</span>`
         : ((i.cnt || 1) > 1 ? `<span class="classic-icon-corner-value is-count">${(i.cnt || 1).toLocaleString()}</span>` : '');
@@ -485,7 +489,7 @@ function onSummonToggle(sid) {
 // 🐉 覺醒互斥（無覺醒精通）：勾選一種覺醒 → 自動取消另外兩種，並重繪（重繪會把未勾選的兩種設為 disabled 鎖定）；有覺醒精通(k_awaken)則三種可並存、不鎖
 function onAwakenToggle(sid) {
     let c = document.getElementById('auto-sk-' + sid);
-    if (c && c.checked && player.mastery !== 'k_awaken') {
+    if (c && c.checked && !hasMastery('k_awaken')) {
         ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].forEach(id => {
             if (id !== sid) { let o = document.getElementById('auto-sk-' + id); if (o) o.checked = false; }
         });
@@ -509,15 +513,42 @@ function endAutoBuffNow(sid) {
 // 一般 buff/HoT 勾選框（auto-sk-*，非召喚/覺醒/淨化）的 onchange：取消打勾即立即結束
 function onAutoBuffToggle(sid) {
     let c = document.getElementById('auto-sk-' + sid);
-    if (!c) return;
-    if (c.checked && (sid === 'sk_holy_dash' || sid === 'sk_elf_winddash')) {
-        let other = sid === 'sk_holy_dash' ? 'sk_elf_winddash' : 'sk_holy_dash';
-        let o = document.getElementById('auto-sk-' + other);
-        if (o) o.checked = false;
-        endAutoBuffNow(other);
-    } else if (!c.checked) {
-        endAutoBuffNow(sid);
+    if (c && !c.checked) endAutoBuffNow(sid);
+}
+
+function refreshAutoSkillSelectAll() {
+    let btn = document.getElementById('auto-skill-select-all');
+    let box = document.getElementById('auto-buff-skills');
+    if (!btn || !box) return;
+    let list = Array.from(box.querySelectorAll('input[type="checkbox"]:not(:disabled)'));
+    let all = list.length > 0 && list.every(c => c.checked);
+    btn.textContent = all ? '取消全選' : '全選';
+    btn.classList.toggle('bg-red-900', all);
+    btn.classList.toggle('border-red-600', all);
+    btn.classList.toggle('bg-purple-900', !all);
+    btn.classList.toggle('border-purple-600', !all);
+}
+
+function toggleAllAutoBuffSkills() {
+    let box = document.getElementById('auto-buff-skills');
+    if (!box) return;
+    let list = Array.from(box.querySelectorAll('input[type="checkbox"]:not(:disabled)'));
+    if (!list.length) return;
+    let turnOn = !list.every(c => c.checked);
+    list.forEach(c => { c.checked = turnOn; });
+    if (!turnOn) {
+        list.forEach(c => {
+            let sid = c.id.replace(/^auto-sk-/, '');
+            let sk = DB.skills[sid];
+            if (!sk) return;
+            if (sk.summon && typeof onSummonToggle === 'function') onSummonToggle(sid);
+            else if (sk.awaken && typeof onAwakenToggle === 'function') onAwakenToggle(sid);
+            else if (typeof onAutoBuffToggle === 'function') onAutoBuffToggle(sid);
+        });
     }
+    renderSkillSelects();
+    refreshAutoSkillSelectAll();
+    if (typeof saveGame === 'function') saveGame();
 }
 // 🔧 藥水/卷軸類維持型增益（靜態勾選框 set-*）：取消打勾即立即結束對應 buff（不等自然倒數）。於 window.onload 掛一次（勾選框是靜態 DOM、持久存在）。
 const POTION_BUFF_ENDERS = [['set-haste','haste'],['set-brave','brave'],['set-blue','blue'],['set-cautious','cautious'],['set-elfcookie','elfcookie'],['set-poly','poly'],['set-magicbarrier','sk_magic_shield']];
@@ -553,7 +584,7 @@ function renderSkillSelects() {
         let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
+        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle && player.elfEle !== 'all') isAvail = false;
         if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
@@ -568,7 +599,7 @@ function renderSkillSelects() {
             let __cancelOn = player.skills.includes('sk_cancel') && document.getElementById('auto-sk-sk_cancel')?.checked;
             let __locked = (sid === 'sk_antidote' || sid === 'sk_holy_light') && __cancelOn;
             // 🐉 覺醒互斥（無覺醒精通）：已勾選一種覺醒時，鎖定另外兩種「未勾選」的覺醒；已勾選那一個維持可點以便取消
-            let __awakenLocked = sk.awaken && player.mastery !== 'k_awaken' && !document.getElementById('auto-sk-'+sid)?.checked && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => document.getElementById('auto-sk-'+a)?.checked);
+            let __awakenLocked = sk.awaken && !hasMastery('k_awaken') && !document.getElementById('auto-sk-'+sid)?.checked && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => document.getElementById('auto-sk-'+a)?.checked);
             let __awakenAttr = sk.awaken ? ` onchange="onAwakenToggle('${sid}')"` : '';
             let __dis = (!isAvail || __locked || __awakenLocked) ? 'disabled' : '';
             let __purAttr = (sid === 'sk_cancel') ? ` onchange="renderSkillSelects()"` : '';
@@ -607,6 +638,7 @@ function renderSkillSelects() {
     let _convRow = document.getElementById('ui-convert-row');
     if(_convRow) _convRow.classList.toggle('hidden', player.cls !== 'elf' && player.cls !== 'mage' && !(player.cls === 'royal' && hasMastery('k_royal_magic')));   // 🔧 轉換技能設置開放給法師/妖精；👑 王族（魔法精通）也開放以使用魔力奪取
     document.getElementById('auto-buff-skills').innerHTML = buffHtml;
+    refreshAutoSkillSelectAll();
     updateSummonLock();
     if (typeof wireBuffEnders === 'function') wireBuffEnders();   // 🔧 確保藥水/卷軸維持型增益勾選框已掛「取消打勾即結束」監聽（_buffEnderWired 守衛→重複呼叫零成本）
 }
@@ -620,14 +652,11 @@ function formatBonus(val) {
 const WEAPON_TAGS = {
     wpn_katana: ['單手劍','武士刀'], wpn_siruge: ['單手劍','武士刀'], wpn_golden_scepter: ['單手劍','武士刀'],   // 👑 黃金權杖：反擊＋居合（雙標籤·裝真盾→反擊、無盾→居合）
     wpn_dagger2: ['匕首'], wpn_dagger1: ['匕首'], wpn_11: ['匕首'], wpn_33: ['匕首'],
-    wpn_longsword: ['單手劍'], wpn_9: ['單手劍'], wpn_scimitar: ['單手劍'], wpn_26: ['單手劍'], wpn_damascus: ['單手劍'],
+    wpn_longsword: ['單手劍'], wpn_9: ['單手劍'], wpn_scimitar: ['單手劍'], wpn_26: ['單手劍'],
     wpn_elfsword: ['單手劍'], wpn_27: ['單手劍'], wpn_shortsword: ['單手劍'], wpn_redknight: ['單手劍'],
     wpn_invader: ['單手劍'], wpn_34: ['單手劍'], wpn_35: ['單手劍'],
     wpn_36: ['單手劍'], wpn_rapier: ['單手劍'], wpn_mailbreaker: ['單手劍'], wpn_silversword: ['單手劍'], wpn_37: ['單手劍'],
     wpn_21: ['矛'], wpn_24: ['矛'], wpn_25: ['矛'], wpn_28: ['矛'], wpn_39: ['矛'], wpn_40: ['矛'], wpn_41: ['矛'], wpn_17: ['矛'], wpn_4: ['矛'], wpn_halberd: ['矛'],   // 🔱 法丘：雙手矛（w2h＋穿透80%）
-    wpn_6: ['矛'], wpn_7: ['矛'], wpn_12: ['矛'], wpn_15: ['矛'], wpn_18: ['矛'],   // 🔱 v3.5.8 補齊天堂槍類漏標：巴迪須/柴刀/貝卡合金/吉薩原掉「雙手劍」fallback、露西錘被「錘」字誤歸雙手鈍器→動態/攻速/出血全錯（穿透 eff＝矛系標配可佐證）
-    wpn_14: ['矛'], wpn_16: ['矛'], wpn_demonking_spear: ['矛'], wpn_ancient_spear: ['矛'],   // 🔱 v3.5.8 闊矛/戟/惡魔王矛/古代神之槍：家族原靠名稱 regex 已對·補 tag 讓 weaponHasBleed 一致取得矛系出血
-    relic_bk_lance: ['矛'],   // 🏺 v3.5.27 黑騎士的精銳長槍：單手矛（無 w2h→矛系出血·無穿透·符合 v3.5.20 規則）
     wpn_20: ['單手鈍器'], wpn_10: ['單手鈍器'], wpn_13: ['單手鈍器'], wpn_alien: ['單手鈍器'], wpn_1: ['單手鈍器'], wpn_2: ['單手鈍器'], wpn_ancient_axe: ['單手鈍器'], wpn_warrior_trial_axe: ['單手鈍器'], wpn_master_axe: ['單手鈍器'], wpn_demon_axehead: ['單手鈍器'], wpn_iron_axehead: ['單手鈍器'], wpn_giant_axehead: ['單手鈍器'],   // 🔧 古代神之斧／試煉斧頭／大匠的斧頭／魔物的斧頭／鐵斧頭／巨人的斧頭：單手鈍器（鈍擊）
     wpn_2hsword: ['雙手劍'], wpn_dragonslayer: ['雙手劍'], wpn_official_2h: ['雙手劍'],   // 🔧 雙手劍類型標註
     // 🔧 重擊特效武器標註為「雙手鈍器」
@@ -724,32 +753,7 @@ Object.keys(DB.items).forEach(function(id){ let d = DB.items[id]; if (d && d.eff
 // 🎮 經典模式：tooltip 不顯示已被停用的武器/盾牌特效字樣（共鳴/魔爆/連射/反擊/出血/穿透/切割/居合/魔擊/鈍擊/重擊/格檔）；連擊/月光爆裂/即死等未停用者照常顯示
 const CLASSIC_HIDDEN_EFF_LABELS = ['共鳴','魔爆','連射','反擊','出血','穿透','切割','居合','魔擊','鈍擊','重擊','格檔','雙刃'];   // ⚔️ 雙刃＝雙刀 5% 傷害×2（經典停用）；鋼爪額外重擊以「重擊」開頭已涵蓋
 function filterClassicEffLabels(effArr, d){ return (player && player.classicMode && !(d && d.classicOk)) ? effArr.filter(e => !CLASSIC_HIDDEN_EFF_LABELS.some(h => e.startsWith(h))) : effArr; }   // ⚔️ v3.2.38 classicOk 特例（黑虎的雙尾鞭）：經典模式特效照常顯示
-function weaponHasBleed(id){ let d = DB.items[id]; if (d && d.noBleed) return false; let t = getWeaponTags(id); return t.includes('匕首') || (t.includes('矛') && !(d && d.w2h)); }   // 🩸 匕首與「單手矛」帶出血；雙手矛只有穿透不出血（用戶規則：雙手矛=穿透無出血／單手矛=出血無穿透）·noBleed 旗標仍可個別停用
-
-// ⚔️ 武器資料欄位補充說明：集中處理「戰鬥中實際生效、但一般特效列沒有對應項目」的機制。
-// 背包、裝備欄、圖鑑與潘朵拉市場 tooltip 共用，避免只在物品背景文字中含糊帶過。
-function weaponPurposeLabels(d) {
-    if (!d || d.type !== 'wpn') return [];
-    const out = [];
-    if (d.qigu) out.push('奇古獸攻擊（一般攻擊必定命中並視為魔法傷害，受MR減免；奇古獸精通時無視MR）');
-    if (d.qiguProc === 'phantom') out.push('幻影衝擊 1%＋每強化1%（造成基礎80～160的無屬性魔法傷害，不受MR減免）');
-    if (d.qiguProc === 'mindbreak') out.push('心靈破壞 1%＋每強化1%（以自身最大MP 5%為基礎魔法傷害，不消耗MP；奇古獸精通時無視MR）');
-    if (d.mpRPerEn) out.push(`MP自然恢復每強化+${d.mpRPerEn}`);
-    if (d.mdmgEnFrom7Max3) out.push('魔法傷害成長（+7起魔法傷害+1，之後每強化+1，最高+3）');
-    if (d.equipHaste) out.push('裝備加速（常駐加速，與加速術／自我加速藥水不重疊）');
-    if (d.dragonStrike) out.push(`龍的一擊 ${d.dragonStrike}%（每次一般攻擊皆判定且不論命中；對全體造成1D力量+25固定物理傷害）`);
-    if (d.procBurstPoison) {
-        let p = d.procBurstPoison;
-        out.push(`猛爆劇毒 ${p.rateBase == null ? 1 : p.rateBase}%＋每強化${p.ratePerEn == null ? 1 : p.ratePerEn}%（每秒100點真實傷害，持續5秒，最多1層）`);
-    }
-    if (d.hardWear) out.push(`碎甲（命中時額外削減${d.hardWear}點硬皮）`);
-    if (d.strawCurse) out.push(`稻草詛咒 ${d.strawCurse.rate}%（命中時附加${d.strawCurse.stacks || 3}層；後續每次受攻擊消耗1層並追加80點水屬性固定魔法傷害）`);
-    if (d.stunHitBonus) out.push(`衝擊之暈強化（暈眩命中率+${d.stunHitBonus}%）`);
-    if (d.vanderStunHit) out.push('范德劍術（施放衝擊之暈時，本次近距離命中+1）');
-    if (d.shahaBow) out.push('沙哈之箭（裝備時自動提供不會消耗的專用箭矢，卸下弓時消失）');
-    if (d.shahaArrow) out.push('無限箭矢（不會消耗；卸下沙哈之弓時消失）');
-    return out;
-}
+function weaponHasBleed(id){ let d = DB.items[id]; if (d && d.noBleed) return false; let t = getWeaponTags(id); return t.includes('匕首') || t.includes('矛'); }   // 匕首與矛皆帶出血特效（noBleed 旗標可個別停用，如提卡爾雙手矛）
 
 // 🏺 遺物用途摘要：補足舊遺物只有背景敘述、玩家看不出實際用途的問題。
 // 僅整理「一般特效列尚未涵蓋」的遺物專屬欄位；背包、裝備欄與圖鑑 tooltip 共用。
@@ -816,6 +820,7 @@ function relicPurposeLabels(d) {
     if (d.eleWpnMult) out.push(`${eleName(d.eleWpnMult.ele)}武器強化（對應屬性一般攻擊傷害×${d.eleWpnMult.mult}）`);
     if (d.hardSkinMult) out.push(`破甲專攻（攻擊有硬皮的敵人傷害×${d.hardSkinMult}）`);
     if (d.softMult) out.push(`柔軟專攻（攻擊無硬皮的敵人傷害×${d.softMult}）`);
+    if (d.hardWear) out.push(`碎甲（命中時額外削減${d.hardWear}點硬皮）`);
     if (d.heavyRatePct) out.push(`重擊率額外+${d.heavyRatePct}%`);
     if (d.heavyMult) out.push(`重擊威力（重擊傷害×${d.heavyMult}）`);
     if (d.heavyBonusDmg) out.push(`重擊時額外傷害+${d.heavyBonusDmg}`);
@@ -823,6 +828,7 @@ function relicPurposeLabels(d) {
     if (d.procPoisonPct) out.push(`附毒（一般攻擊命中附加每秒該次傷害${d.procPoisonPct.pct || 50}%的中毒，最多1層，持續${d.procPoisonPct.dur || 6}秒）`);
     if (d.statusHealHp) out.push(`受到異常狀態影響時，恢復${d.statusHealHp}HP`);
     if (d.potionBonus && !d.doll) out.push(`治癒藥水恢復量+${d.potionBonus}%`);
+    if (d.procSkill2 && d.procSkill2.skId) out.push(`攻擊時${d.procSkill2.rate || 5}%機率觸發${(DB.skills[d.procSkill2.skId] && DB.skills[d.procSkill2.skId].n) || '技能'}`);
     if (d.missGrazeRate) out.push(`擦傷補正（未命中時${d.missGrazeRate}%改判為擦傷，造成50%傷害且不會爆擊）`);
     if (d.hitEchoMagic) out.push(`元素爆破 ${d.hitEchoMagic.rate}%（命中後追加等同本次一般攻擊傷害的${eleName(d.hitEchoMagic.ele)}屬性魔法傷害）`);
     if (d.onHitWet) out.push('潮濕（命中後持續10秒；下一次風屬性傷害×2並解除）');
@@ -833,6 +839,7 @@ function relicPurposeLabels(d) {
     if (d.selfBreakProc) out.push(`易碎爆發（3%造成1.5倍傷害，但自身傷害降低${d.selfBreakProc.dur || 5}秒）`);
     if (d.stoneInstakill) out.push('石化斬殺（命中石化中的非首領敵人時即死）');
     if (d.instakillFull) out.push(`滿血斬殺 ${pctText(d.instakillFull)}（命中滿血非首領敵人時即死）`);
+    if (d.strawCurse) out.push(`稻草詛咒 ${d.strawCurse.rate}%（命中時附加${d.strawCurse.stacks || 3}層追加傷害）`);
     if (d.procFireSkillRate) out.push(`火焰法術 ${d.procFireSkillRate}%（攻擊時隨機施放火屬性傷害魔法）`);
     if (d.procHealFlat) out.push(`命中治癒 ${d.procHealFlat.rate}%（恢復${d.procHealFlat.hp}點HP）`);
     if (d.rapidMax) out.push('最大連射（連射發動時，固定射出目前可用的最大額外箭數）');
@@ -873,7 +880,8 @@ function buildItemDescHTML(item) {
         let _g = item.seteff.slice(0, 2);
         let _lines = (SHERINE_SET_TEXT[_g] || []).map(t => `<span class="text-green-200">・${t}</span>`).join('<br>');
         let _legacy = d.remains ? '' : `<br><span class="text-amber-300 text-sm">（舊詞綴：已不計入套裝效果，可請席琳神殿的菈克希絲拆分為遺骸）</span>`;
-        desc = `<span class="c-sherine font-bold">✦ 席琳套裝效果：${_g}</span><br>${_lines}${_legacy}`
+        let _setTitle = _g === '創世' ? '四龍創世遺骸套裝' : `席琳套裝效果：${_g}`;
+        desc = `<span class="c-sherine font-bold">✦ ${_setTitle}</span><br>${_lines}${_legacy}`
              + (desc ? `<br>${desc}` : '');
     }
     if(d.type === 'wpn') {
@@ -893,11 +901,8 @@ function buildItemDescHTML(item) {
         if (typeof atkSpdApm === 'function' && typeof player !== 'undefined' && player && player.cls && atkSpdFamily(item.id)) {   // 箭矢等非揮擊武器不顯示
             let _apm = atkSpdApm(player, item.id);
             if (_apm) desc += `<br><span class="text-orange-200">攻擊速度: 每分鐘 ${_apm} 次（${player.avatar || '依職業性別'}）</span>`;
-            // 🏛️ 天堂動作速度：硬直依職業；施法速度依目前職業／變身 cast，與此武器及攻速加成無關。
-            if (typeof hitstunTicks === 'function' && typeof castIntervalTicks === 'function') {
-                let _castTicks = castIntervalTicks(player);
-                desc += `<br><span class="text-slate-400 text-xs">硬直 ${(hitstunTicks(player)/10).toFixed(1)}秒 · 施法速度每分鐘 ${(600/_castTicks).toFixed(1)} 次（間隔 ${(_castTicks/10).toFixed(1)}秒）</span>`;
-            }
+            // 🏛️ 天堂職業速度：硬直（被擊延遲攻擊）＋施法冷卻下限（皆隨職業·不隨此武器）
+            if (typeof hitstunTicks === 'function') desc += `<br><span class="text-slate-400 text-xs">硬直 ${(hitstunTicks(player)/10).toFixed(1)}秒 · 施法冷卻下限 ${(castLockTicks(player)/10).toFixed(1)}秒</span>`;
         }
 
         // 瑪那魔杖等「命中恢復MP」武器：依此物品的強化等級(+N)動態顯示恢復量
@@ -1002,7 +1007,7 @@ function buildItemDescHTML(item) {
         if (d.procSkill) {
             let _procName = (DB.skills[d.procSkill] && DB.skills[d.procSkill].n) || '技能';
             let _procRate = (d.procRateBase || 1) + (d.procRatePerEn || 0) * capWpnEn(item.en || 0);
-            _eff.push(`${d.procOnHit ? '命中施法' : '攻擊施法'} ${_procRate}%（觸發${_procName}）`);
+            _eff.push(`攻擊施法 ${_procRate}%（觸發${_procName}）`);
         }
         if (d.procSkill2 && d.procSkill2.skId) _eff.push(`攻擊施法 ${d.procSkill2.rate || 5}%（觸發${(DB.skills[d.procSkill2.skId] && DB.skills[d.procSkill2.skId].n) || '技能'}）`);   // 🌅 九尾妖狐的怒火：第二觸發槽
         if (d.procPoisonPct) _eff.push(`附毒（命中附加每秒該次傷害${d.procPoisonPct.pct || 50}%的中毒，最多1層，持續${d.procPoisonPct.dur || 6}秒）`);   // 🌅 毒鵺的黑尾
@@ -1056,7 +1061,6 @@ function buildItemDescHTML(item) {
         if (typeof getWeaponTags === 'function' && getWeaponTags(item.id).includes('雙刀')) _eff.push('雙刃（有機率造成雙倍傷害）');
         if (typeof getWeaponTags === 'function' && getWeaponTags(item.id).includes('鋼爪')) _eff.push('重擊 +5%（重擊取武器最大傷害）');
         if (typeof WAND_LIGHTARROW_IDS !== 'undefined' && WAND_LIGHTARROW_IDS.includes(item.id)) _eff.push('共鳴（攻擊時依智力免費施放光箭）');
-        _eff.push(...weaponPurposeLabels(d));
         if (d.relic) _eff.push(...relicPurposeLabels(d));
         _eff = [...new Set(_eff)];
         _eff = filterClassicEffLabels(_eff, d);   // 🎮 經典模式：移除已停用特效字樣（classicOk 物品不過濾）
@@ -1130,16 +1134,18 @@ function buildItemDescHTML(item) {
         let _slot = (d.type === 'wpn') ? 'wpn' : (_acc ? 'acc' : 'arm');
         let _v = (item.anc === true) ? 'ancient' : item.anc;
         let _at;
-        if(_slot === 'wpn')      _at = (_v==='eternal') ? '額外傷害+4' : (_v==='immortal') ? '額外命中+4' : (_v==='primordial') ? '魔法傷害+2' : '額外傷害+2，魔法傷害+1';
+        if(_v === 'unity')       _at = _slot === 'wpn' ? '遠古＋永恆＋不朽＋太初：額外傷害+6、額外命中+4、魔法傷害+3' : (_slot === 'arm' ? '遠古＋永恆＋不朽＋太初：AC-2、傷害減免+2、ER+2、MR+4' : '遠古＋永恆＋不朽＋太初：額外傷害+2、額外命中+1、AC-1、傷害減免+1、MR+3、額外魔法點數+2');
+        else if(_slot === 'wpn') _at = (_v==='eternal') ? '額外傷害+4' : (_v==='immortal') ? '額外命中+4' : (_v==='primordial') ? '魔法傷害+2' : '額外傷害+2，魔法傷害+1';
         else if(_slot === 'arm') _at = (_v==='eternal') ? '防禦(AC)-2' : (_v==='immortal') ? '迴避(ER)+2' : (_v==='primordial') ? '魔防(MR)+4' : '傷害減免+2';
         else                     _at = (_v==='eternal') ? '額外傷害+1，防禦(AC)-1' : (_v==='immortal') ? '額外傷害+1，額外命中+1' : (_v==='primordial') ? '魔防(MR)+2，額外魔法點數+2' : '傷害減免+1，魔防(MR)+1';
         desc += `<br><span class="${ancColorClass(item.anc)}">${ancName(item.anc)}：${_at}</span>`;
     }
     let _aff = getAttrAffix(item.attr);
     if(_aff) {
-        let eleName = { fire:'火', water:'水', wind:'風', earth:'地' }[_aff.ele];
-        let counterName = { fire:'地', water:'火', wind:'水', earth:'風' }[_aff.ele];
-        desc += `<br><span class="c-attr-${attrCanon(item.attr)}">${_aff.n}（屬性第${_aff.tier}階）：額外傷害+${_aff.dmg}、額外魔法點數+${_aff.mp}，一般攻擊轉為${eleName}屬性（剋${counterName} ×1.4）。</span>`;   // 🔥 v3.0.77 五階制
+        let eleName = { fire:'火', water:'水', wind:'風', earth:'地', all:'全' }[_aff.ele];
+        let counterName = { fire:'地', water:'火', wind:'水', earth:'風', all:'火／水／風／地' }[_aff.ele];
+        let tierText = _aff.ele === 'all' ? '四種最高階合成' : `屬性第${_aff.tier}階`;
+        desc += `<br><span class="c-attr-${attrCanon(item.attr)}">${_aff.n}（${tierText}）：額外傷害+${_aff.dmg}、額外魔法點數+${_aff.mp}，一般攻擊轉為${eleName}屬性（剋${counterName} ×1.4）。</span>`;   // 🔥 v3.0.77 五階制
     }
 
     // 🛡️ 適用職業：以職業 logo 顯示可裝備此裝備的職業（騎士/妖精/法師/黑暗妖精/幻術士；黑暗妖精走 darkEquipOk 真實規則）
@@ -2194,6 +2200,26 @@ function _allyAutoBuffChips(a) {
     return `<div class="flex flex-col gap-0.5" style="margin-top:1px;"><span class="text-cyan-400 font-bold" style="font-size:10px;">自動維持（增益／召喚／回復／淨化）</span><div class="flex flex-wrap gap-1" style="font-size:10px;line-height:1.4;">${chips}</div></div>`;
 }
 
+function _partnerHealSkillOptions(selected) {
+    let ids = (player && player.skills || []).filter((id, i, arr) => {
+        let sk = DB.skills[id];
+        return arr.indexOf(id) === i && sk && sk.type === 'heal' && !sk.hot && !['sk_antidote','sk_holy_light','sk_cancel','sk_resurrection'].includes(id);
+    }).sort((a, b) => ((DB.skills[b].tier || 0) - (DB.skills[a].tier || 0)) || String(DB.skills[a].n).localeCompare(String(DB.skills[b].n), 'zh-Hant'));
+    return `<option value=""${selected ? '' : ' selected'}>關閉自動治療</option>` + ids.map(id => `<option value="${id}"${id === selected ? ' selected' : ''}>${DB.skills[id].n}</option>`).join('');
+}
+
+function _partnerSupportSettingsHTML() {
+    if (player.partnerAutoRez == null) player.partnerAutoRez = true;
+    if (player.partnerHealHpPct == null) player.partnerHealHpPct = 70;
+    if (player.partnerHealSkill == null) player.partnerHealSkill = (player.skills || []).includes('sk_full_heal') ? 'sk_full_heal' : '';
+    return `<div class="bg-slate-900/80 border border-emerald-700 rounded p-2 flex flex-col gap-2">
+        <div class="text-sm font-bold text-emerald-300">主角自動支援夥伴</div>
+        <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer"><input type="checkbox" ${player.partnerAutoRez !== false ? 'checked' : ''} onchange="setPartnerAutoRez(this.checked)"><span>夥伴倒下時，自動使用返生術復活</span></label>
+        <div class="flex items-center gap-1 text-xs"><span class="text-green-300 font-bold shrink-0">治癒術</span><select class="flex-1 min-w-0 bg-slate-950 border border-green-700 text-green-200 px-1 py-1 rounded text-xs outline-none" onchange="setPartnerHealSkill(this.value)">${_partnerHealSkillOptions(player.partnerHealSkill || '')}</select><span class="text-green-300 whitespace-nowrap">夥伴 HP&lt;<input type="number" min="0" max="100" value="${player.partnerHealHpPct}" class="w-11 bg-slate-950 border border-green-700 text-center text-white rounded" onchange="setPartnerHealHp(this.value)">%</span></div>
+        <div class="text-[10px] text-slate-400">優先治療血量比例最低的存活夥伴；技能仍消耗主角 MP 並遵守冷卻。</div>
+    </div>`;
+}
+
 function renderSquadPanel() {
     let panel = document.getElementById('squad-panel');
     if (!panel) return;
@@ -2209,7 +2235,7 @@ function renderSquadPanel() {
     let sigTeam = _sigAllies
         + '||P:' + _pets.map(p => p.uid + ':' + p.lv + ':' + (p._downed ? 'D' : '') + ':' + Math.round(p.hp / Math.max(1, p.mhp) * 20) + ':' + Math.round(p.mp / Math.max(1, p.mmp) * 20) + ':' + Math.round((p.exp || 0) / Math.max(1, petExpReq(p.lv)) * 20) + ':' + (p.potPct || 0) + ':' + Math.ceil((p._reviveCd || 0) / 10)).join('|')
         + '||S:' + ((typeof summonTeamSignature === 'function') ? summonTeamSignature() : '');   // team 分頁：名單/倒地/等級＋寵物/召喚血量(5%階)變動才重建
-    let sigSkill = _sigAllies;   // 🩹 v3.2.74 skill 分頁只看傭兵名單/等級→戰鬥中寵物/召喚掉血不重建·開啟的技能下拉不被關
+    let sigSkill = _sigAllies + '||PS:' + (player.partnerAutoRez !== false ? 1 : 0) + ':' + (player.partnerHealSkill || '') + ':' + (player.partnerHealHpPct == null ? 70 : player.partnerHealHpPct) + ':' + (player.skills || []).join(',');
     let _squadRebuilt = false;
     if (sigTeam !== _squadSigTeam) {
         _squadSigTeam = sigTeam;
@@ -2244,7 +2270,7 @@ function renderSquadPanel() {
     }
     if (sigSkill !== _squadSigSkill) {
         _squadSigSkill = sigSkill;
-        document.getElementById('squad-tab-skill').innerHTML = allies.map(a => {
+        document.getElementById('squad-tab-skill').innerHTML = _partnerSupportSettingsHTML() + allies.map(a => {
             let s = a._slot;
             let hpPct = (a._healHpPct != null) ? a._healHpPct : 70;
             let potPct = (a._potHpPct != null) ? a._potHpPct : ((a._hpSafePct != null) ? a._hpSafePct : 0);
@@ -2326,6 +2352,9 @@ function switchSquadTab(t) {
 }
 
 function _findAlly(slot) { return (player.allies || []).find(a => a && String(a._slot) === String(slot)); }
+function setPartnerAutoRez(on) { player.partnerAutoRez = !!on; _squadSigSkill = ''; saveGame(); renderSquadPanel(); }
+function setPartnerHealSkill(val) { player.partnerHealSkill = val || ''; _squadSigSkill = ''; saveGame(); renderSquadPanel(); }
+function setPartnerHealHp(val) { player.partnerHealHpPct = Math.max(0, Math.min(100, parseInt(val) || 0)); _squadSigSkill = ''; saveGame(); renderSquadPanel(); }
 function setAllyAtkSkill(slot, val) { let a = _findAlly(slot); if (a) { a._atkSkill = val || ''; saveGame(); } }   // _atkSkill 即時生效（傭兵攻擊路徑直接讀 ally._atkSkill）
 function setAllyHealSkill(slot, val) { let a = _findAlly(slot); if (a) { a._healSkill = val || ''; saveGame(); } }   // _healSkill 儲存待 Phase 3 傭兵自動補血讀取
 function setAllyConvertSkill(slot, val) { let a = _findAlly(slot); if (a) { a._convertSkill = val || ''; saveGame(); } }   // 🔄 v2.6.4 轉換技能（type:'convert'／立方和諧）：即時生效（allyCubeTick/轉換施放路徑直接讀 ally._convertSkill）
