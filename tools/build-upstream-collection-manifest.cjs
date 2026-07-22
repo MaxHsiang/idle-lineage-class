@@ -1,4 +1,5 @@
 const fs = require('fs');
+const zlib = require('zlib');
 const { chromium } = require('playwright');
 
 async function collect(browser, url) {
@@ -56,6 +57,14 @@ function diff(oldList, newList) {
   };
 }
 
+function readPreviousBaseline() {
+  const encoded = [0, 1, 2, 3]
+    .map(i => fs.readFileSync(`collection-baseline-previous.gz.b64.${i}`, 'utf8').trim())
+    .join('');
+  const json = zlib.gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
+  return JSON.parse(json);
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const oldManifest = await collect(browser, 'http://127.0.0.1:8766/');
@@ -83,9 +92,14 @@ function diff(oldList, newList) {
     removed: delta[k].removed.length
   }]));
 
-  const previousRelics = JSON.parse(fs.readFileSync('collection-baseline-relic-previous.json', 'utf8'));
-  const previousRelicSet = new Set(previousRelics);
-  const missingRelics = currentManifest.relicDex.filter(id => !previousRelicSet.has(id));
+  const previous = readPreviousBaseline();
+  const missingAll = {};
+  for (const key of ['cardDex', 'equipDex', 'miscDex', 'relicDex']) {
+    const have = new Set(previous[key] || []);
+    missingAll[key] = currentManifest[key].filter(id => !have.has(id));
+  }
+  missingAll.counts = Object.fromEntries(['cardDex', 'equipDex', 'miscDex', 'relicDex'].map(k => [k, missingAll[k].length]));
+  missingAll.gameVersion = currentManifest.gameVersion;
 
   fs.writeFileSync('collection-manifest.json', JSON.stringify(currentManifest, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-manifest-v3.7.37.json', JSON.stringify(oldManifest, null, 2) + '\n', 'utf8');
@@ -94,8 +108,8 @@ function diff(oldList, newList) {
   fs.writeFileSync('collection-equipment.json', JSON.stringify(currentManifest.equipDex, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-misc.json', JSON.stringify(currentManifest.miscDex, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-relic.json', JSON.stringify(currentManifest.relicDex, null, 2) + '\n', 'utf8');
-  fs.writeFileSync('collection-missing-relic.json', JSON.stringify(missingRelics, null, 2) + '\n', 'utf8');
-  console.log(JSON.stringify({ counts: delta.counts, missingRelics: missingRelics.length }));
+  fs.writeFileSync('collection-missing-all.json', JSON.stringify(missingAll, null, 2) + '\n', 'utf8');
+  console.log(JSON.stringify({ counts: delta.counts, missing: missingAll.counts }));
 })().catch(err => {
   console.error(err);
   process.exit(1);
