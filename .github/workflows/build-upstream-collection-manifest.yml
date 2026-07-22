@@ -8,6 +8,10 @@ on:
       - collection-manifest.json
       - collection-manifest-v3.7.37.json
       - collection-delta-v3.7.37-to-current.json
+      - collection-card.json
+      - collection-equipment.json
+      - collection-misc.json
+      - collection-relic.json
 
 permissions:
   contents: write
@@ -80,7 +84,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add collection-manifest.json collection-manifest-v3.7.37.json collection-delta-v3.7.37-to-current.json
+          git add collection-manifest.json collection-manifest-v3.7.37.json collection-delta-v3.7.37-to-current.json collection-card.json collection-equipment.json collection-misc.json collection-relic.json
           if git diff --cached --quiet; then
             echo 'Manifests unchanged.'
             exit 0
