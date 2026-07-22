@@ -83,6 +83,10 @@ function diff(oldList, newList) {
     removed: delta[k].removed.length
   }]));
 
+  const previousRelics = JSON.parse(fs.readFileSync('collection-baseline-relic-previous.json', 'utf8'));
+  const previousRelicSet = new Set(previousRelics);
+  const missingRelics = currentManifest.relicDex.filter(id => !previousRelicSet.has(id));
+
   fs.writeFileSync('collection-manifest.json', JSON.stringify(currentManifest, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-manifest-v3.7.37.json', JSON.stringify(oldManifest, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-delta-v3.7.37-to-current.json', JSON.stringify(delta, null, 2) + '\n', 'utf8');
@@ -90,7 +94,8 @@ function diff(oldList, newList) {
   fs.writeFileSync('collection-equipment.json', JSON.stringify(currentManifest.equipDex, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-misc.json', JSON.stringify(currentManifest.miscDex, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-relic.json', JSON.stringify(currentManifest.relicDex, null, 2) + '\n', 'utf8');
-  console.log(JSON.stringify(delta.counts));
+  fs.writeFileSync('collection-missing-relic.json', JSON.stringify(missingRelics, null, 2) + '\n', 'utf8');
+  console.log(JSON.stringify({ counts: delta.counts, missingRelics: missingRelics.length }));
 })().catch(err => {
   console.error(err);
   process.exit(1);
