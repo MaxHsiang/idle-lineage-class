@@ -1,5 +1,5 @@
 {
-  "gameVersion": "v3.7.43",
+  "gameVersion": "v3.7.37",
   "cardDex": [
     "人形殭屍",
     "人魚",
@@ -2010,5 +2010,5 @@
     }
   },
   "generatedAt": "2026-07-22T11:18:56.581Z",
-  "source": "https://github.com/shines871/idle-lineage-class"
+  "source": "https://github.com/shines871/idle-lineage-class/tree/f9ba39f6fe693bbb5bc8f2eaa2c6d01d7c68bf32"
 }

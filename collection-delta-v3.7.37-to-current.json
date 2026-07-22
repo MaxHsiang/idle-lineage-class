@@ -1,0 +1,47 @@
+{
+  "generatedAt": "2026-07-22T11:18:56.581Z",
+  "fromVersion": "v3.7.37",
+  "toVersion": "v3.7.43",
+  "cardDex": {
+    "added": [],
+    "removed": []
+  },
+  "equipDex": {
+    "added": [],
+    "removed": []
+  },
+  "miscDex": {
+    "added": [],
+    "removed": []
+  },
+  "relicDex": {
+    "added": [],
+    "removed": []
+  },
+  "counts": {
+    "cardDex": {
+      "old": 462,
+      "current": 462,
+      "added": 0,
+      "removed": 0
+    },
+    "equipDex": {
+      "old": 615,
+      "current": 615,
+      "added": 0,
+      "removed": 0
+    },
+    "miscDex": {
+      "old": 479,
+      "current": 479,
+      "added": 0,
+      "removed": 0
+    },
+    "relicDex": {
+      "old": 344,
+      "current": 344,
+      "added": 0,
+      "removed": 0
+    }
+  }
+}
