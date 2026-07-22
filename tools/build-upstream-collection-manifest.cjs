@@ -86,6 +86,10 @@ function diff(oldList, newList) {
   fs.writeFileSync('collection-manifest.json', JSON.stringify(currentManifest, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-manifest-v3.7.37.json', JSON.stringify(oldManifest, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-delta-v3.7.37-to-current.json', JSON.stringify(delta, null, 2) + '\n', 'utf8');
+  fs.writeFileSync('collection-card.json', JSON.stringify(currentManifest.cardDex, null, 2) + '\n', 'utf8');
+  fs.writeFileSync('collection-equipment.json', JSON.stringify(currentManifest.equipDex, null, 2) + '\n', 'utf8');
+  fs.writeFileSync('collection-misc.json', JSON.stringify(currentManifest.miscDex, null, 2) + '\n', 'utf8');
+  fs.writeFileSync('collection-relic.json', JSON.stringify(currentManifest.relicDex, null, 2) + '\n', 'utf8');
   console.log(JSON.stringify(delta.counts));
 })().catch(err => {
   console.error(err);
