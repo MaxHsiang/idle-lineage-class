@@ -6,6 +6,8 @@ on:
       - collection-manifest-build
     paths-ignore:
       - collection-manifest.json
+      - collection-manifest-v3.7.37.json
+      - collection-delta-v3.7.37-to-current.json
 
 permissions:
   contents: write
@@ -13,7 +15,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout manifest branch
         uses: actions/checkout@v4
@@ -25,7 +27,19 @@ jobs:
         with:
           repository: shines871/idle-lineage-class
           ref: main
-          path: upstream
+          path: upstream-current
+          sparse-checkout: |
+            index.html
+            js
+            css
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout upstream v3.7.37 source
+        uses: actions/checkout@v4
+        with:
+          repository: shines871/idle-lineage-class
+          ref: f9ba39f6fe693bbb5bc8f2eaa2c6d01d7c68bf32
+          path: upstream-v3737
           sparse-checkout: |
             index.html
             js
@@ -42,28 +56,34 @@ jobs:
           npm install --no-save playwright@1.54.1
           npx playwright install --with-deps chromium
 
-      - name: Start upstream game server
+      - name: Start upstream game servers
         run: |
-          python3 -m http.server 8765 --directory upstream > /tmp/upstream-http.log 2>&1 &
-          echo $! > /tmp/upstream-http.pid
-          for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:8765/ >/dev/null && exit 0
-            sleep 1
+          python3 -m http.server 8765 --directory upstream-current > /tmp/upstream-current.log 2>&1 &
+          python3 -m http.server 8766 --directory upstream-v3737 > /tmp/upstream-v3737.log 2>&1 &
+          for port in 8765 8766; do
+            ready=0
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:${port}/ >/dev/null; then ready=1; break; fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then
+              cat /tmp/upstream-current.log || true
+              cat /tmp/upstream-v3737.log || true
+              exit 1
+            fi
           done
-          cat /tmp/upstream-http.log
-          exit 1
 
-      - name: Build exact collection manifest
+      - name: Build exact collection manifests and delta
         run: node tools/build-upstream-collection-manifest.cjs
 
-      - name: Commit generated manifest
+      - name: Commit generated manifests
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add collection-manifest.json
+          git add collection-manifest.json collection-manifest-v3.7.37.json collection-delta-v3.7.37-to-current.json
           if git diff --cached --quiet; then
-            echo 'Manifest unchanged.'
+            echo 'Manifests unchanged.'
             exit 0
           fi
-          git commit -m 'chore: refresh exact upstream collection manifest'
+          git commit -m 'chore: refresh exact upstream collection manifests'
           git push origin HEAD:collection-manifest-build
