@@ -1,0 +1,69 @@
+name: Build upstream collection manifest
+
+on:
+  push:
+    branches:
+      - collection-manifest-build
+    paths-ignore:
+      - collection-manifest.json
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout manifest branch
+        uses: actions/checkout@v4
+        with:
+          ref: collection-manifest-build
+
+      - name: Checkout latest upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: shines871/idle-lineage-class
+          ref: main
+          path: upstream
+          sparse-checkout: |
+            index.html
+            js
+            css
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.54.1
+          npx playwright install --with-deps chromium
+
+      - name: Start upstream game server
+        run: |
+          python3 -m http.server 8765 --directory upstream > /tmp/upstream-http.log 2>&1 &
+          echo $! > /tmp/upstream-http.pid
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8765/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/upstream-http.log
+          exit 1
+
+      - name: Build exact collection manifest
+        run: node tools/build-upstream-collection-manifest.cjs
+
+      - name: Commit generated manifest
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add collection-manifest.json
+          if git diff --cached --quiet; then
+            echo 'Manifest unchanged.'
+            exit 0
+          fi
+          git commit -m 'chore: refresh exact upstream collection manifest'
+          git push origin HEAD:collection-manifest-build
