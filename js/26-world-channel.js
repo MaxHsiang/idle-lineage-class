@@ -1759,22 +1759,37 @@ function _wcPickIdleChatLine() {
 }
 function _wcLogOptionalNpcLine(id, npc, kind, question, fallback, className) {
     fallback = String(fallback || '').trim();
-    let token = 'wc-local-ai-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
-    logWorld(`<span class="${className}">${_wcNameHtml(id)}：<span id="${token}">${_wcEsc(fallback)}</span></span>`);
+    let nameHtml = _wcNameHtml(id);
+    let emitted = false;
+    function emit(text) {
+        if (emitted) return;
+        emitted = true;
+        let finalText = String(text || '').trim() || fallback;
+        logWorld(`<span class="${className}">${nameHtml}：${_wcEsc(finalText)}</span>`);
+    }
     let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
-    if (!language || typeof language.rewrite !== 'function') return;
-    Promise.resolve(language.rewrite({
-        kind: kind,
-        npcName: npc && npc.name ? npc.name : '',
-        persona: npc && npc.persona ? npc.persona : '',
-        question: question || '',
-        fallback: fallback
-    }, 9000)).then(function (rewritten) {
-        rewritten = String(rewritten || '').trim();
-        if (!rewritten || rewritten === fallback) return;
-        let target = document.getElementById(token);
-        if (target) target.textContent = rewritten;
-    }).catch(function () {});
+    let enabled = false;
+    try {
+        enabled = !!(language && typeof language.rewrite === 'function'
+            && typeof language.getStatus === 'function'
+            && language.getStatus().enabled);
+    } catch (e) {}
+    if (!enabled) { emit(fallback); return; }
+    try {
+        Promise.resolve(language.rewrite({
+            kind: kind,
+            npcName: npc && npc.name ? npc.name : '',
+            persona: npc && npc.persona ? npc.persona : '',
+            question: question || '',
+            fallback: fallback
+        }, 9000)).then(function (rewritten) {
+            emit(rewritten);
+        }).catch(function () {
+            emit(fallback);
+        });
+    } catch (e) {
+        emit(fallback);
+    }
 }
 
 function syncNpcLanguageSetting() {
