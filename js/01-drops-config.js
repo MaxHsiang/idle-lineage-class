@@ -1422,7 +1422,7 @@ let _bgHeartbeatWorker = null;
 })();
 
 let player = {
-    cls: null, name: null, lv: 1, exp: 0, gold: 1000, hp: 0, mhp: 0, mp: 0, mmp: 0, alignmentValue: 0, pvpOn: false, pvpRevengeList: [],
+    cls: null, name: null, lv: 1, exp: 0, gold: 1000, hp: 0, mhp: 0, mp: 0, mmp: 0, alignmentValue: 0, pvpOn: false, pvpRevengeList: [], socialNpcContacts: [],
     base: { str:0, dex:0, con:0, int:0, wis:0, cha:8 }, bonus: 0, alloc: { str:0, dex:0, con:0, int:0, wis:0, cha:0 }, panacea: { str:0, dex:0, con:0, int:0, wis:0, cha:0 }, panaceaUsed: 0, junkPrefs: {}, bloodPledge: null, magicShieldCd: 0, lastMapByCat: {}, tracking: null, sherineWorld: false, masteryQuest: null, mastery: null, masteryChangeCnt: 0, siege: { active:false, city:'kent', gateKilled:false, towerKilled:false, endTime:0, kills:0, result:null, cooldownUntil:0, accCdUntil:0 },
     inv: [], eq: { wpn: null, arrow: null, helm: null, armor: null, shin: null, shield: null, cloak: null, tshirt: null, gloves: null, boots: null, ring1: null, ring2: null, ring3: null, ring4: null, amulet: null, ear1: null, ear2: null, belt: null, pet: null, doll: null },
     skills: [], buffs: { haste: 0, brave: 0, blue: 0, cautious: 0, elfcookie: 0, poly: 0, shield: 0, sk_magic_shield: 0 }, poly: null, allies: [],
@@ -2034,6 +2034,9 @@ Object.assign(ITEM_WEIGHTS, {"迷宮惡魔的瞥視":130,"盔甲內襯鎖鏈衣"
  ['墮落的司祭(四階)','relic_priest_robe'],['墮落的司祭(五階)','relic_priest_sandals'],['象牙塔鋼鐵高崙','relic_mageblade_knife'],
  ['卡魯塔','relic_ghost_teardrop'],['卡瑞','relic_true_dragonslayer'],['死亡騎士','relic_flame_dk_sword']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 Object.assign(ITEM_WEIGHTS, {"高崙的生命印記":5,"無數鋸齒的邪惡利牙":30,"克特之盾":150,"隨從的護身斗篷":10,"灰燼巨獸的束鏈":50,"烈焰焚燒的巴風特盔甲":30,"司祭的無眼頭飾":20,"司祭的斷指護手":10,"司祭的鎖喉頸圈":5,"司祭的腐爛長袍":30,"司祭的殘破草鞋":15,"專精劍術的魔劍士之刀":40,"受困幽魂的淚滴":5,"真‧屠龍劍":150,"烈焰的死亡騎士之劍":150});   // 🏺 遺物重量（依名稱·v3.7.52 +15 件·規格書指定值）
+[['底比斯 尼荷斯(藍)','relic_sky_god_avatar'],['死亡的司祭(思克巴)','relic_necro_book']]
+    .forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
+Object.assign(ITEM_WEIGHTS, {"天空之神的化身":50,"死靈之書":10});   // 🏺 v3.8.12 遺物第二十四批重量
 Object.assign(ITEM_WEIGHTS, {"古代地龍鱗盔甲":250,"古代水龍鱗盔甲":250,"古代火龍鱗盔甲":250,"古代風龍鱗盔甲":250,"安塔瑞斯的力量":150,"安塔瑞斯的魅惑":50,"安塔瑞斯的泉源":100,"安塔瑞斯的霸氣":100,"地龍之魔眼":10,"深紅之弩":25});   // 🐉 安塔瑞斯副本裝備重量（依名稱·v3.7.57·規格書指定值）；🕸️ v3.7.75 深紅之弩重量 100→25（依新規格）
 // 🐉 v3.7.57 侵蝕的安塔瑞斯巢穴掉落（依規格書·%·全新怪鍵無覆蓋疑慮；中間兩階變身不死不掉落·只有最終階結算）
 Object.assign(MOB_DROPS, {
