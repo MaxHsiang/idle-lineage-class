@@ -835,32 +835,43 @@ function _allyQuestLootCount(ally, itemId) {
 }
 function _queueAllyQuestItem(itemId, cnt, predicate) {
     cnt = Math.max(1, Math.floor(Number(cnt) || 1));
-    let names = [], total = 0;
+    let eligible = [];
     (player.allies || []).forEach(ally => {
         if (!ally || ally._downed || !predicate(ally)) return;
-        let bucket = _allyQuestLootBucket(ally);
-        bucket[itemId] = _allyQuestLootCount(ally, itemId) + cnt;
-        names.push(ally._allyName || ally.name || ('存檔 ' + ally._slot));
-        total += cnt;
+        eligible.push(ally);
     });
-    if (total > 0) gainItem(itemId, total);
+    if (!eligible.length) return [];
+    // 有持有上限的任務道具必須依序完成；平均分給多名隊員會先撞上隊長背包上限，造成所有人都無法交付。
+    let item = DB.items[itemId];
+    if (item && item.maxHold && eligible.length > 1) eligible = [eligible[0]];
+    let gained = gainItem(itemId, cnt * eligible.length);
+    let remaining = Math.max(0, Math.floor(Number(gained && gained.cnt) || 0));
+    let names = [];
+    eligible.forEach(ally => {
+        let assigned = Math.min(cnt, remaining);
+        if (assigned <= 0) return;
+        let bucket = _allyQuestLootBucket(ally);
+        bucket[itemId] = _allyQuestLootCount(ally, itemId) + assigned;
+        names.push(ally._allyName || ally.name || ('存檔 ' + ally._slot));
+        remaining -= assigned;
+    });
     return names;
 }
 function allyTrialItemActive(itemId) {
     if (typeof trialItemActiveFor !== 'function') return false;
-    return (player.allies || []).some(ally => ally && !ally._downed && trialItemActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+    return (player.allies || []).some(ally => ally && !ally._downed && trialItemActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId), true));
 }
 function allyQueueTrialQuestItem(itemId, cnt) {
     if (typeof trialItemActiveFor !== 'function') return [];
-    return _queueAllyQuestItem(itemId, cnt, ally => trialItemActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+    return _queueAllyQuestItem(itemId, cnt, ally => trialItemActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId), true));
 }
 function allyStageQuestItemActive(itemId) {
     if (typeof trialStageItemHeldActiveFor !== 'function') return false;
-    return (player.allies || []).some(ally => ally && !ally._downed && trialStageItemHeldActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+    return (player.allies || []).some(ally => ally && !ally._downed && trialStageItemHeldActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId), true));
 }
 function allyQueueStageQuestItem(itemId, cnt) {
     if (typeof trialStageItemHeldActiveFor !== 'function') return [];
-    return _queueAllyQuestItem(itemId, cnt, ally => trialStageItemHeldActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+    return _queueAllyQuestItem(itemId, cnt, ally => trialStageItemHeldActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId), true));
 }
 // 協力角色攻擊一次（自包含，直接用 ally 的真實衍生值；法師走魔法、其餘走物理）
 // 🔧 對不死/狼人加成（傭兵版，比照玩家 getPhysicalDmg）：武器帶 unBonus、且目標為不死(un)或狼人(isWolf) → 額外 +1D20 固定傷害

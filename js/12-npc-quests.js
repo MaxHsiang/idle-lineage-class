@@ -745,9 +745,10 @@ const TRIAL50_ITEM = {
 };
 function trialQState(key) { return (player && player.trialQ && player.trialQ[key]) || 0; }
 function trialQStateFor(owner, key) { return (owner && owner.trialQ && owner.trialQ[key]) || 0; }
-// 隊員快照也需要用同一套試煉判定；同模式隊伍共用倉庫，故倉庫計數仍可沿用目前模式桶。
-function questCountForOwner(owner, id, pending) {
+// 隊員快照也需要用同一套試煉判定；assignedOnly=true 時只認隊長存檔內分配給該隊員的進度帳。
+function questCountForOwner(owner, id, pending, assignedOnly) {
     if (!owner) return 0;
+    if (assignedOnly) return Math.max(0, Math.floor(Number(pending) || 0));
     let inv = (owner.inv || []).filter(i => i && i.id === id && !i.lock).reduce((s, i) => s + (i.cnt || 0), 0);
     let wh = 0;
     try {
@@ -756,33 +757,33 @@ function questCountForOwner(owner, id, pending) {
     } catch (e) {}
     return inv + wh + Math.max(0, Math.floor(Number(pending) || 0));
 }
-// 50 級前置道具沿用舊有「背包實際持有」口徑：鎖定件也不得讓同一件道具重複掉落。
-function trialStageItemHeldActiveFor(owner, id, pending) {
+// 主玩家沿用「背包實際持有」口徑；隊員則只看隊長端分配進度，避免來源角色背包阻擋掉落。
+function trialStageItemHeldActiveFor(owner, id, pending, assignedOnly) {
     if (!owner) return false;
     let cfg = (typeof TRIAL_50_CFG !== 'undefined') && TRIAL_50_CFG[owner.cls];
     let st = Math.floor(Number(owner.trialStage) || 0);
     let stage = cfg && st >= 1 && st <= cfg.stages.length ? cfg.stages[st - 1] : null;
     if (!stage || stage.id !== id) return false;
-    let held = (owner.inv || []).filter(i => i && i.id === id).reduce((s, i) => s + (i.cnt || 0), 0);
+    let held = assignedOnly ? 0 : (owner.inv || []).filter(i => i && i.id === id).reduce((s, i) => s + (i.cnt || 0), 0);
     return held + Math.max(0, Math.floor(Number(pending) || 0)) < (stage.cnt || 1);
 }
-// 試煉道具目前是否「可取得」：已接取對應試煉、未完成、且持有(含倉庫)未達需求數量。
-function trialItemActiveFor(owner, id, pending) {
+// 試煉道具目前是否「可取得」：主玩家看持有量；隊員看隊長端分配進度。
+function trialItemActiveFor(owner, id, pending, assignedOnly) {
     if (!owner) return false;
     let ks = TRIAL_ITEM_Q[id];
     if (ks) return ks.some(k => {
         let c = TRIAL_Q[k];
         if (owner.cls !== c.cls || trialQStateFor(owner, k) !== 1) return false;
         let r = c.reqs.find(p => p[0] === id);
-        return questCountForOwner(owner, id, pending) < r[1];
+        return questCountForOwner(owner, id, pending, assignedOnly) < r[1];
     });
     let t = TRIAL50_ITEM[id];
     if (t) {
         if (owner.cls !== t.cls) return false;
         let cfg = (typeof TRIAL_50_CFG !== 'undefined') && TRIAL_50_CFG[owner.cls]; if (!cfg) return false;
         let st = owner.trialStage || 0, n = t.need || 1;
-        if (t.ex) return st === cfg.stages.length + 1 && questCountForOwner(owner, id, pending) < n;   // 最終兌換階段（未完成·未達量）
-        return st === t.stage && questCountForOwner(owner, id, pending) < n;                             // 指定收集階段
+        if (t.ex) return st === cfg.stages.length + 1 && questCountForOwner(owner, id, pending, assignedOnly) < n;   // 最終兌換階段（未完成·未達量）
+        return st === t.stage && questCountForOwner(owner, id, pending, assignedOnly) < n;                             // 指定收集階段
     }
     return true;   // 非管制道具
 }

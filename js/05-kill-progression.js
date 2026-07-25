@@ -252,16 +252,26 @@ function partyDropRate(rate) { return Math.min(1, Math.max(0, Number(rate) || 0)
 // 任務道具的主玩家與隊員分流：隊員保留個別試煉進度，但所有實體道具都立即交給隊長背包。
 function grantPartyTrialQuestDrop(itemId, cnt) {
     cnt = Math.max(1, Math.floor(Number(cnt) || 1));
-    let main = typeof trialItemActive !== 'function' || trialItemActive(itemId);
-    let allies = typeof allyQueueTrialQuestItem === 'function' ? allyQueueTrialQuestItem(itemId, cnt) : [];
-    if (main) gainItem(itemId, cnt);
+    let mainActive = typeof trialItemActive !== 'function' || trialItemActive(itemId);
+    let main = false;
+    if (mainActive) {
+        let gained = gainItem(itemId, cnt);
+        main = !!(gained && (gained.cnt || 0) > 0);
+    }
+    let capped = DB.items[itemId] && DB.items[itemId].maxHold;
+    let allies = (!mainActive || !capped) && typeof allyQueueTrialQuestItem === 'function' ? allyQueueTrialQuestItem(itemId, cnt) : [];
     return { main: main, allies: allies || [] };
 }
 function grantPartyStageQuestDrop(itemId, mainActive, cnt) {
     cnt = Math.max(1, Math.floor(Number(cnt) || 1));
-    let allies = typeof allyQueueStageQuestItem === 'function' ? allyQueueStageQuestItem(itemId, cnt) : [];
-    if (mainActive) gainItem(itemId, cnt);
-    return { main: !!mainActive, allies: allies || [] };
+    let main = false;
+    if (mainActive) {
+        let gained = gainItem(itemId, cnt);
+        main = !!(gained && (gained.cnt || 0) > 0);
+    }
+    let capped = DB.items[itemId] && DB.items[itemId].maxHold;
+    let allies = (!mainActive || !capped) && typeof allyQueueStageQuestItem === 'function' ? allyQueueStageQuestItem(itemId, cnt) : [];
+    return { main: main, allies: allies || [] };
 }
 function partyQuestDropSubject(result) {
     let names = (result && result.allies) || [];
