@@ -812,6 +812,7 @@ function trialQHTML(key, rr) {
 function trialQAccept(key, rr) {
     let c = TRIAL_Q[key];
     if (!c || player.cls !== c.cls || (player.lv || 1) < c.lv || trialQState(key) !== 0) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會接取試煉。</span>'); return; }
     if (!player.trialQ || typeof player.trialQ !== 'object') player.trialQ = {};
     player.trialQ[key] = 1;
     logSys(`<span class="text-amber-300 font-bold">${c.npc}：試煉開始！</span>去收集 ${c.reqs.map(p => DB.items[p[0]].n + '×' + p[1]).join('、')}（擊殺指定怪物必定掉落）。`);
@@ -820,6 +821,7 @@ function trialQAccept(key, rr) {
 function trialQComplete(key, rr) {   // 🚫 v3.2.16 移除席琳完成：原第 3 參 sherine（耗結晶必附套裝詞綴）廢止
     let c = TRIAL_Q[key];
     if (!c || player.cls !== c.cls || trialQState(key) !== 1) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會交付試煉道具並領取獎勵。</span>'); return; }
     if (!c.reqs.every(p => questCountId(p[0]) >= p[1])) { logSys('試煉道具尚未備齊。' + (typeof lockHintHtml === 'function' ? lockHintHtml(c.reqs.map(p => p[0])) : '')); return; }   // 🔒 v3.5.87 差額若在鎖定件·明講
     c.reqs.forEach(p => questConsumeId(p[0], p[1]));
     let _sv = _tradLootCtx; _tradLootCtx = true;   // 🏛️ 傳統模式：試煉獎勵裝備隨機自帶強化值
@@ -1048,6 +1050,7 @@ function renderDigallatin(div) {
 function trial50Accept() {
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會接取試煉。</span>'); return; }
     if ((player.lv||1) < 50) { logSys('等級不足 50，無法接取試煉。'); return; }
     if ((player.trialStage||0) !== 0) return;
     player.trialStage = 1; saveGame();
@@ -1065,6 +1068,7 @@ function purgeCompletedElfWhisper() {
 function trial50TurnIn() {
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會交付試煉道具。</span>'); return; }
     let st = player.trialStage || 0, nStages = cfg.stages.length;
     if (st < 1 || st > nStages) return;
     let stage = cfg.stages[st-1];
@@ -1078,6 +1082,7 @@ function trial50TurnIn() {
 function trial50Complete() {   // 🔥 v3.0.78 最終兌換一次性·全拿；🚫 v3.2.16 移除席琳完成（原參數 sherine 廢止）
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會完成試煉並領取獎勵。</span>'); return; }
     let nStages = cfg.stages.length, st = player.trialStage || 0;
     if (st !== nStages + 1) return;   // 只有「魔族神殿已開·尚未完成最終兌換」可完成
     let need = cfg.exMatCnt || 1;

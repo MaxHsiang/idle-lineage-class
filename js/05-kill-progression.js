@@ -249,7 +249,7 @@ function partyActiveMemberCount() { return Math.min(8, 1 + ((player.allies || []
 function partyExpShareCount() { return partyActiveMemberCount(); }   // 相容 native-preview／舊外部呼叫；不再作為除數
 function partyRewardMult() { return partyActiveMemberCount(); }
 function partyDropRate(rate) { return Math.min(1, Math.max(0, Number(rate) || 0) * partyRewardMult()); }
-// 任務道具的主玩家與隊員分流：隊員先記入快照暫存，於安全區/解散時走既有待領帳本回到來源角色背包。
+// 任務道具的主玩家與隊員分流：隊員保留個別試煉進度，但所有實體道具都立即交給隊長背包。
 function grantPartyTrialQuestDrop(itemId, cnt) {
     cnt = Math.max(1, Math.floor(Number(cnt) || 1));
     let main = typeof trialItemActive !== 'function' || trialItemActive(itemId);
@@ -266,7 +266,7 @@ function grantPartyStageQuestDrop(itemId, mainActive, cnt) {
 function partyQuestDropSubject(result) {
     let names = (result && result.allies) || [];
     if (result && result.main) return names.length ? `你與隊員 ${names.join('、')}` : '你';
-    return names.length ? `隊員 ${names.join('、')}` : '你';
+    return names.length ? `隊長（隊員 ${names.join('、')}）` : '你';
 }
 // 🤝 組隊經驗加成保留：每名未倒地隊友使每位存活成員取得的完整怪物經驗再增加（王族隊長 8%／非王族 4%）。
 function partyExpBonusPct() {
