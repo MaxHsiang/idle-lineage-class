@@ -534,15 +534,31 @@ async function exportSave(slot){
         alert('匯出失敗：角色、倉庫、寵物、龍之鑽石或血盟資料無法正確讀取，未產生匯出檔。');
         return;
     }
-    data = _saveWrapPortable(data);   // 🛡️ 可攜匯出固定使用 SIG1，確保網頁版與桌面版可互相匯入
+    const desktopExport = !!_FS;
+    if(desktopExport){
+        if(typeof _FS.sign !== 'function'){
+            alert('匯出失敗：安裝版儲存服務未就緒，請重新啟動遊戲後再試。');
+            return;
+        }
+        // 桌面版備份使用 Host 簽發的 SIG2，並以獨立容器標記來源；網頁版無法驗證或讀取。
+        data = _saveWrap(JSON.stringify({
+            format: 'idle-lineage-desktop-save',
+            schema: 1,
+            version: GAME_VERSION,
+            exportedAt: new Date().toISOString(),
+            save: JSON.parse(data)
+        }));
+    } else {
+        data = _saveWrapPortable(data);   // 網頁版維持既有 SIG1 可攜格式
+    }
     let sum = slotSummary(slotNo);
     let cname = (sum && sum.name) ? sum.name : ('slot' + slotNo);   // 未命名 → 用 slotN 當檔名
-    let fname = `fable5_save_${slotNo}_${cname}.json`;
+    let fname = desktopExport ? `idle_lineage_desktop_save_${slotNo}_${cname}.json` : `fable5_save_${slotNo}_${cname}.json`;
     if(window.showSaveFilePicker){
         try {
             let handle = await window.showSaveFilePicker({
                 suggestedName: fname,
-                types: [{ description: '放置天堂存檔', accept: { 'application/json': ['.json'] } }]
+                types: [{ description: desktopExport ? 'Idle Lineage 安裝版存檔' : '放置天堂網頁版存檔', accept: { 'application/json': ['.json'] } }]
             });
             let w = await handle.createWritable();
             await w.write(data);
@@ -577,13 +593,28 @@ function importSave(n){
         let reader = new FileReader();
         reader.onload = function(){
             let _raw = String(reader.result || '');
-            let _u = _saveUnwrap(_raw);   // 🛡️ 解存檔簽章（相容舊版無簽章明文匯出檔）
-            if(_u.signed && !_u.ok){ alert('匯入失敗：檔案完整性校驗未通過，可能已被竄改。'); return; }   // 🛡️ 簽章不符＝被改過：拒絕匯入
-            if(!_u.signed && !confirm('此存檔檔案沒有完整性簽章（可能來自舊版本，或被外部修改/移除簽章）。\n仍要匯入嗎？')) return;   // 🛡️ 未簽章檔（含被剝掉 SIG1 前綴後竄改者）：明示警告＋需確認，避免簽章被「刪前綴」無聲繞過
+            const desktopImport = !!_FS;
+            if(!desktopImport && _raw.startsWith('SIG2:')){
+                alert('匯入失敗：這是 Idle Lineage 安裝版匯出檔，網頁版資料與安裝版資料彼此獨立。');
+                return;
+            }
+            let _u = _saveUnwrap(_raw);
+            if(_u.signed && !_u.ok){ alert('匯入失敗：檔案完整性校驗未通過，可能已被竄改。'); return; }
+            if(!desktopImport && !_u.signed && !confirm('此存檔檔案沒有完整性簽章（可能來自舊版本，或被外部修改/移除簽章）。\n仍要匯入嗎？')) return;
             let text = _u.payload;
             let d;
             try { d = JSON.parse(text); }
             catch(e){ alert('匯入失敗：檔案不是有效的存檔（JSON 解析錯誤）。'); return; }
+            if(desktopImport){
+                if(!_u.signed || !_u.ok || !d || d.format !== 'idle-lineage-desktop-save' || d.schema !== 1 || !d.save){
+                    alert('匯入失敗：安裝版只支援由 Idle Lineage 安裝版匯出的專用存檔，網頁版資料無法匯入。');
+                    return;
+                }
+                d = d.save;
+            } else if(d && d.format === 'idle-lineage-desktop-save'){
+                alert('匯入失敗：這是 Idle Lineage 安裝版匯出檔，網頁版資料與安裝版資料彼此獨立。');
+                return;
+            }
             if(!d || typeof d !== 'object' || !d.p || typeof d.p !== 'object' || !d.p.cls){
                 alert('匯入失敗：檔案內容不是有效的放置天堂存檔。'); return;
             }
@@ -1548,9 +1579,8 @@ function consolidateInventory() {
     let seen = {};
     let out = [];
     player.inv.forEach(it => {
-        if ((it.en || 0) !== 0) { out.push(it); return; }   // 強化品不合併
         if (it.gw) { out.push(it); return; }                // 巨靈願望戒指：逐只獨立
-        let key = itemSig(it);   // 🔧 架構#3：統一簽章（祝福/詛咒/遠古變體/屬性/en 全部入鍵）
+        let key = itemSig(it);   // 🔧 架構#3：統一簽章（祝福/詛咒/遠古變體/屬性/en 全部入鍵；不同來源不分堆）
         // 🔒 v3.6.92 鎖定狀態不再入鍵（取代 v3.6.57 的 `|lock` 分堆）：同簽章一律併成一格，任一方鎖定→整疊鎖定。
         //    這是「再次獲得直接合併同一格」的收尾——舊存檔留下的「鎖定一疊＋未鎖定一疊」載入時自動歸併，
         //    製作遞迴留下的中間物殘量（js/14 _lockMergeOff）也在此併回鎖定疊。
