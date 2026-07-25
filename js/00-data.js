@@ -1,6 +1,6 @@
 ﻿/** 遊戲核心資料庫 */
 // 🏷️ 遊戲版本號（顯示於登入頁面下方·單一真相來源）：更新版本時只改這一行，登入頁面自動同步。
-const GAME_VERSION = 'v3.8.18';   // 🏷️ 版本號：末段 0~99 線性遞增，達 100 進位（中位 +1、末段歸 0）
+const GAME_VERSION = 'v3.8.27';   // 🏷️ 版本號：末段 0~99 線性遞增，達 100 進位（中位 +1、末段歸 0）
 // ===== 💾 存檔壓縮（LZString compressToUTF16/decompressFromUTF16·MIT, Pieroxy）：localStorage 內部以 UTF-16 壓縮，省 ~89%，繞過 5MB 上限 =====
 //  ⚠️ 只壓 localStorage（存檔位/倉庫/共用桶/_bak）；匯出檔維持明文 JSON（可攜·importSave 用 JSON.parse 驗證）。_lzGet 相容舊明文存檔（無 'LZ1:' 前綴→原樣回傳）。
 var LZString = (function () {
@@ -945,6 +945,12 @@ const DB = {
         // 🏺 遺物第二十四批（v3.8.12·2 件·各 0.0001% 單怪掉落）
         "relic_sky_god_avatar":     { n: "天空之神的化身",     type: "arm", slot: "armor", relic: true, noEnhance: true, ac: 11, wearerEle: "wind", req: "all", p: 10000, gachaWeight: 0, d: "【遺物】天空之神遺留在人間的羽衣，披上後身軀便與長風融為一體。" },
         "relic_necro_book":         { n: "死靈之書",           type: "arm", slot: "shield", armguard: { stat: "none", base: 0, th: [0, 0, 0] }, relic: true, noEnhance: true, ac: 0, necroBook: true, killTeamHealPct: 1, req: "mage", p: 10000, gachaWeight: 0, d: "【遺物】以亡者皮骨裝訂的禁書，書頁會在敵人倒下時自行翻動，喚回仍不願安息的骸骨。" },
+        // 🏺 遺物第二十五批（v3.8.26·5 件·各 0.0001% 單怪掉落）
+        "relic_wing_chaos_blades":  { n: "飛翼的混沌雙刀",     type: "wpn", w2h: true, relic: true, noEnhance: true, eff: "combo", comboRate: 30, ignHardSkin: true, str: 2, dex: 1, dmgS: 16, dmgL: 11, hit: 15, dmgBonus: 16, darkCritMorph: "flywing_double", req: "dark", p: 10000, gachaWeight: 0, d: "【遺物】混沌司祭折翼後留下的雙刀，斬擊如殘翼同時掠過。雙擊 30；貫穿；力量 +2、敏捷 +1；裝備時會心一擊變為飛翼雙連：消耗 MP 12，立即進行兩次一般攻擊，兩次皆必定觸發雙擊。" },
+        "relic_corrosive_jelly_skin": { n: "腐蝕的果凍外皮",  type: "arm", slot: "gloves", relic: true, noEnhance: true, ac: 4, dr: 5, corrosiveJellySkin: true, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】象牙塔果凍怪的腐蝕外皮仍在緩緩蠕動。傷害減免 +5；受到一般攻擊時，使攻擊者的一般攻擊力永久 -3，最多疊加 5 層，直到該目標死亡。" },
+        "relic_goat_demon_feet":    { n: "山羊惡魔的雙足",   type: "arm", slot: "boots", relic: true, noEnhance: true, ac: 11, str: 3, int: 3, moveSpeedPct: 33, mpR: 3, bossEncounterPct: 3, req: "knight,elf,dark,dragon", p: 10000, gachaWeight: 0, d: "【遺物】巴列斯踏碎地獄岩層的雙足，仍帶著炙熱蹄印。力量 +3、智力 +3、移動速度 +33%、MP 自然恢復量 +3；頭目遭遇機率變更為 3%。" },
+        "relic_succubus_queen_kiss": { n: "斯克巴女皇的魅惑之吻", type: "arm", slot: "shield", armguard: { stat: "none", base: 0, th: [0, 0, 0] }, relic: true, noEnhance: true, ac: 0, cha: 1, charmOnHit: true, req: "elf,mage", p: 10000, gachaWeight: 0, d: "【遺物】斯克巴女皇留下的吻痕，會在武器命中時低語。魅力 +1；迷魅術變為魅惑術：自身沒有迷魅怪物時，一般攻擊命中會自動嘗試迷魅目標；對頭目無效。" },
+        "relic_spider_queen_footprints": { n: "蜘蛛女王的足跡", type: "arm", slot: "boots", relic: true, noEnhance: true, ac: 8, immSlow: true, dr: 4, extraHit: 1, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】傲慢的潔尼斯女王踏過的地面留下冰冷足跡。免疫緩速；傷害減免 +4；額外命中 +1。" },
         "clk_elf": { n: "精靈斗篷", type: "arm", slot: "cloak", ac: 1, req: "all", safe: 6, p: 900, gachaWeight: 100 },
         "clk_oasis": { n: "歐西斯斗篷", type: "arm", slot: "cloak", ac: 0, req: "all", safe: 4, p: 15, gachaWeight: 100 },
         "arm_86": { n: "侏儒斗篷", type: "arm", slot: "cloak", ac: 0, req: "all", safe: 4, p: 18, gachaWeight: 100 },

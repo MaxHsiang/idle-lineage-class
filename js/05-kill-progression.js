@@ -503,7 +503,10 @@ function killMob(idx) {
 
     // === 🔧 黑魔石掉落（黑暗妖精素材）：沉默洞穴周邊固定掉落（提煉魔石提高）；其餘野外/地監需學提煉魔石才掉（攻城區不掉）===
     {
-        let _refine = player.skills.includes('sk_dark_refine');   // 提煉魔石（被動）
+        // 隊伍被動：在場且未倒地的黑暗妖精傭兵學會提煉魔石時，隊長同樣取得黑魔石掉落效果。
+        let _refine = player.skills.includes('sk_dark_refine')
+            || (player.allies || []).some(a => a && !a._downed && (a.curHp || 0) > 0
+                && a.cls === 'dark' && a.skills && a.skills.includes('sk_dark_refine'));
         let _cdm = classicDropMult();   // 恆 1（經典與一般同掉率）；保留呼叫與其他掉落點同管線
         if (mapState.current === 'silent_outer') {
             if (Math.random() < partyDropRate((_refine ? 0.30 : 0.20) * _cdm)) gainItem('mat_blackstone2', 1);

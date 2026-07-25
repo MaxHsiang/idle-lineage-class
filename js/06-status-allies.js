@@ -1,6 +1,6 @@
 function newMobStatus() {
     return { freeze:0, stun:0, stone:0, sleep:0, paralyze:0, poison:0, poisonTick:30, poisonDmg:0, poisonStacks:0, poisonUnit:0,
-             blind:0, blindVal:0, weaken:0, disease:0, vacuum:0, broken:0, slow:0, mrhalf:0, magicseal:0, armorbreak:0, confuse:0, panic:0, guardbreak:0, terror:0, doom:0, strawCurse:0, muddywater:0, bind:0 };   // 🌊 污濁之水：頭目回血減半（js/03）；⚡ v3.7.52 paralyze 麻痺（審判落雷·硬控同暈眩）；🕸️ v3.7.75 bind 束縛
+             blind:0, blindVal:0, weaken:0, disease:0, vacuum:0, broken:0, slow:0, mrhalf:0, magicseal:0, fragile:0, shatter:0, armorbreak:0, confuse:0, panic:0, guardbreak:0, terror:0, doom:0, strawCurse:0, muddywater:0, bind:0 };   // 🌊 污濁之水：頭目回血減半（js/03）；⚡ v3.7.52 paralyze 麻痺（審判落雷·硬控同暈眩）；🕸️ v3.7.75 bind 束縛
 }
 // 🕸️ v3.7.75 束縛：被束縛者「原地不動」——本身不是硬控（仍可施法／使用技能），只擋一般攻擊：
 //   ‧ 被束縛的玩家／傭兵：手上不是遠距離武器就打不出一般攻擊（裝弓/十字弓＝隔空射擊·不受影響）。
@@ -22,7 +22,14 @@ function bindMobBlockedVs(m, target) {   // 怪物：自己被束縛且目標為
     }
     return true;
 }
-function mobEffAC(m, actor) { let _weakOk = (m.weakExpose > 0) && ((actor && actor !== player) ? allyHasMastery(actor, 'k_weakness') : hasMastery('k_weakness')); return (m.ac || 0) + ((m.st && m.st.disease > 0) ? 8 : 0) + ((m.st && (m.st.confuse > 0 || m.st.panic > 0)) ? 5 : 0) + ((m.st && m.st.guardbreak > 0) ? 10 : 0) + (_weakOk ? 3 * Math.min(5, m.weakExpose) : 0) - ((m._acGuardEnd > state.ticks) ? (m._acGuardVal || 0) : 0); }   // 🔮 混亂/恐慌：AC+5；🐉 護衛毀滅：AC+10；🐉 弱點精通：每層弱點曝光 AC+3（更易被命中·讀「攻擊者」精通：傭兵傳 actor→吃傭兵自身精通、玩家/召喚無 actor→吃玩家精通）   // 🗼 鋼鐵防護：暫時降低 AC
+function mobEffAC(m, actor) { let _weakOk = (m.weakExpose > 0) && ((actor && actor !== player) ? allyHasMastery(actor, 'k_weakness') : hasMastery('k_weakness')); return (m.ac || 0) + ((m.st && m.st.disease > 0) ? 8 : 0) + ((m.st && (m.st.confuse > 0 || m.st.panic > 0)) ? 5 : 0) + ((m.st && m.st.guardbreak > 0) ? 10 : 0) + (_weakOk ? 3 * Math.min(5, m.weakExpose) : 0) - ((m.st && m.st.shatter > 0) ? 10 : 0) - ((m._acGuardEnd > state.ticks) ? (m._acGuardVal || 0) : 0); }   // 🔮 月光碎裂：AC-10；混亂/恐慌：AC+5；🐉 護衛毀滅：AC+10；🐉 弱點精通：每層弱點曝光 AC+3（更易被命中·讀「攻擊者」精通：傭兵傳 actor→吃傭兵自身精通、玩家/召喚無 actor→吃玩家精通）   // 🗼 鋼鐵防護：暫時降低 AC
+function moonShatterOnDamage(owner, target, dmg) {
+    if (!owner || !owner._setMoon5 || !target || target._dead || (target.curHp || 0) <= 0 || !(dmg > 0)) return false;
+    if (!target.st) target.st = newMobStatus();
+    let firstApply = !(target.st.shatter > 0);
+    target.st.shatter = 30;   // 月光 5/5：碎裂 3 秒，最多 1 層、重複傷害刷新
+    return firstApply;
+}
 function mobActDisabled(m) {
     let s = m.st; if(!s) return false;
     return s.freeze > 0 || s.stun > 0 || s.stone > 0 || s.sleep > 0 || s.paralyze > 0;   // ⚡ v3.7.52 麻痺＝硬控（審判落雷）
@@ -35,7 +42,7 @@ function traumaPhysicalBonus(target) {
     return (target && target._trauma && target._trauma.until > state.ticks) ? (target._trauma.dmg || 5) * (target._trauma.s || 1) : 0;
 }
 const STATUS_NAME = { freeze:'冰凍', stun:'暈眩', stone:'石化', sleep:'沉睡', paralyze:'麻痺', poison:'中毒',
-    blind:'目盲', weaken:'弱化', disease:'疾病', vacuum:'真空', broken:'損壞', slow:'緩速', mrhalf:'魔抗減半', magicseal:'魔法封印', armorbreak:'破甲', fragile:'脆弱', confuse:'混亂', panic:'恐慌', guardbreak:'護衛毀滅', terror:'恐懼', doom:'死神', muddywater:'污濁', bind:'束縛' };   // 🔮 脆弱（白鳥5）：受所有傷害+20%；🐉 護衛毀滅/恐懼/死神；🌊 污濁（污濁之水·頭目回血減半）；🕸️ v3.7.75 束縛
+    blind:'目盲', weaken:'弱化', disease:'疾病', vacuum:'真空', broken:'損壞', slow:'緩速', mrhalf:'魔抗減半', magicseal:'魔法封印', fragile:'脆弱', shatter:'碎裂', armorbreak:'破甲', confuse:'混亂', panic:'恐慌', guardbreak:'護衛毀滅', terror:'恐懼', doom:'死神', muddywater:'污濁', bind:'束縛' };   // 🔮 脆弱（白鳥5）：受所有傷害+10%；月光碎裂：AC-10；🐉 護衛毀滅/恐懼/死神；🌊 污濁（污濁之水·頭目回血減半）；🕸️ v3.7.75 束縛
 // 特定狀態的專屬套用訊息（接於怪物名稱後）
 const STATUS_MSG = { magicseal:'的魔法遭到封印了。' };
 // 對 BOSS 無效的行動限制類狀態
@@ -178,7 +185,7 @@ function _teamDotCrit(base) {
 function processMobStatusTick(m, i) {
     if(!m.st) { m.st = newMobStatus(); return false; }
     let s = m.st;
-    ['freeze','stun','stone','sleep','paralyze','blind','weaken','disease','vacuum','broken','slow','mrhalf','magicseal','fragile','armorbreak','confuse','panic','guardbreak','terror','doom','muddywater','bind'].forEach(k => {   // 🔮 含脆弱、🔧 含破壞盔甲、🔮 含混亂/恐慌、🐉 含護衛毀滅/恐懼/死神、🌊 含污濁、⚡ 含麻痺、🕸️ 含束縛
+    ['freeze','stun','stone','sleep','paralyze','blind','weaken','disease','vacuum','broken','slow','mrhalf','magicseal','fragile','shatter','armorbreak','confuse','panic','guardbreak','terror','doom','muddywater','bind'].forEach(k => {   // 🔮 含脆弱、月光碎裂、🔧 含破壞盔甲、🔮 含混亂/恐慌、🐉 含護衛毀滅/恐懼/死神、🌊 含污濁、⚡ 含麻痺、🕸️ 含束縛
         if(s[k] > 0) s[k]--;
     });
     if(s.blind <= 0) s.blindVal = 0;
@@ -879,6 +886,7 @@ function allyQiguAttack(ally, t, wpn) {
     if (t.st && t.st.mrhalf > 0) t.st.mrhalf = 0;
     mobWake(t);
     if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, dmg, 'magic', ally);   // 🌑 v3.4.14 血壁空間：奇古獸普攻主擊＝魔法反射（鏡像玩家 qiguPlayerAttack）
+    if (t.curHp > 0 && ally._setIron5 && typeof ironGuardTaunt === 'function' && ironGuardTaunt(t, ally)) logCombat(`<span class="font-bold" style="color:#93c5fd;text-shadow:0 0 6px #3b82f6;">【協力·${ally._allyName}·鐵衛 5/5】</span>嘲諷 <span class="${getMobColor(t.lv)}">${t.n}</span>！（3 秒）`, 'player-special');
     if (ally._setWhiteBird5 && t.curHp > 0 && !t._dead) { if (!t.st) t.st = newMobStatus(); t.st.fragile = 30; }   // 🔮 白鳥 5/5（傭兵奇古獸）：命中附加脆弱（魔法路徑不經 allyOnHitEffects，故此處補上）
     logCombat(`<span class="text-emerald-300 font-bold">【協力·${ally._allyName}】</span>奇古獸對 <span class="${getMobColor(t.lv)}">${t.n}</span> 造成 ${dmg} 點魔法傷害。`, 'magic');
     // 奇古獸特效（幻影衝擊/心靈破壞，用傭兵最大MP）
@@ -922,8 +930,9 @@ function allyAttackOnce(ally, _arrowDelay) {   // 🏹 v3.2.14 _arrowDelay(選�
         dmg = Math.max(1, Math.floor(dmg * wpnEnFinalMult(ally.eq && ally.eq.wpn)));   // 🔧 武器強化 +11~+20：最終傷害倍率（傭兵法師光箭普攻·與玩家普攻一致）
         dmg = Math.max(1, Math.floor(dmg * allyRlFuryMult(ally)));   // 🔴😡 v2.6.18 紅獅5×狂怒5造傷（法師光箭普攻·原全無·鏡像玩家 procLightArrow）
         dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   // 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200)
-        t.curHp -= dmg; t.justHit = 'magic'; mobWake(t);
+        t.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, dmg); t.justHit = 'magic'; mobWake(t);
         if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, dmg, 'magic', ally);   // 🌑 v3.4.14 血壁空間：法師光箭普攻主擊＝魔法反射（普攻主擊反射·玩家傭兵一致）
+        if (t.curHp > 0 && ally._setIron5 && typeof ironGuardTaunt === 'function' && ironGuardTaunt(t, ally)) logCombat(`<span class="font-bold" style="color:#93c5fd;text-shadow:0 0 6px #3b82f6;">【協力·${ally._allyName}·鐵衛 5/5】</span>嘲諷 <span class="${getMobColor(t.lv)}">${t.n}</span>！（3 秒）`, 'player-special');
         logCombat(`<span class="text-emerald-300 font-bold">【協力·${ally._allyName}】</span>魔法攻擊 <span class="${getMobColor(t.lv)}">${t.n}</span>，造成 <span class="${isCrit?'text-yellow-500 font-bold':'text-emerald-200'}">${dmg}</span> 點傷害。`, 'magic');
         allyWeaponProcs(ally, t, { hit: true, dmg: dmg });   // 🔧 法師普攻（光箭）也觸發武器特效：共鳴/魔擊/瑪那回魔
         if (ally._setWhiteBird5 && t.curHp > 0 && !t._dead) { if (!t.st) t.st = newMobStatus(); t.st.fragile = 30; }   // 🔮 白鳥 5/5（傭兵法師光箭）：一般攻擊命中附加脆弱（物理分支於 allyOnHitEffects 套用、魔法分支不經該函式，故此處補上）
@@ -932,7 +941,7 @@ function allyAttackOnce(ally, _arrowDelay) {   // 🏹 v3.2.14 _arrowDelay(選�
         let isLarge = t.s === 'L';
         let dice = wpn ? (isLarge ? wpn.dmgL : wpn.dmgS) : 2;
         let isRanged = !!(wpn && wpn.ranged);
-        let hitB = (isRanged ? (d.rangedHit||0) : (d.meleeHit||0)) + (d.extraHit||0) + (ally._setBeauty5 ? (ally._beautyMissStack || 0) : 0);   // 🔮 v2.6.21 麗人5/5：未命中堆疊命中（鏡像玩家 js/03:763·取代舊「重擊→必中」）
+        let hitB = (isRanged ? (d.rangedHit||0) : (d.meleeHit||0)) + (d.extraHit||0);
         let dmgB = isRanged ? (d.rangedDmg||0) : (d.meleeDmg||0);
         // 🌅 日出之國異常（傭兵承受）：弱化＝傷害−5/命中−2；疾病＝命中−4；目盲＝命中−6。
         //    ⚠️ 須與 allyStrikeRoll 及玩家樞紐 getPhysicalDmg(js/03) 逐字一致，否則主攻擊獨漏減益。
@@ -951,7 +960,7 @@ function allyAttackOnce(ally, _arrowDelay) {   // 🏹 v3.2.14 _arrowDelay(選�
         if (!_evSure && t.er && roll(1, 100) <= t.er) {
             logCombat(`<span class="${getMobColor(t.lv)}">${t.n}</span> 成功迴避 <span class="text-sky-300 font-bold">協力·${ally._allyName}</span> 的攻擊。`, 'evade');
             allyWeaponProcs(ally, t, { hit: false, dmg: 0 });
-            if (wpn && wpn.eff === 'combo' && Math.random() * 100 < (wpn.comboRate || 0)) allyComboAttack(ally, t, true);
+            if (wpn && Math.random() * 100 < (ally._forceComboRate != null ? ally._forceComboRate : comboTriggerChance(ally, wpn, ally.eq && ally.eq.wpn))) allyComboAttack(ally, t, true);
             // ⚔️ v3.5.100 副手改獨立計時器（alliesTick 內的 _offAtkCd），不再跟著主手這一擊觸發
             return;
         }
@@ -967,9 +976,8 @@ function allyAttackOnce(ally, _arrowDelay) {   // 🏹 v3.2.14 _arrowDelay(選�
         if (!_normA) {   // 🥊 v2.6.20 骰19：擦傷(50%·不爆)；其餘未命中（鏡像玩家 getPhysicalDmg 782/785）
             if (r === 19) _grazeA = true;
             else if (wpn && wpn.missGrazeRate && Math.random() * 100 < wpn.missGrazeRate) _grazeA = true;   // 🏺 水精靈王的撫摸（傭兵）：未命中時 30% 改判擦傷
-            else { if (ally._setBeauty5) ally._beautyMissStack = (ally._beautyMissStack || 0) + 10;   /* 🔮 v2.6.21 麗人5/5：未命中→命中堆疊+10（鏡像玩家 786） */ if (typeof vfxMiss === 'function') vfxMiss(t); logCombat(`<span class="text-sky-300 font-bold">【協力·${ally._allyName}】</span>的攻擊未命中。`, 'miss'); allyWeaponProcs(ally, t, { hit: false, dmg: 0 }); if (wpn && wpn.eff === 'combo' && Math.random() * 100 < (wpn.comboRate || 0)) allyComboAttack(ally, t, true); return; }   // 🔧 未命中也判定共鳴/魔擊/月光爆裂/連擊（⚔️ v3.5.100 迅猛雙斧副手已改獨立計時器·不再跟主手觸發）
+            else { if (typeof vfxMiss === 'function') vfxMiss(t); logCombat(`<span class="text-sky-300 font-bold">【協力·${ally._allyName}】</span>的攻擊未命中。`, 'miss'); allyWeaponProcs(ally, t, { hit: false, dmg: 0 }); if (wpn && Math.random() * 100 < (ally._forceComboRate != null ? ally._forceComboRate : comboTriggerChance(ally, wpn, ally.eq && ally.eq.wpn))) allyComboAttack(ally, t, true); return; }   // 🔧 未命中也判定共鳴/魔擊/月光爆裂/連擊（⚔️ v3.5.100 迅猛雙斧副手已改獨立計時器·不再跟主手觸發）
         }
-        if (ally._setBeauty5 && ally._beautyMissStack) ally._beautyMissStack = 0;   // 🔮 v2.6.21 麗人5/5：命中（含擦傷/粉碎）→堆疊歸零（鏡像玩家 787）
         let heavy = (r === 20) || _crushA;   // 🥊 v2.6.20 粉碎：骰19重擊
         if (!heavy && !_grazeA && !ally.classicMode && ally.eq && ally.eq.wpn && getWeaponTags(ally.eq.wpn.id).includes('鋼爪') && Math.random() < 0.05) heavy = true;   // ⚔️ 鋼爪內建特性（傭兵·鏡像玩家 getPhysicalDmg）：一般攻擊命中(非擦傷)額外 5% 重擊·經典停用
         let isCrit = !_grazeA && (_evCrit || (Math.random()*100 < critR));   // 🆕 v2.6.13 #5b 迴避精通：迴避後下一擊必爆；🥊 v2.6.20 擦傷不爆
@@ -1032,7 +1040,7 @@ function allyAttackOnce(ally, _arrowDelay) {   // 🏹 v3.2.14 _arrowDelay(選�
         if (wpn && wpn.selfBreakProc && Math.random() < 0.03) { dmg = Math.max(1, Math.floor(dmg * 1.5)); if (!ally.statuses) ally.statuses = {}; ally.statuses.broken = (wpn.selfBreakProc.dur || 5) * 10; }   // 🐍 v3.1.76 特產易碎泥偶（傭兵）：3% 傷害×1.5＋自身壞物術（期間傷害-20%·鏡像玩家 js/04:122）
         if (ally.d && ally.d.instakillFull && t.curHp === t.hp) { let _rif = mapState.mobs.findIndex(m => m && m.uid === t.uid); if (_rif !== -1 && tryInstakill(t, { p: ally.d.instakillFull, tag: null }, `【協力·${ally._allyName}】隱蔽的死亡草葉`, _rif)) return; }   // 🏺 v3.1.76 隱蔽的死亡草葉（傭兵）：命中滿血非BOSS怪機率即死（鏡像玩家 js/04:72）
         markBossPhysicalHit(t);
-        t.curHp -= dmg; t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally); mobWake(t);
+        t.curHp -= dmg; t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally); if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, dmg); mobWake(t);
         if (wpn && wpn.bonespike && (t._bonespike || 0) > 0 && t.curHp > 0) { let _bs = t._bonespike * 20; t._bonespike = 0; t.curHp -= _bs; t._spellHurt = true; mobWake(t); logCombat(`<span class="font-bold" style="color:#e5e7eb;text-shadow:0 0 6px #6b7280;">【協力·${ally._allyName}·骨刺爆裂】</span>引爆目標身上的骨刺，額外造成 ${_bs} 點固定傷害。`, 'player-special'); }   // 🏺 骸骨意志之弓（傭兵）：一般攻擊引爆所有骨刺（每層 20 固定傷害）
         if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, dmg, isRanged ? 'ranged' : 'melee', ally);   // 🌑 v3.4.14 血壁空間：傭兵物理普攻主擊反射（鏡像玩家 js/04:132）
         // ☠️ v3.5.90 反彈可能當場把傭兵打成倒地（reflectWallOnDamage 內設 _downed＋_reviveCd）：不早退的話會繼續跑所有命中特效，
@@ -1077,8 +1085,9 @@ function allyAttackOnce(ally, _arrowDelay) {   // 🏹 v3.2.14 _arrowDelay(選�
             let _always = allyHasMastery(ally, 'k_chainblade') || allyHasMastery(ally, 'k_weakness');
             if (_always || Math.random() < 0.12) { let _max = allyHasMastery(ally, 'k_chainblade') ? 5 : 3; t.weakExpose = Math.min(_max, (t.weakExpose || 0) + 1); }
         }
+        if (t.curHp > 0 && ally._setIron5 && typeof ironGuardTaunt === 'function' && ironGuardTaunt(t, ally)) logCombat(`<span class="font-bold" style="color:#93c5fd;text-shadow:0 0 6px #3b82f6;">【協力·${ally._allyName}·鐵衛 5/5】</span>嘲諷 <span class="${getMobColor(t.lv)}">${t.n}</span>！（3 秒）`, 'player-special');
         allyWeaponProcs(ally, t, { hit: true, dmg: dmg });            // 🔧 普攻判定特效：瑪那回魔/共鳴/魔擊/月光爆裂
-        if (wpn && wpn.eff === 'combo' && Math.random() * 100 < (wpn.comboRate || 0)) allyComboAttack(ally, t, true);     // 雙擊：命中後依 comboRate% 追加一次完整一般攻擊
+        if (wpn && Math.random() * 100 < (ally._forceComboRate != null ? ally._forceComboRate : comboTriggerChance(ally, wpn, ally.eq && ally.eq.wpn))) allyComboAttack(ally, t, true);     // 雙擊：命中後依武器／套裝機率追加一次完整一般攻擊
         if (isCrit && allyHasMastery(ally, 'd_crit')) allyComboAttack(ally, t);   // 🔧 黑暗妖精爆擊精通：傭兵爆擊時追加一次連擊
         // ⚔️ v3.5.100 迅猛雙斧（傭兵）：副手已改為 alliesTick 內的獨立計時器 _offAtkCd，不再是「主手第二攻擊來源」
         // 🏺 遺物 命中附加固定屬性傷害＋弱點洞察（傭兵鏡像玩家·置於各 proc 後、擊殺判定前，避免對死怪重複觸發）
@@ -1235,11 +1244,13 @@ function allyCastMagic(ally, sk) {
         // 🔮 攻擊技能下拉選單可選的一般傷害法術，不觸發幻覺2/5與5/5（鏡像玩家 castSkill）
         if (sk.hpCost && ally._setDragonblood5) totalDmg = Math.max(1, Math.floor(totalDmg * 1.2));   // 🐉 v3.1.78 龍血5/5（傭兵）：HP消耗技傷害+20%（傷害魔法·鏡像玩家 js/07:642·傭兵確有付HP見 allyDragonAct）
         t.curHp -= totalDmg;
+        if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, totalDmg);
         _burstDmg += totalDmg;   // 🔧 魔爆累計
         t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic';
         t._spellHurt = true;   // 🎬 v3.0.14 傭兵法術傷害→hurt(含頭目)
         if (t.st && t.st.mrhalf > 0) t.st.mrhalf = 0;
         mobWake(t);
+        if (typeof playSpellFx === 'function') { try { playSpellFx(sk.n, t); } catch (e) {} }   // 🎬 傭兵傷害法術：與玩家 castSkill 同步播放已註冊的動態特效
         if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, totalDmg, 'magic', ally);   // 🌑 v3.4.14 血壁空間：傭兵傷害魔法技能（單體/全體）＝魔法反射（鏡像玩家 js/07 傷害魔法分支）
         if (sk.lifesteal && totalDmg > 0) { let h = Math.min(totalDmg, (ally.mhp || 0) - (ally.curHp || 0)); if (h > 0) { ally.curHp = Math.min(ally.mhp || 1, (ally.curHp || 0) + h); logCombat(`<span class="text-emerald-300 font-bold">【協力·${ally._allyName}】</span>吸取了 ${h} 點生命。`, 'heal', 'mercenary'); } }   // 🩸 v2.6.18 #中：吸血魔法（寒冷戰慄/吸血鬼之吻 lifesteal）回復戰鬥HP(curHp)，比照玩家 castSkill 624；上限本次傷害或缺血較小者
         // 🔮 白鳥 5/5：傭兵「施放傷害魔法技能」不觸發脆弱（2026-06 用戶要求：只有一般攻擊/基礎普攻才觸發）；基礎普攻(法師光箭/幻術士奇古獸/物理 on-hit)仍於各自路徑套用脆弱
@@ -1281,7 +1292,7 @@ function allyCastMagic(ally, sk) {
                         let _d = Math.max(1, Math.floor(_ex * fragileMult(m)));
                         // 👑 v2.6.69 審計#13：王族魅力加成已含於 _burstDmg（各目標傷害於 496 行乘過），此處不再重複乘（原本平方＝魅力80時魔爆虛高80%）
                         _d = _allyIllusionMagicDmg(ally, _d, i === 0);   // 🔮 魔爆每次發動只回一次MP，5件仍逐目標生效
-                        m.curHp -= _d; if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(m, _d, 'magic'); m.justHit = 'magic'; mobWake(m);
+                        m.curHp -= _d; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, m, _d); if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(m, _d, 'magic'); m.justHit = 'magic'; mobWake(m);
                         logCombat(`魔爆波及 <span class="${getMobColor(m.lv)}">${m.n}</span>，造成 ${_d} 點無屬性傷害。`, 'magic');
                         if (m.curHp <= 0) { let ri = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (ri !== -1) killMob(ri); }
                     });
@@ -1506,7 +1517,7 @@ function allyStrikeRoll(ally, t, opts) {
     let wpn = wpnInst ? DB.items[wpnInst.id] : null;
     let dice = wpn ? (t.s === 'L' ? wpn.dmgL : wpn.dmgS) : 2;
     let isRanged = !!(wpn && wpn.ranged);
-    let hitB = (isRanged ? (d.rangedHit||0) : (d.meleeHit||0)) + (d.extraHit||0) + (ally._setBeauty5 ? (ally._beautyMissStack || 0) : 0);   // 🔮 v2.6.21 麗人5/5：未命中堆疊命中（鏡像玩家 js/03:763）
+    let hitB = (isRanged ? (d.rangedHit||0) : (d.meleeHit||0)) + (d.extraHit||0);
     let dmgB = isRanged ? (d.rangedDmg||0) : (d.meleeDmg||0);
     // 🌅 日出之國異常（傭兵承受）：弱化＝傷害−5/命中−2；疾病＝命中−4；目盲＝命中−6。
     if (ally.statuses) {
@@ -1533,10 +1544,7 @@ function allyStrikeRoll(ally, t, opts) {
         else if (r === 19) { hit = true; graze = true; }   // 🥊 v2.6.20 擦傷：骰19本應未命中→命中但50%不爆（鏡像玩家 785）
         else hit = false;
     }
-    // 🔎 v3.5.90 opts.probe＝純探測（穿透波及的命中判定）：不寫 _beautyMissStack——鏡像玩家 js/03 getPhysicalDmg 第 11 參 probe。
-    //    未加閘時：探測未命中→傭兵白賺 +10 命中堆疊；探測命中→把辛苦累積的堆疊清成 0（該次並不造成獨立傷害）。穿透精通全體波及時每隻怪各污染一次。
-    if (!hit) { if (ally._setBeauty5 && !opts.probe) ally._beautyMissStack = (ally._beautyMissStack || 0) + 10; return { hit: false, dmg: 0, heavy: false, crit: false }; }   // 🔮 v2.6.21 麗人5/5：未命中→命中堆疊+10（鏡像玩家 786）
-    if (ally._setBeauty5 && ally._beautyMissStack && !opts.probe) ally._beautyMissStack = 0;   // 🔮 v2.6.21 麗人5/5：命中（含forceHit/擦傷/粉碎）→堆疊歸零（鏡像玩家 787）
+    if (!hit) return { hit: false, dmg: 0, heavy: false, crit: false };
     let isCrit = !graze && (opts.forceCrit || (Math.random()*100 < critR));   // 🏅 反擊精通（傭兵）：反擊/居合必定爆擊；🥊 v2.6.20 擦傷不爆
     let critMult = isCrit ? (1 + critD/100) : 1;
     let wpnRoll = (heavy || (!isRanged && ally.buffs && ally.buffs.sk_elf_flamesoul > 0)) ? dice : roll(1, dice);   // 🔥 v3.1.77 烈焰之魂（傭兵·連擊/反擊/居合/副手共用·鏡像玩家 js/03:861）
@@ -1975,7 +1983,7 @@ function allyOnHitEffects(ally, t, res) {
                 let exT = mapState.mobs[_ix];
                 if (!exT || exT.curHp <= 0 || exT._dead) return;
                 // 🔧 穿透：每個波及目標各自獨立判定是否命中（依該怪 AC/等級），未命中則不造成傷害
-                //   🔎 v3.5.90 probe:true＝純探測（只借命中骰·不污染麗人5/5 堆疊）；實際傷害用主目標的 _pd。鏡像玩家 js/04 穿透波及。
+                //   🔎 v3.5.90 probe:true＝純探測（只借命中骰、不寫 runtime）；實際傷害用主目標的 _pd。鏡像玩家 js/04 穿透波及。
                 if (!allyStrikeRoll(ally, exT, { probe: true }).hit) {
                     if (typeof vfxMiss === 'function') vfxMiss(exT);
                     logCombat(`<span class="text-sky-300 font-bold">【協力·${ally._allyName}·穿透】</span>對 <span class="${getMobColor(exT.lv)}">${exT.n}</span> 的攻擊未命中。`, 'miss');
@@ -2029,7 +2037,6 @@ function allyOnHitEffects(ally, t, res) {
 }
 // 🔧 受擊觸發（判定「主操控玩家」受擊/迴避，傭兵代為反制攻擊者）
 // 反擊：傭兵持單手劍 → 玩家被命中 50%（玩家觸發格檔則必定）；必中、不重擊、傷害 50%
-// 🔮 鐵衛 5/5（傭兵）：觸發反擊/居合時，額外對全體敵人各做一次一般攻擊（各自正常命中判定）
 // 🆕 v2.6.14 [傭兵能力補完 #5c] 傭兵受擊反射（比照玩家 enemyPhysicalAttack/applyMobMagic 反射層）：dmgTaken=本次實際承受傷害·物理/魔法共用·反射走 _allyDamageMob(歸該傭兵·處理擊殺)。
 //   疼痛的歡愉(100%)·致命身軀(23%)·泰坦岩石(物理)/泰坦魔法(魔法·HP<門檻100%)＝承受量×fragileMult(mob)；鏡反射(魔法·機率=wis%)＝承受量原樣(唯一不乘脆弱)。
 function allyReflectOnHit(ally, mob, dmgTaken, isMagic) {
@@ -2058,19 +2065,6 @@ function allyReflectOnHit(ally, mob, dmgTaken, isMagic) {
         _allyDamageMob(ally, mob, _mrr, 'magic');
     }
 }
-function allyIronGuardSweep(ally, triggerName) {
-    if (!ally || !ally._setIron5) return;
-    let targets = mapState.mobs.filter(m => m && m.curHp > 0 && !m._dead);
-    if (!targets.length) return;
-    logCombat(`<span class="font-bold" style="color:#93c5fd;text-shadow:0 0 6px #3b82f6;">【協力·${ally._allyName}·鐵衛5/5】</span>${triggerName}引動鋼鐵之勢，橫掃全體敵人！`, 'player');
-    targets.forEach(m => {
-        if (!m || m.curHp <= 0 || m._dead) return;
-        let r = allyStrikeRoll(ally, m, {});
-        if (!r.hit) { if (typeof vfxMiss === 'function') vfxMiss(m); logCombat(`橫掃 <span class="${getMobColor(m.lv)}">${m.n}</span> 未命中。`, 'miss'); return; }
-        logCombat(`橫掃命中 <span class="${getMobColor(m.lv)}">${m.n}</span>，造成 ${r.dmg} 點傷害。`, 'player');
-        _allyDamageMob(ally, m, r.dmg, getWpnEle(ally.eq.wpn, DB.items[ally.eq.wpn.id], ally));
-    });
-}
 // 🔮 v2.6.7：傭兵「回合外」攻擊（反擊/居合·於怪物回合觸發·不在 alliesTick 注入窗內）也套隊長幻覺攻擊光環。
 //   allyStrikeRoll 為純計算（升級重算在其後的 _allyDamageMob 才發生），故在其呼叫前後即時注入/還原即可·無需 nonce 守衛。
 function _allyStrikeWithIllu(ally, mob, opts) {
@@ -2097,7 +2091,6 @@ function allyReactCounter(mob, blocked) {
         logCombat(`<span class="font-bold" style="color:#fbbf24;text-shadow:0 0 6px #f59e0b;">【協力·${ally._allyName}·反擊】</span>對 <span class="${getMobColor(mob.lv)}">${mob.n}</span> 造成 ${res.dmg} 點傷害${res.crit?'（爆擊!）':''}。`, 'player');
         if (_ctr) wearHardSkin(mob, null, false, false, true);   // 🏅 傭兵反擊精通：反擊命中削減 1 硬皮值
         _allyDamageMob(ally, mob, res.dmg, getWpnEle(ally.eq.wpn, DB.items[ally.eq.wpn.id], ally));
-        allyIronGuardSweep(ally, '反擊');   // 🔮 鐵衛 5/5（傭兵）
     });
 }
 // 居合：傭兵持武士刀且未裝「真盾牌」（臂甲可發動） → 玩家迴避或敵人未命中時 50%；必中、可自然重擊/爆擊
@@ -2118,7 +2111,6 @@ function allyReactIai(mob) {
         logCombat(`<span class="font-bold" style="color:#a5f3fc;text-shadow:0 0 6px #06b6d4;">【協力·${ally._allyName}·居合】</span>對 <span class="${getMobColor(mob.lv)}">${mob.n}</span> 造成 ${res.dmg} 點傷害${mark?'（'+mark+'!）':''}。`, 'player');
         wearHardSkin(mob, null, res.heavy, false, _iai);   // 🔧 傭兵居合重擊 -2；🏅 反擊精通：居合命中再削減 1 硬皮值（疊加）
         _allyDamageMob(ally, mob, res.dmg, getWpnEle(ally.eq.wpn, DB.items[ally.eq.wpn.id], ally));
-        allyIronGuardSweep(ally, '居合');   // 🔮 鐵衛 5/5（傭兵）
     });
 }
 
@@ -2180,7 +2172,9 @@ function allyDarkAct(ally) {
         }
     } else if (ally._atkSkill === 'sk_dark_crit') {
         // 🔧 會心一擊（傭兵版）：只有 MP 滿才施放，且只消耗 MP（不扣 HP）
-        if ((ally.mmp || 0) > 0 && (ally.mp || 0) >= (ally.mmp || 0)) { allyDarkCrit(ally, t); return true; }
+        let _dcWpn = (ally.eq && ally.eq.wpn) ? DB.items[ally.eq.wpn.id] : null;
+        let _wingDouble = !!(_dcWpn && _dcWpn.darkCritMorph === 'flywing_double');
+        if ((_wingDouble && (ally.mp || 0) >= 12) || (!_wingDouble && (ally.mmp || 0) > 0 && (ally.mp || 0) >= (ally.mmp || 0))) return allyDarkCrit(ally, t) !== false;
     } else {
         let _sk = DB.skills[ally._atkSkill]; let d = ally.d || {};
         if (_sk && _sk.type === 'atk' && _sk.dmgType !== 'physical' && (_sk.dmgDice || _sk.multiDmg)) {
@@ -2233,7 +2227,7 @@ function allyWarriorAct(ally) {
             if ((ally.mp || 0) >= cost) {
                 ally.mp -= cost; allyManaMasteryRefund(ally, cost);
                 let base = 50 + Math.max(0, (ally.lv || 1) - 30);
-                targets.forEach(m => { if (!m || m.curHp <= 0 || m._dead) return; let dmg = Math.max(1, Math.floor(base * fragileMult(m))); dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   /* 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200) */ m.curHp -= dmg; m.justHit = 'magic'; mobWake(m); if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(m, dmg, 'magic', ally); });   // 🌑 v3.4.14 血壁空間：傭兵咆哮＝魔法反射（鏡像玩家 js/07:509）
+                targets.forEach(m => { if (!m || m.curHp <= 0 || m._dead) return; let dmg = Math.max(1, Math.floor(base * fragileMult(m))); dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   /* 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200) */ m.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, m, dmg); m.justHit = 'magic'; mobWake(m); if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(m, dmg, 'magic', ally); });   // 🌑 v3.4.14 血壁空間：傭兵咆哮＝魔法反射（鏡像玩家 js/07:509）
                 logCombat(`<span class="font-bold" style="color:#fca5a5;text-shadow:0 0 6px #dc2626;">【協力·${ally._allyName}·咆哮】</span>咆哮震懾全場，對所有敵人造成約 ${base} 點固定傷害。`, 'player-special');   // _combatSrc='mercenary' 期間→自動歸傭兵來源
                 targets.forEach(m => { if (m && m.curHp <= 0 && !m._dead) { let i = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (i !== -1) killMob(i); } });
                 renderMobs();
@@ -2454,7 +2448,7 @@ function allyStormTick(ally, sk, noMageBonus) {
         if (sk.n === '火牢' && ally.eq && ally.eq.armor && (DB.items[ally.eq.armor.id] || {}).firePrisonMult) dmg = Math.max(1, Math.floor(dmg * DB.items[ally.eq.armor.id].firePrisonMult));   // 🏺 黝黑的烈火皮囊（傭兵）：火牢傷害加倍（鏡像玩家 js/04 stormBuffTick）
         dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   // 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200)
         dmg = _allyIllusionMagicDmg(ally, dmg, _illusionIdx === 0);   // 🔮 每次持續法術跳傷只回一次MP，5件仍逐目標生效
-        t.curHp -= dmg; t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic'; mobWake(t);
+        t.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, dmg); t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic'; mobWake(t);
         dmgLog.push(`<span class="${getMobColor(t.lv)}">${t.n}</span> ${dmg}${isCrit ? '(爆)' : ''}`);
         if (t.curHp <= 0) {
             let ri = mapState.mobs.findIndex(x => x && x.uid === t.uid); if (ri !== -1) killMob(ri);   // 擊殺歸玩家
@@ -2493,7 +2487,7 @@ function allyCastCrush(ally, sk) {
     dmg = Math.max(1, Math.floor(dmg * fragileMult(t) * illuLvMult(ally) * wpnEnFinalMult(ally.eq && ally.eq.wpn)));   // 🔮 幻術士(傭兵)等級加成 ×(1+等級/50)；🔧 武器強化 +11~+20 最終倍率
     dmg = Math.max(1, Math.floor(dmg * elementCounterMult(getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally), t.e)));   // ⚔️ 武器屬性剋制倍率（粉碎能量）
     dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   // 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200)
-    t.curHp -= dmg; t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally); mobWake(t);
+    t.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, dmg); t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally); mobWake(t);
     if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, dmg, _rng ? 'ranged' : 'melee', ally);   // 🌑 v3.4.14 血壁空間：傭兵粉碎能量/骷髏毀壞＝技能直擊反射（鏡像玩家 js/07:572 weaponDmg）
     logCombat(`<span class="text-emerald-300 font-bold">【協力·${ally._allyName}】</span>施放 ${sk.n}，對 <span class="${getMobColor(t.lv)}">${t.n}</span> 造成 ${dmg} 點傷害。`, 'magic');
     let ri = mapState.mobs.findIndex(m => m && m.uid === t.uid);
@@ -2546,7 +2540,7 @@ function allyCastSlaughter(ally, sk) {
         if (sk.hpCost && ally._setDragonblood5) dmg = Math.max(1, Math.floor(dmg * 1.2));   // 🐉 v3.1.78 龍血5/5（傭兵）：HP消耗技傷害+20%（屠宰者·鏡像玩家 js/07:419·傭兵確有付HP見 allyDragonAct）
         dmg = Math.max(1, Math.floor(dmg * elementCounterMult(getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally), t.e)));   // ⚔️ 武器屬性剋制倍率（屠宰者每擊）
         dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   // 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200)
-        t.curHp -= dmg; t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally); total += dmg; mobWake(t);
+        t.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, dmg); t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn, ally); total += dmg; mobWake(t);
         if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, dmg, 'melee', ally);   // 🌑 v3.4.14 血壁空間：傭兵屠宰者每擊＝近距離技能直擊反射（鏡像玩家 js/07 屠宰者）
         log.push(dmg + (res.heavy ? '(重)' : ''));
         if (t.curHp > 0) wearHardSkin(t, ally.eq && ally.eq.wpn ? ally.eq.wpn.id : null, res.heavy, false, true, ally.classicMode);
@@ -2570,7 +2564,7 @@ function allyCastMpDmg(ally, sk) {
     dmg = Math.max(1, Math.floor(magicBaseDamage(dmg, ally.d, 0, true) * magicDamageCoef(ally.d, magicAttrDefense(t, 'none'), sk.tier) * mrMult(Math.max(0, effMr))));   // 🔮 基礎=消耗MP量，套統一公式與幻術專屬階級
     dmg = Math.max(1, Math.floor(dmg * fragileMult(t) * illuLvMult(ally) * wpnEnFinalMult(ally.eq && ally.eq.wpn)));   // 🔮 幻術士(傭兵)等級加成 ×(1+等級/50)；🔧 武器強化 +11~+20 最終倍率
     dmg = Math.max(1, Math.floor(dmg * royalAllyMult()));   // 👑 王族魅力加成：傭兵造成傷害 ×(1+魅力/200)
-    t.curHp -= dmg; t.justHit = 'magic'; mobWake(t);
+    t.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(ally, t, dmg); t.justHit = 'magic'; mobWake(t);
     if (t.st && t.st.mrhalf > 0) t.st.mrhalf = 0;
     if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, dmg, 'magic', ally);   // 🌑 v3.4.14 血壁空間：傭兵心靈破壞＝魔法反射（鏡像玩家 js/07:572 mpDmgPct）
     logCombat(`<span class="text-emerald-300 font-bold">【協力·${ally._allyName}】</span>施放 ${sk.n}，撕裂 <span class="${getMobColor(t.lv)}">${t.n}</span> 的心靈，造成 ${dmg} 點傷害。`, 'magic');
@@ -2578,9 +2572,28 @@ function allyCastMpDmg(ally, sk) {
     if (t.curHp <= 0) { if (ri !== -1) killMob(ri); } else renderMobs();
     return true;
 }
+function allyFlywingDouble(ally, t) {
+    if (!ally || !t || t.curHp <= 0 || ally._downed || (ally.mp || 0) < 12) return false;
+    ally.mp -= 12;
+    let prior = ally._forceComboRate;
+    ally._forceComboRate = 100;
+    let swings = 0;
+    try {
+        for (let i = 0; i < 2; i++) {
+            if (ally._downed || !t || t._dead || t.curHp <= 0) break;
+            allyAttackOnce(ally);
+            swings++;
+        }
+    } finally {
+        if (prior == null) delete ally._forceComboRate; else ally._forceComboRate = prior;
+    }
+    if (swings > 0) logCombat(`<span class="font-bold" style="color:#c4b5fd;text-shadow:0 0 6px #8b5cf6;">【協力·${ally._allyName}·飛翼雙連】</span>揮出兩道殘翼般的斬擊！`, 'player-special');
+    return swings > 0;
+}
 // 🔧 會心一擊（傭兵版）：必定命中、套用物理傷害公式、固定 ×10（需 MP 滿）；只消耗全部 MP，不扣 HP
 function allyDarkCrit(ally, t) {
     let wpn = (ally.eq && ally.eq.wpn) ? DB.items[ally.eq.wpn.id] : null;
+    if (wpn && wpn.darkCritMorph === 'flywing_double') return allyFlywingDouble(ally, t);
     let dice = wpn ? (t.s === 'L' ? wpn.dmgL : wpn.dmgS) : 2;
     ally.buffs = ally.buffs || {}; ally.statuses = ally.statuses || {}; ally.eq = ally.eq || {};   // 安全：getPhysicalDmg 會取用 player.buffs/statuses/eq
     let _sv = player; player = ally; let base;
@@ -2596,6 +2609,7 @@ function allyDarkCrit(ally, t) {
     logCombat(`<span class="font-bold" style="color:#f0abfc;text-shadow:0 0 8px #d946ef;">【協力·${ally._allyName}·會心一擊】</span>對 <span class="${getMobColor(t.lv)}">${t.n}</span> 造成 ${dmg} 點致命傷害！`, 'player-crit');
     let i = mapState.mobs.findIndex(m => m && m.uid === t.uid);
     if (t.curHp <= 0) { if (i !== -1) killMob(i); } else renderMobs();
+    return true;
 }
 // 🤝 Phase4：傭兵異常狀態結算（比照玩家 tick：遞減時長＋持續傷害扣 curHp，可致倒地）。回傳 true＝本 tick 因 DoT 倒地（呼叫端跳過行動）。CC/施法限制由 alliesTick 讀 ally.statuses 判定。
 function processAllyStatusTick(ally) {
@@ -3325,7 +3339,7 @@ function _allyLevelRecompute(ally) {
 }
 // 城鎮 NPC：召喚/解除協力角色
 // 🔄 v3.7.87 用戶指定：**取消傭兵雇用費用**（招募與更新一律 0 金）、**取消「重新招募」按鈕**，改成隊長進入安全區時自動刷新一次。
-//    單名刷新＝舊「重新招募」的完整動作：結算累積經驗（記入待領帳本）＋以來源存檔最新狀態重建戰力快照，差別只在不收費、不用手動點。
+//    單名刷新＝舊「重新招募」的完整動作：優先直接結算累積經驗到來源角色，再以來源存檔最新狀態重建戰力快照；來源角色正在其他分頁開啟時才退回待領帳本。
 //    回傳 `{kind:'refresh'|'dismiss'|'skip', msg}` 交由上層彙整成一則訊息（每名各噴一長串日誌會洗版）。
 function refreshAllyOnce(slotN) {
     slotN = String(slotN);
@@ -3341,7 +3355,8 @@ function refreshAllyOnce(slotN) {
     }
     let _pendingAlignment = Math.trunc(Number(cur._alignmentDelta) || 0);
     let _effectiveAlignment = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(cur.alignmentValue) : Math.max(-32767, Math.min(32767, Math.round(Number(cur.alignmentValue) || 0)));
-    let m = _settleAllyExp(cur, 'refresh');   // 結算：累積經驗與性向記入待領帳本（該角色下次載入/回村領取）
+    let m = _settleAllyExpDirect(cur, 'refresh');
+    if (m === null) m = _settleAllyExp(cur, 'refresh');   // 來源角色正在其他分頁或存檔寫入失敗時，保留帳本保護機制。
     let fresh = buildAlly(slotN);             // 來源存檔不存在／角色不可用時回 null
     if (!fresh) {
         player.allies = player.allies.filter(a => a && a._slot !== slotN);
@@ -3386,9 +3401,9 @@ function refreshAllAllies() {
         return n;
     } catch (e) { return 0; }
 }
-// ===== 🤝 v2.6.68 傭兵經驗「待領帳本」（取代 解雇直接改寫來源存檔＋v2.6.42 storage 訊號廣播）=====
-// 設計：解散傭兵或「隊長回村」時，只把累積經驗寫成一筆獨立待領紀錄（唯一編號/來源隊伍/傭兵存檔身分/經驗/時間），
-//       絕不直接改寫來源角色存檔；該角色下次「載入遊戲或回村」時自動一次領取所有未領紀錄並標記已結算（同一筆只領一次）。
+// ===== 🤝 v2.6.68 傭兵經驗「待領帳本」=====
+// 設計：隊長回村會優先安全直寫來源角色存檔；來源角色正在其他分頁、來源存檔無法讀寫，或傭兵被解散時，
+//       才把累積經驗寫成獨立待領紀錄（唯一編號/來源隊伍/傭兵存檔身分/經驗/時間），由該角色下次載入或回村時領取。
 //       寫入與領取皆走跨分頁鎖（localStorage token 鎖·5 秒逾時防死鎖）→ 同一時間只有一個分頁能改帳本；
 //       開十個分頁最多產生十筆待領紀錄，不會十個分頁一起改寫同一份角色存檔。戰力快照與經驗結算完全分離（快照維持招募當下）。
 const MERC_LEDGER_KEY = 'fb5_merc_exp_ledger';
@@ -3479,6 +3494,52 @@ function _settleAllyExp(ally, reason) {
         if (questLoot.length) parts.push(`任務道具 ${questLoot.map(x => `${(DB.items[x[0]] || {}).n || x[0]}×${x[1]}`).join('、')}`);
         return `<span class="text-emerald-300">${ally._allyName} 累積的 ${parts.join('、')}已記入待領帳本（該角色下次載入或回村時領取）。</span>`;
     } catch (e) { return ''; }
+}
+// 安全區刷新時，若來源角色沒有在其他分頁開啟，直接把傭兵收益寫回來源角色。
+// 回傳 null 代表無法安全直寫，呼叫端應退回待領帳本；空字串代表沒有待結算收益。
+function _settleAllyExpDirect(ally, reason) {
+    try {
+        if (!ally) return '';
+        let banked = Math.max(0, Math.floor(Number(ally._expGained) || 0));
+        let alignmentDelta = Math.trunc(Number(ally._alignmentDelta) || 0);
+        let questLoot = Object.keys(ally._questLoot || {}).map(id => [id, Math.max(0, Math.floor(Number(ally._questLoot[id]) || 0))])
+            .filter(row => row[1] > 0 && DB.items[row[0]]);
+        if (banked <= 0 && !alignmentDelta && !questLoot.length) return '';
+
+        let ctx = _allyManagerSource(ally._slot, false);
+        if (!ctx || (ally.enSeed && ctx.source.enSeed && ally.enSeed !== ctx.source.enSeed)) return null;
+        let beforeLv = Math.max(1, Math.floor(Number(ctx.source.lv) || 1));
+        try {
+            _withAllyEquipmentContext(ctx.source, () => {
+                if (banked > 0) {
+                    ctx.source.exp = Math.max(0, Math.floor(Number(ctx.source.exp) || 0)) + banked;
+                    while ((ctx.source.lv || 1) < 100 && ctx.source.exp >= getExpReq(ctx.source.lv)) {
+                        ctx.source.exp -= getExpReq(ctx.source.lv);
+                        ctx.source.lv++;
+                        if (ctx.source.lv >= 50) ctx.source.bonus = (ctx.source.bonus || 0) + 1;
+                    }
+                    if ((ctx.source.lv || 1) >= 100) ctx.source.exp = 0;
+                }
+                if (alignmentDelta) {
+                    let value = (Number(ctx.source.alignmentValue) || 0) + alignmentDelta;
+                    ctx.source.alignmentValue = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(value) : Math.max(-32767, Math.min(32767, Math.round(value)));
+                }
+                questLoot.forEach(row => gainItem(row[0], row[1], true, true, false, true));
+                if ((ctx.source.lv || 1) > beforeLv) calcStats();
+            });
+            if (!_lzSet('lineage_idle_save_' + ctx.slotN, _saveWrap(JSON.stringify(ctx.doc)))) return null;
+        } catch (e) { return null; }
+
+        ally._expGained = 0;
+        ally._alignmentDelta = 0;
+        ally._questLoot = {};
+        try { saveGame(); } catch (e) {}   // 來源角色已先寫入，隊長快照必須立刻歸零，避免重載後重複結算。
+        let parts = [];
+        if (banked > 0) parts.push(`${banked.toLocaleString()} 經驗`);
+        if (alignmentDelta) parts.push(`性向 ${alignmentDelta > 0 ? '+' : ''}${alignmentDelta.toLocaleString()}`);
+        if (questLoot.length) parts.push(`任務道具 ${questLoot.map(row => `${DB.items[row[0]].n}×${row[1]}`).join('、')}`);
+        return `<span class="text-emerald-300">${ally._allyName} 累積的 ${parts.join('、')}已直接結算至來源角色。</span>`;
+    } catch (e) { return null; }
 }
 // 🗑️ v3.7.87 移除 mercBankAlliesAtTown（v2.6.68「隊長回村只結算不重建」）：唯一呼叫點 js/11 村莊分支已改呼叫
 //    refreshAllAllies()，而刷新本身就含 _settleAllyExp＋saveGame＝完全涵蓋原功能，留著只會變成第二條結算路徑。
@@ -3667,6 +3728,70 @@ function _saveManagedAllyEquipment(slotN, mutate) {
         return false;
     }
 }
+function _allyCloneInventory(inv) {
+    return JSON.parse(JSON.stringify(Array.isArray(inv) ? inv : []));
+}
+function _allySnapshotEquipment(source) {
+    return { inv:_allyCloneInventory(source.inv), eq:JSON.parse(JSON.stringify(source.eq || {})) };
+}
+function _allyRestoreEquipment(source, snapshot) {
+    source.inv = snapshot.inv;
+    source.eq = snapshot.eq;
+}
+function _allyEquippedEntries(eq) {
+    return Object.keys(eq || {}).map(slot => ({ slot:slot, item:eq[slot] }))
+        .filter(row => row.item && row.item.id !== 'wpn_shaha_arrow');
+}
+function _allyStillEquipped(source, item) {
+    return Object.values(source.eq || {}).some(now => now && (now === item || (now.uid && item.uid && String(now.uid) === String(item.uid))));
+}
+function _allyAddToLeaderInventory(leader, item) {
+    if (!Array.isArray(leader.inv)) leader.inv = [];
+    let copy = { ...item, cnt:Math.max(1, Math.floor(item.cnt || 1)), uid:item.uid || uid() };
+    copy.junk = false;
+    delete copy.junkSince;
+    delete copy._autoSellQty;
+    delete copy._ruleJunk;
+    copy._userKeep = true;
+    let stack = copy.gw ? null : leader.inv.find(row => row && !row.gw && sameItemSig(row, copy));
+    if (!stack) { leader.inv.push(copy); return; }
+    stack.cnt = Math.max(1, Math.floor(stack.cnt || 1)) + copy.cnt;
+    if (copy.lock) stack.lock = true;
+    stack.junk = false;
+    delete stack.junkSince;
+    delete stack._autoSellQty;
+    delete stack._ruleJunk;
+    stack._userKeep = true;
+}
+function _allyReturnDisplacedEquipment(source, leader, beforeEquip) {
+    for (let row of beforeEquip) {
+        let old = row.item;
+        if (_allyStillEquipped(source, old)) continue;
+        let remaining = Math.max(1, Math.floor(old.cnt || 1));
+        for (let i = source.inv.length - 1; i >= 0 && remaining > 0; i--) {
+            let entry = source.inv[i];
+            if (!entry || !sameItemSig(entry, old)) continue;
+            let count = Math.max(1, Math.floor(entry.cnt || 1));
+            let take = Math.min(count, remaining);
+            let moved = { ...entry, cnt:take, uid:take === count ? entry.uid : uid() };
+            if (take === count) source.inv.splice(i, 1);
+            else entry.cnt = count - take;
+            _allyAddToLeaderInventory(leader, moved);
+            remaining -= take;
+        }
+        if (remaining > 0) return false;
+    }
+    return true;
+}
+function _allyConsumeLeaderItem(leader, item, count) {
+    let index = (leader.inv || []).findIndex(row => row && (row === item || (row.uid && item.uid && String(row.uid) === String(item.uid))));
+    if (index < 0) return false;
+    let entry = leader.inv[index], available = Math.max(1, Math.floor(entry.cnt || 1));
+    if (available < count) return false;
+    if (available === count) leader.inv.splice(index, 1);
+    else entry.cnt = available - count;
+    return true;
+}
 function openAllyEquipmentManager(slotN) {
     let div = document.getElementById('interaction-content');
     if (div) renderAllyEquipmentManager(div, slotN);
@@ -3677,17 +3802,64 @@ function closeAllyEquipmentManager() {
 }
 function allyEquipItem(slotN, encodedUid) {
     let itemUid = decodeURIComponent(String(encodedUid || ''));
-    if (_saveManagedAllyEquipment(slotN, source => {
-        let item = source.inv.find(i => i && String(i.uid) === itemUid);
-        if (!item) { logSys('<span class="text-slate-400">該物品已不在隊員背包中。</span>'); return; }
-        equipItem(item);
-    })) openAllyEquipmentManager(slotN);
+    let leader = player, leaderBefore = _allyCloneInventory(leader.inv), leaderChanged = false;
+    let saved = _saveManagedAllyEquipment(slotN, source => {
+        let snapshot = _allySnapshotEquipment(source);
+        try {
+            let item = (leader.inv || []).find(i => i && String(i.uid) === itemUid);
+            if (!item) { logSys('<span class="text-slate-400">該物品已不在隊長背包中。</span>'); return; }
+            let def = DB.items[item.id];
+            if (!def) { logSys('<span class="text-red-400">找不到該物品資料。</span>'); return; }
+            if (def.isArrow && source.eq.wpn && DB.items[source.eq.wpn.id] && DB.items[source.eq.wpn.id].shahaBow) {
+                logSys('<span class="text-slate-400">沙哈之弓會自動使用無限箭矢，無需更換箭矢。</span>');
+                return;
+            }
+            let count = def.isArrow ? Math.max(1, Math.floor(item.cnt || 1)) : 1;
+            let token = 'ally-transfer-' + uid();
+            let transfer = { ...item, cnt:count, uid:uid(), _allyTransferToken:token };
+            let beforeEquip = _allyEquippedEntries(source.eq);
+
+            // 同種箭矢換裝時不可讓舊箭先併入隊長提供的箭矢，否則無法正確退回隊長。
+            if (def.isArrow && source.eq.arrow && source.eq.arrow.id !== 'wpn_shaha_arrow') {
+                source.inv.push(source.eq.arrow);
+                source.eq.arrow = null;
+            }
+            source.inv.push(transfer);
+            equipItem(transfer);
+            let equipped = Object.values(source.eq || {}).find(now => now && now._allyTransferToken === token);
+            if (!equipped) { _allyRestoreEquipment(source, snapshot); return; }
+            delete equipped._allyTransferToken;
+            if (!_allyConsumeLeaderItem(leader, item, count)) throw new Error('leader item missing');
+            if (!_allyReturnDisplacedEquipment(source, leader, beforeEquip)) throw new Error('displaced item missing');
+            leaderChanged = true;
+        } catch (e) {
+            _allyRestoreEquipment(source, snapshot);
+            leader.inv = _allyCloneInventory(leaderBefore);
+            leaderChanged = false;
+            logSys('<span class="text-red-400">隊長與傭兵的裝備轉移失敗，已還原物品。</span>');
+        }
+    });
+    if (!saved && leaderChanged) { leader.inv = _allyCloneInventory(leaderBefore); updateUI(); }
+    if (saved) { calcStats(); updateUI(); openAllyEquipmentManager(slotN); }
 }
 function allyUnequipItem(slotN, slot) {
-    if (_saveManagedAllyEquipment(slotN, source => {
-        if (!source.eq[slot]) { logSys('<span class="text-slate-400">該欄位沒有裝備。</span>'); return; }
-        unequipItem(slot);
-    })) openAllyEquipmentManager(slotN);
+    let leader = player, leaderBefore = _allyCloneInventory(leader.inv), leaderChanged = false;
+    let saved = _saveManagedAllyEquipment(slotN, source => {
+        let snapshot = _allySnapshotEquipment(source), beforeEquip = _allyEquippedEntries(source.eq);
+        try {
+            if (!source.eq[slot]) { logSys('<span class="text-slate-400">該欄位沒有裝備。</span>'); return; }
+            unequipItem(slot);
+            if (!_allyReturnDisplacedEquipment(source, leader, beforeEquip)) throw new Error('displaced item missing');
+            leaderChanged = JSON.stringify(leader.inv) !== JSON.stringify(leaderBefore);
+        } catch (e) {
+            _allyRestoreEquipment(source, snapshot);
+            leader.inv = _allyCloneInventory(leaderBefore);
+            leaderChanged = false;
+            logSys('<span class="text-red-400">隊長與傭兵的裝備轉移失敗，已還原物品。</span>');
+        }
+    });
+    if (!saved && leaderChanged) { leader.inv = _allyCloneInventory(leaderBefore); updateUI(); }
+    if (saved) { calcStats(); updateUI(); openAllyEquipmentManager(slotN); }
 }
 function renderAllyEquipmentManager(div, slotN) {
     let ctx = _allyManagerSource(slotN, true);
@@ -3698,15 +3870,15 @@ function renderAllyEquipmentManager(div, slotN) {
         let item = source.eq[slot], name = getItemFullName(item), label = ALLY_EQUIP_SLOT_NAME[slot] || slot;
         return `<div class="flex items-center justify-between gap-2 bg-slate-800/70 border border-slate-600 rounded px-3 py-2"><span class="min-w-0 text-sm"><b class="text-slate-300">${label}</b>　<span class="text-amber-200">${name}</span></span><button onclick="allyUnequipItem('${ctx.slotN}','${slot}')" class="btn shrink-0 py-1 px-3 text-xs bg-slate-700 border-slate-500 text-slate-100">卸下</button></div>`;
     }).join('') : '<div class="text-sm text-slate-500">目前沒有穿戴裝備。</div>';
-    let inventory = (source.inv || []).filter(item => {
+    let inventory = (player.inv || []).filter(item => {
         let def = item && DB.items[item.id];
         return def && (def.type === 'wpn' || !!def.slot) && def.slot !== 'petwpn' && def.slot !== 'petarm';
     });
     let invHtml = inventory.length ? inventory.map(item => {
         let cnt = Math.max(1, Math.floor(item.cnt || 1));
         return `<div class="flex items-center justify-between gap-2 bg-slate-900/60 border border-slate-700 rounded px-3 py-2"><span class="min-w-0 text-sm text-slate-200">${getItemFullName(item)}${cnt > 1 ? ` ×${cnt}` : ''}</span><button onclick="allyEquipItem('${ctx.slotN}','${encodeURIComponent(String(item.uid || ''))}')" class="btn shrink-0 py-1 px-3 text-xs bg-emerald-900 border-emerald-700 text-emerald-100">穿戴</button></div>`;
-    }).join('') : '<div class="text-sm text-slate-500">隊員背包沒有可穿戴裝備。</div>';
-    div.innerHTML = `<div class="flex flex-col gap-3 p-1"><div class="flex items-center justify-between gap-2"><div><div class="text-amber-300 font-bold">${ctx.ally._allyName || source.name || ('存檔 ' + ctx.slotN)} 的裝備</div><div class="text-xs text-slate-400">只可管理隊員自身背包；物品轉移請使用共通倉庫。</div></div><button onclick="closeAllyEquipmentManager()" class="btn py-1 px-3 text-xs bg-slate-700 border-slate-500 text-slate-100">返回</button></div><div class="text-xs text-slate-500">變更會立刻寫回來源角色存檔，並刷新目前隊員能力。</div><div class="flex flex-col gap-2"><div class="text-sm font-bold text-sky-300">已穿戴</div>${eqHtml}</div><div class="flex flex-col gap-2"><div class="text-sm font-bold text-emerald-300">背包可穿戴裝備</div>${invHtml}</div></div>`;
+    }).join('') : '<div class="text-sm text-slate-500">隊長背包沒有可穿戴裝備。</div>';
+    div.innerHTML = `<div class="flex flex-col gap-3 p-1"><div class="flex items-center justify-between gap-2"><div><div class="text-amber-300 font-bold">${ctx.ally._allyName || source.name || ('存檔 ' + ctx.slotN)} 的裝備</div><div class="text-xs text-slate-400">裝備由隊長背包提供；卸下或替換的裝備會回到隊長背包。</div></div><button onclick="closeAllyEquipmentManager()" class="btn py-1 px-3 text-xs bg-slate-700 border-slate-500 text-slate-100">返回</button></div><div class="text-xs text-slate-500">變更會立刻寫回來源角色存檔，並刷新目前隊員能力。</div><div class="flex flex-col gap-2"><div class="text-sm font-bold text-sky-300">已穿戴</div>${eqHtml}</div><div class="flex flex-col gap-2"><div class="text-sm font-bold text-emerald-300">隊長背包可穿戴裝備</div>${invHtml}</div></div>`;
 }
 // 隊長可於安全區替出戰隊員接取其自身職業的試煉；只改試煉啟用狀態，交付與獎勵仍由來源角色處理。
 function _saveManagedAllyQuest(slotN, mutate) {
@@ -3805,7 +3977,7 @@ function renderAllyNPC(div) {
         // 🔄 v3.7.87 用戶指定移除「重新招募」按鈕（改為進安全區自動刷新）；召喚不再顯示費用（已取消收費）
         let _btn = active
             ? `<div class="flex flex-wrap justify-end gap-1.5 shrink-0">
-                    <button onclick="openAllyEquipmentManager('${n}')" class="btn py-1 px-3 text-sm font-bold bg-sky-950 border-sky-700 text-sky-100" title="在安全區管理此隊員自身背包中的裝備">裝備</button>
+                    <button onclick="openAllyEquipmentManager('${n}')" class="btn py-1 px-3 text-sm font-bold bg-sky-950 border-sky-700 text-sky-100" title="在安全區使用隊長背包管理此隊員的裝備">裝備</button>
                     <button onclick="openAllyQuestManager('${n}')" class="btn py-1 px-3 text-sm font-bold bg-amber-950 border-amber-700 text-amber-100" title="在安全區替符合等級的隊員接取專屬試煉">任務</button>
                     <button onclick="dismissAlly('${n}')" class="btn py-1 px-3 text-sm font-bold bg-red-950 border-red-700 text-red-200" title="只解散這名協力傭兵（累積經驗會記入待領帳本）">解散</button>
                </div>`
