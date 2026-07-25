@@ -804,6 +804,47 @@ function alliesChangeAlignment(delta) {
     });
     return changed;
 }
+// 隊員任務道具先停留在隊長存檔中的傭兵快照；回安全區或解散時才寫入跨分頁待領帳本，避免戰鬥 tick 直接改寫其他角色存檔。
+function _allyQuestLootCount(ally, itemId) {
+    return Math.max(0, Math.floor(Number(ally && ally._questLoot && ally._questLoot[itemId]) || 0));
+}
+function _queueAllyQuestItem(itemId, cnt, predicate) {
+    cnt = Math.max(1, Math.floor(Number(cnt) || 1));
+    let names = [];
+    (player.allies || []).forEach(ally => {
+        if (!ally || ally._downed || !predicate(ally)) return;
+        ally._questLoot = ally._questLoot || {};
+        ally._questLoot[itemId] = _allyQuestLootCount(ally, itemId) + cnt;
+        names.push(ally._allyName || ally.name || ('存檔 ' + ally._slot));
+    });
+    return names;
+}
+function allyTrialItemActive(itemId) {
+    if (typeof trialItemActiveFor !== 'function') return false;
+    return (player.allies || []).some(ally => ally && !ally._downed && trialItemActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+}
+function allyQueueTrialQuestItem(itemId, cnt) {
+    if (typeof trialItemActiveFor !== 'function') return [];
+    return _queueAllyQuestItem(itemId, cnt, ally => trialItemActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+}
+function allyStageQuestItemActive(itemId) {
+    if (typeof trialStageItemHeldActiveFor !== 'function') return false;
+    return (player.allies || []).some(ally => ally && !ally._downed && trialStageItemHeldActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+}
+function allyQueueStageQuestItem(itemId, cnt) {
+    if (typeof trialStageItemHeldActiveFor !== 'function') return [];
+    return _queueAllyQuestItem(itemId, cnt, ally => trialStageItemHeldActiveFor(ally, itemId, _allyQuestLootCount(ally, itemId)));
+}
+function _takeAllyQuestLoot(ally) {
+    let out = [];
+    let pending = (ally && ally._questLoot) || {};
+    Object.keys(pending).forEach(id => {
+        let cnt = Math.max(0, Math.floor(Number(pending[id]) || 0));
+        if (cnt > 0 && DB.items[id]) out.push([id, cnt]);
+    });
+    if (ally) ally._questLoot = {};
+    return out;
+}
 // 協力角色攻擊一次（自包含，直接用 ally 的真實衍生值；法師走魔法、其餘走物理）
 // 🔧 對不死/狼人加成（傭兵版，比照玩家 getPhysicalDmg）：武器帶 unBonus、且目標為不死(un)或狼人(isWolf) → 額外 +1D20 固定傷害
 function allyUnbonusBonus(ally, t) {
@@ -3014,8 +3055,9 @@ function alliesTick() {
         }
         // 🩹 治癒每 tick 依自身施法冷卻判定，不再等待物理攻擊週期；施放後仍延後下一次一般攻擊，保留「治癒佔用一次行動」語意。
         if (!_ccBlock && !_castBlock && ally._healSkill && allyTryHeal(ally)) ally._atkCd = Math.max(ally._atkCd || 0, allyAtkSkillInterval(ally, ally._lastHealCastSupport !== false));
-        // 回魔：比照玩家每 160 ticks(16秒) +mpR（法師施法 / 妖精三重矢皆需 MP）
-        if (state.ticks % 160 === 0 && (ally.mp||0) < (ally.mmp||0) && ((ally.d && ally.d.mpR) || 0) > 0) {   // 🔧 mpR 可能因套裝懲罰（黑暗妖精套裝 -7）為負 → 與玩家回魔一致，只在 >0 時回魔，避免扣傭兵MP
+        // 回魔：基準每 160 ticks(16秒)，每 10 點精神縮短 10 ticks；+mpR 量不變。
+        let _aMpIv = wisMpRegenIntervalTicks((ally.d && ally.d.wis) || 0);
+        if (state.ticks % _aMpIv === 0 && (ally.mp||0) < (ally.mmp||0) && ((ally.d && ally.d.mpR) || 0) > 0) {   // 🔧 mpR 可能因套裝懲罰（黑暗妖精套裝 -7）為負 → 與玩家回魔一致，只在 >0 時回魔，避免扣傭兵MP
             ally.mp = Math.min(ally.mmp, (ally.mp||0) + ((ally.d && ally.d.mpR) || 0));
         }
         // 🩸 HP 自然再生（v2.6.16 用戶要求：全職傭兵通用·比照玩家 regenTick）：每 160 ticks，HP<上限且「HP自然恢復為正」(hpRegenMax>0 或 hpR>0)→ +roll(1,hpRegenMax)+hpR（龍騎傭兵改吃HP尤需→直接套用自身自然恢復量·若為 0 則保底最低 1，見下）
@@ -3420,12 +3462,13 @@ function _settleAllyExp(ally, reason) {
         if (!ally) return '';
         let banked = Math.floor(ally._expGained || 0);
         let alignmentDelta = Math.trunc(Number(ally._alignmentDelta) || 0);
-        if (banked <= 0 && !alignmentDelta) return '';
+        let questLoot = _takeAllyQuestLoot(ally);
+        if (banked <= 0 && !alignmentDelta && !questLoot.length) return '';
         let rec = {
             uid: 'MX' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e9).toString(36),                            // 唯一編號
             party: (player && player.name ? player.name : '?') + '@' + (typeof currentSlot !== 'undefined' ? currentSlot : '?'),   // 來源隊伍（隊長名@存檔位）
             slot: String(ally._slot), cls: ally.cls, name: ally.name || '', enSeed: ally.enSeed || '',                     // 傭兵存檔身分（領取時比對；enSeed＝唯一角色識別·防同存檔位重新創角誤領）
-            exp: banked, alignmentDelta: alignmentDelta, ts: Date.now(), reason: reason || 'dismiss', claimed: false
+            exp: banked, alignmentDelta: alignmentDelta, questLoot: questLoot, ts: Date.now(), reason: reason || 'dismiss', claimed: false
         };
         ally._expGained = 0;
         ally._alignmentDelta = 0;
@@ -3433,6 +3476,7 @@ function _settleAllyExp(ally, reason) {
         let parts = [];
         if (banked > 0) parts.push(`${banked.toLocaleString()} 經驗`);
         if (alignmentDelta) parts.push(`性向 ${alignmentDelta > 0 ? '+' : ''}${alignmentDelta.toLocaleString()}`);
+        if (questLoot.length) parts.push(`任務道具 ${questLoot.map(x => `${(DB.items[x[0]] || {}).n || x[0]}×${x[1]}`).join('、')}`);
         return `<span class="text-emerald-300">${ally._allyName} 累積的 ${parts.join('、')}已記入待領帳本（該角色下次載入或回村時領取）。</span>`;
     } catch (e) { return ''; }
 }
@@ -3443,7 +3487,7 @@ function _settleAllyExp(ally, reason) {
 function mercExpClaimPending(_retry) {
     try {
         if (!player || !player.cls || typeof currentSlot === 'undefined' || currentSlot == null) return;
-        let total = 0, alignmentDelta = 0, _writeFail = false;
+        let total = 0, alignmentDelta = 0, questLoot = {}, _writeFail = false;
         let ok = _mercLedgerLocked(() => {
             let led = _mercLedgerRead(), hit = false;
             led.forEach(r => {
@@ -3458,12 +3502,17 @@ function mercExpClaimPending(_retry) {
                 if (!_seedSame && (r.name || '') !== (player.name || '')) return;
                 total += Math.max(0, Math.floor(r.exp || 0));
                 alignmentDelta += Math.trunc(Number(r.alignmentDelta) || 0);
+                (r.questLoot || []).forEach(row => {
+                    let id = Array.isArray(row) ? row[0] : null;
+                    let cnt = Math.max(0, Math.floor(Number(Array.isArray(row) ? row[1] : 0) || 0));
+                    if (id && cnt > 0 && DB.items[id]) questLoot[id] = (questLoot[id] || 0) + cnt;
+                });
                 r.claimed = true; r.claimedAt = Date.now(); hit = true;   // 標記已結算：同一筆只能領一次（跨分頁由鎖保證）
             });
-            if (hit && !_mercLedgerWrite(led)) { total = 0; alignmentDelta = 0; _writeFail = true; }   // 🛡️ 審計#18：寫入失敗（鎖失守）→ 不套用收益、走重試（帳本未標記＝下次可重領）
+            if (hit && !_mercLedgerWrite(led)) { total = 0; alignmentDelta = 0; questLoot = {}; _writeFail = true; }   // 🛡️ 審計#18：寫入失敗（鎖失守）→ 不套用收益、走重試（帳本未標記＝下次可重領）
         });
         if (!ok || _writeFail) { if ((_retry || 0) < 5) setTimeout(() => mercExpClaimPending((_retry || 0) + 1), 1200 + Math.floor(Math.random() * 800)); return; }
-        if (total <= 0 && !alignmentDelta) return;
+        if (total <= 0 && !alignmentDelta && !Object.keys(questLoot).length) return;
         let before = player.lv || 1;
         if (total > 0) {
             player.exp = (player.exp || 0) + total;
@@ -3471,13 +3520,16 @@ function mercExpClaimPending(_retry) {
             if ((player.lv || 1) >= 100) player.exp = 0;   // 滿等不留溢出經驗
         }
         if (alignmentDelta) player.alignmentValue = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment((Number(player.alignmentValue) || 0) + alignmentDelta) : Math.max(-32767, Math.min(32767, Math.round((Number(player.alignmentValue) || 0) + alignmentDelta)));
+        Object.keys(questLoot).forEach(id => gainItem(id, questLoot[id], true, true, false, true));
         let gained = (player.lv || 1) - before;
         if (gained > 0) { try { calcStats(); } catch (e) {} }
+        if (Object.keys(questLoot).length) { try { renderTabs(); } catch (e) {} }
         try { saveGame(); } catch (e) {}   // 領取後立即存檔：本檔快照已含此經驗
         try { updateUI(); } catch (e) {}
         let claimParts = [];
         if (total > 0) claimParts.push(`經驗 +${total.toLocaleString()}`);
         if (alignmentDelta) claimParts.push(`性向 ${alignmentDelta > 0 ? '+' : ''}${alignmentDelta.toLocaleString()}`);
+        if (Object.keys(questLoot).length) claimParts.push(`任務道具 ${Object.keys(questLoot).map(id => `${DB.items[id].n}×${questLoot[id]}`).join('、')}`);
         logSys(`<span class="text-emerald-300 font-bold">傭兵出征${claimParts.join('、')}</span>${gained > 0 ? `<span class="text-emerald-300">，升 ${gained} 級至 Lv.${player.lv}！</span>` : ''}`);
     } catch (e) {}
 }
@@ -3544,6 +3596,196 @@ function dismissAlly(slotN) {
     if (!confirm(`確定要解散協力傭兵「${name}」嗎？\n（累積經驗會記入待領帳本，該角色下次載入或回村時領取）`)) return;
     toggleAlly(slotN);
 }
+const ALLY_EQUIP_SLOT_NAME = {
+    wpn:'主手武器', offwpn:'副手武器', arrow:'箭矢', helm:'頭盔', armor:'盔甲', shin:'脛甲', tshirt:'T恤',
+    cloak:'斗篷', gloves:'手套', shield:'盾牌／臂甲', boots:'長靴', belt:'腰帶', amulet:'項鍊',
+    ear:'耳環', ear1:'耳環 1', ear2:'耳環 2', ring:'戒指', ring1:'戒指 1', ring2:'戒指 2', ring3:'戒指 3', ring4:'戒指 4',
+    doll:'魔法娃娃'
+};
+function _allyManagerInTown() { return !!(mapState && String(mapState.current || '').startsWith('town_')); }
+function _allySourceOpenElsewhere(slotN) {
+    try {
+        if (typeof _roleReadObject !== 'function' || typeof _rolePruneSessions !== 'function' || typeof ROLE_SESSION_REGISTRY_KEY === 'undefined') return null;
+        let sessions = _rolePruneSessions(_roleReadObject(ROLE_SESSION_REGISTRY_KEY));
+        return Object.keys(sessions).map(id => ({ id:id, row:sessions[id] })).find(x => x.id !== _roleSessionId && x.row && String(x.row.slot) === String(slotN)) || null;
+    } catch (e) { return null; }
+}
+function _allyManagerSource(slotN, notify) {
+    slotN = String(slotN);
+    if (!_allyManagerInTown()) { if (notify) logSys('<span class="text-red-400">隊員裝備與任務只能在安全區管理。</span>'); return null; }
+    let ally = (player.allies || []).find(a => a && String(a._slot) === slotN);
+    if (!ally) { if (notify) logSys('<span class="text-red-400">該角色目前不在隊伍中。</span>'); return null; }
+    let active = _allySourceOpenElsewhere(slotN);
+    if (active) { if (notify) logSys(`<span class="text-amber-300">${ally._allyName || ally.name} 正在另一個遊戲分頁中，為避免存檔互相覆蓋，暫時不能管理。</span>`); return null; }
+    try {
+        let stored = _saveUnwrap(_lzGet('lineage_idle_save_' + slotN));
+        if (!stored || !stored.payload || (stored.signed && !stored.ok)) { if (notify) logSys('<span class="text-red-400">隊員來源存檔無法安全讀取。</span>'); return null; }
+        let doc = JSON.parse(stored.payload), source = doc && doc.p;
+        if (!source || !source.cls || (ally.enSeed && source.enSeed && ally.enSeed !== source.enSeed)) { if (notify) logSys('<span class="text-red-400">隊員來源角色已變更，無法管理裝備。</span>'); return null; }
+        source.inv = Array.isArray(source.inv) ? source.inv : [];
+        source.eq = source.eq || {};
+        return { slotN:slotN, ally:ally, doc:doc, source:source };
+    } catch (e) { if (notify) logSys('<span class="text-red-400">隊員來源存檔讀取失敗。</span>'); return null; }
+}
+function _withAllyEquipmentContext(source, work) {
+    let livePlayer = player, oldCalc = calcStats, oldTabs = renderTabs;
+    let oldSkills = typeof renderSkillSelects === 'function' ? renderSkillSelects : null;
+    let oldClose = typeof closeModal === 'function' ? closeModal : null;
+    let oldRecompute = typeof _recomputingAlly === 'undefined' ? false : _recomputingAlly;
+    player = source;
+    _recomputingAlly = true;
+    calcStats = function() { recomputeStats(); };
+    renderTabs = function() {};
+    if (oldSkills) renderSkillSelects = function() {};
+    if (oldClose) closeModal = function() {};
+    try { return work(); }
+    finally {
+        player = livePlayer;
+        _recomputingAlly = oldRecompute;
+        calcStats = oldCalc;
+        renderTabs = oldTabs;
+        if (oldSkills) renderSkillSelects = oldSkills;
+        if (oldClose) closeModal = oldClose;
+    }
+}
+function _saveManagedAllyEquipment(slotN, mutate) {
+    let ctx = _allyManagerSource(slotN, true);
+    if (!ctx) return false;
+    let before = JSON.stringify({ inv:ctx.source.inv, eq:ctx.source.eq });
+    try { _withAllyEquipmentContext(ctx.source, () => mutate(ctx.source)); }
+    catch (e) { logSys('<span class="text-red-400">隊員裝備操作失敗，未寫入來源存檔。</span>'); return false; }
+    if (before === JSON.stringify({ inv:ctx.source.inv, eq:ctx.source.eq })) return false;
+    try {
+        if (!_lzSet('lineage_idle_save_' + ctx.slotN, _saveWrap(JSON.stringify(ctx.doc)))) throw new Error('write failed');
+        let refreshed = refreshAllyOnce(ctx.slotN);
+        if (refreshed && refreshed.msg) logSys(refreshed.msg);
+        saveGame();
+        updateUI();
+        return true;
+    } catch (e) {
+        logSys('<span class="text-red-400">隊員裝備寫入失敗，請確認儲存空間後重試。</span>');
+        return false;
+    }
+}
+function openAllyEquipmentManager(slotN) {
+    let div = document.getElementById('interaction-content');
+    if (div) renderAllyEquipmentManager(div, slotN);
+}
+function closeAllyEquipmentManager() {
+    let div = document.getElementById('interaction-content');
+    if (div) renderAllyNPC(div);
+}
+function allyEquipItem(slotN, encodedUid) {
+    let itemUid = decodeURIComponent(String(encodedUid || ''));
+    if (_saveManagedAllyEquipment(slotN, source => {
+        let item = source.inv.find(i => i && String(i.uid) === itemUid);
+        if (!item) { logSys('<span class="text-slate-400">該物品已不在隊員背包中。</span>'); return; }
+        equipItem(item);
+    })) openAllyEquipmentManager(slotN);
+}
+function allyUnequipItem(slotN, slot) {
+    if (_saveManagedAllyEquipment(slotN, source => {
+        if (!source.eq[slot]) { logSys('<span class="text-slate-400">該欄位沒有裝備。</span>'); return; }
+        unequipItem(slot);
+    })) openAllyEquipmentManager(slotN);
+}
+function renderAllyEquipmentManager(div, slotN) {
+    let ctx = _allyManagerSource(slotN, true);
+    if (!ctx) { renderAllyNPC(div); return; }
+    let source = ctx.source;
+    let equipped = Object.keys(source.eq || {}).filter(slot => source.eq[slot]);
+    let eqHtml = equipped.length ? equipped.map(slot => {
+        let item = source.eq[slot], name = getItemFullName(item), label = ALLY_EQUIP_SLOT_NAME[slot] || slot;
+        return `<div class="flex items-center justify-between gap-2 bg-slate-800/70 border border-slate-600 rounded px-3 py-2"><span class="min-w-0 text-sm"><b class="text-slate-300">${label}</b>　<span class="text-amber-200">${name}</span></span><button onclick="allyUnequipItem('${ctx.slotN}','${slot}')" class="btn shrink-0 py-1 px-3 text-xs bg-slate-700 border-slate-500 text-slate-100">卸下</button></div>`;
+    }).join('') : '<div class="text-sm text-slate-500">目前沒有穿戴裝備。</div>';
+    let inventory = (source.inv || []).filter(item => {
+        let def = item && DB.items[item.id];
+        return def && (def.type === 'wpn' || !!def.slot) && def.slot !== 'petwpn' && def.slot !== 'petarm';
+    });
+    let invHtml = inventory.length ? inventory.map(item => {
+        let cnt = Math.max(1, Math.floor(item.cnt || 1));
+        return `<div class="flex items-center justify-between gap-2 bg-slate-900/60 border border-slate-700 rounded px-3 py-2"><span class="min-w-0 text-sm text-slate-200">${getItemFullName(item)}${cnt > 1 ? ` ×${cnt}` : ''}</span><button onclick="allyEquipItem('${ctx.slotN}','${encodeURIComponent(String(item.uid || ''))}')" class="btn shrink-0 py-1 px-3 text-xs bg-emerald-900 border-emerald-700 text-emerald-100">穿戴</button></div>`;
+    }).join('') : '<div class="text-sm text-slate-500">隊員背包沒有可穿戴裝備。</div>';
+    div.innerHTML = `<div class="flex flex-col gap-3 p-1"><div class="flex items-center justify-between gap-2"><div><div class="text-amber-300 font-bold">${ctx.ally._allyName || source.name || ('存檔 ' + ctx.slotN)} 的裝備</div><div class="text-xs text-slate-400">只可管理隊員自身背包；物品轉移請使用共通倉庫。</div></div><button onclick="closeAllyEquipmentManager()" class="btn py-1 px-3 text-xs bg-slate-700 border-slate-500 text-slate-100">返回</button></div><div class="text-xs text-slate-500">變更會立刻寫回來源角色存檔，並刷新目前隊員能力。</div><div class="flex flex-col gap-2"><div class="text-sm font-bold text-sky-300">已穿戴</div>${eqHtml}</div><div class="flex flex-col gap-2"><div class="text-sm font-bold text-emerald-300">背包可穿戴裝備</div>${invHtml}</div></div>`;
+}
+// 隊長可於安全區替出戰隊員接取其自身職業的試煉；只改試煉啟用狀態，交付與獎勵仍由來源角色處理。
+function _saveManagedAllyQuest(slotN, mutate) {
+    let ctx = _allyManagerSource(slotN, true);
+    if (!ctx) return false;
+    let before = JSON.stringify({ trialQ:ctx.source.trialQ || {}, trialStage:ctx.source.trialStage || 0 });
+    try { mutate(ctx.source); }
+    catch (e) { logSys('<span class="text-red-400">隊員任務操作失敗，未寫入來源存檔。</span>'); return false; }
+    let after = JSON.stringify({ trialQ:ctx.source.trialQ || {}, trialStage:ctx.source.trialStage || 0 });
+    if (before === after) return false;
+    try {
+        if (!_lzSet('lineage_idle_save_' + ctx.slotN, _saveWrap(JSON.stringify(ctx.doc)))) throw new Error('write failed');
+        let refreshed = refreshAllyOnce(ctx.slotN);
+        if (refreshed && refreshed.msg) logSys(refreshed.msg);
+        saveGame();
+        updateUI();
+        return true;
+    } catch (e) {
+        logSys('<span class="text-red-400">隊員任務寫入失敗，請確認儲存空間後重試。</span>');
+        return false;
+    }
+}
+function openAllyQuestManager(slotN) {
+    let div = document.getElementById('interaction-content');
+    if (div) renderAllyQuestManager(div, slotN);
+}
+function closeAllyQuestManager() {
+    let div = document.getElementById('interaction-content');
+    if (div) renderAllyNPC(div);
+}
+function allyAcceptTrialQuest(slotN, key) {
+    let cfg = typeof TRIAL_Q === 'undefined' ? null : TRIAL_Q[key];
+    if (!cfg) return;
+    if (_saveManagedAllyQuest(slotN, source => {
+        if (source.cls !== cfg.cls || (source.lv || 1) < cfg.lv || trialQStateFor(source, key) !== 0) return;
+        if (!source.trialQ || typeof source.trialQ !== 'object') source.trialQ = {};
+        source.trialQ[key] = 1;
+    })) {
+        logSys(`<span class="text-amber-300 font-bold">${cfg.npc}：${cfg.lv} 級試煉已由隊長替隊員接取。</span>`);
+        openAllyQuestManager(slotN);
+    }
+}
+function allyAcceptTrial50(slotN) {
+    if (_saveManagedAllyQuest(slotN, source => {
+        let cfg = (typeof TRIAL_50_CFG === 'undefined') ? null : TRIAL_50_CFG[source.cls];
+        if (!cfg || (source.lv || 1) < 50 || (source.trialStage || 0) !== 0) return;
+        source.trialStage = 1;
+    })) {
+        logSys('<span class="text-amber-300 font-bold">50 級專屬試煉已由隊長替隊員接取。</span>');
+        openAllyQuestManager(slotN);
+    }
+}
+function renderAllyQuestManager(div, slotN) {
+    let ctx = _allyManagerSource(slotN, true);
+    if (!ctx) { renderAllyNPC(div); return; }
+    let source = ctx.source;
+    let trials = typeof TRIAL_Q === 'undefined' ? [] : Object.keys(TRIAL_Q).filter(key => TRIAL_Q[key] && TRIAL_Q[key].cls === source.cls);
+    let rows = trials.map(key => {
+        let cfg = TRIAL_Q[key], st = trialQStateFor(source, key);
+        let reqs = cfg.reqs.map(p => `${(DB.items[p[0]] || {}).n || p[0]}×${p[1]}`).join('、');
+        let reward = cfg.rewards.map(id => (DB.items[id] || {}).n || id).join('、');
+        let canAccept = st === 0 && (source.lv || 1) >= cfg.lv;
+        let state = st === 2 ? '<span class="text-emerald-300">已完成</span>'
+            : st === 1 ? '<span class="text-sky-300">進行中</span>'
+            : canAccept ? '<span class="text-amber-200">可接取</span>'
+            : `<span class="text-slate-500">需要 Lv.${cfg.lv}</span>`;
+        let action = canAccept ? `<button onclick="allyAcceptTrialQuest('${ctx.slotN}','${key}')" class="btn shrink-0 py-1 px-3 text-xs bg-amber-800 border-amber-600 text-amber-100">接取</button>` : '';
+        return `<div class="flex items-start justify-between gap-2 bg-slate-800/70 border border-slate-600 rounded px-3 py-2"><div class="min-w-0 text-sm"><b class="text-slate-200">${cfg.lv} 級試煉</b>　${state}<div class="text-xs text-slate-400 mt-1">需求：${reqs}</div><div class="text-xs text-slate-500 mt-1">獎勵：${reward}</div></div>${action}</div>`;
+    }).join('') || '<div class="text-sm text-slate-500">此職業沒有可由隊長接取的專屬試煉。</div>';
+    let cfg50 = typeof TRIAL_50_CFG === 'undefined' ? null : TRIAL_50_CFG[source.cls];
+    let fifty = '';
+    if (cfg50) {
+        let st = Math.floor(Number(source.trialStage) || 0), doneAt = cfg50.stages.length + 2;
+        let state = st >= doneAt ? '<span class="text-emerald-300">已完成</span>' : st > 0 ? '<span class="text-sky-300">進行中</span>' : (source.lv || 1) >= 50 ? '<span class="text-amber-200">可接取</span>' : '<span class="text-slate-500">需要 Lv.50</span>';
+        let action = st === 0 && (source.lv || 1) >= 50 ? `<button onclick="allyAcceptTrial50('${ctx.slotN}')" class="btn shrink-0 py-1 px-3 text-xs bg-amber-800 border-amber-600 text-amber-100">接取</button>` : '';
+        fifty = `<div class="flex items-start justify-between gap-2 bg-slate-800/70 border border-amber-800/70 rounded px-3 py-2"><div class="min-w-0 text-sm"><b class="text-amber-200">50 級試煉</b>　${state}<div class="text-xs text-slate-400 mt-1">${cfg50.npc}：${cfg50.stages.map(s => s.nm).join('、')}</div></div>${action}</div>`;
+    }
+    div.innerHTML = `<div class="flex flex-col gap-3 p-1"><div class="flex items-center justify-between gap-2"><div><div class="text-amber-300 font-bold">${ctx.ally._allyName || source.name || ('存檔 ' + ctx.slotN)} 的專屬任務</div><div class="text-xs text-slate-400">達到等級即可由隊長接取；任務道具、交付與獎勵皆歸隊員本人。</div></div><button onclick="closeAllyQuestManager()" class="btn py-1 px-3 text-xs bg-slate-700 border-slate-500 text-slate-100">返回</button></div><div class="flex flex-col gap-2">${rows}${fifty}</div></div>`;
+}
 function renderAllyNPC(div) {
     const _activeCap = allyActiveCap();
     const _royalCha = Math.max(0, Math.floor((player.d && player.d.cha) || 0));
@@ -3563,6 +3805,8 @@ function renderAllyNPC(div) {
         // 🔄 v3.7.87 用戶指定移除「重新招募」按鈕（改為進安全區自動刷新）；召喚不再顯示費用（已取消收費）
         let _btn = active
             ? `<div class="flex flex-wrap justify-end gap-1.5 shrink-0">
+                    <button onclick="openAllyEquipmentManager('${n}')" class="btn py-1 px-3 text-sm font-bold bg-sky-950 border-sky-700 text-sky-100" title="在安全區管理此隊員自身背包中的裝備">裝備</button>
+                    <button onclick="openAllyQuestManager('${n}')" class="btn py-1 px-3 text-sm font-bold bg-amber-950 border-amber-700 text-amber-100" title="在安全區替符合等級的隊員接取專屬試煉">任務</button>
                     <button onclick="dismissAlly('${n}')" class="btn py-1 px-3 text-sm font-bold bg-red-950 border-red-700 text-red-200" title="只解散這名協力傭兵（累積經驗會記入待領帳本）">解散</button>
                </div>`
             : (!_modeMatch
@@ -3577,6 +3821,8 @@ function renderAllyNPC(div) {
             if (_la) {
                 if (_la.cls === 'dragon') _res = `　<span class="text-rose-300 font-bold">HP ${Math.max(0, Math.floor(_la.curHp||0))}/${Math.floor(_la.mhp||0)}</span>`;
                 else if (_la.cls !== 'knight' && _la.cls !== 'warrior') _res = `　<span class="text-sky-300 font-bold">MP ${Math.max(0, Math.floor(_la.mp||0))}/${Math.floor(_la.mmp||0)}</span>`;
+                let _quest = Object.keys(_la._questLoot || {}).filter(id => (_la._questLoot[id] || 0) > 0).map(id => `${(DB.items[id] || {}).n || id}×${_la._questLoot[id]}`);
+                if (_quest.length) _res += `<br><span class="text-emerald-300 text-xs">任務暫存：${_quest.join('、')}</span>`;
             }
         }
         return `<div class="flex items-center justify-between gap-2 bg-slate-800/60 border ${_classic ? 'border-amber-600/70' : 'border-slate-600'} rounded p-3 text-sm">

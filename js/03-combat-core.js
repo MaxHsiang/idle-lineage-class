@@ -202,6 +202,7 @@ function gameLoop() {
         else {
             _ffAcc = null;
             if (typeof resetCatchupGainItemIndex === 'function') resetCatchupGainItemIndex();
+            if (typeof discardCatchupAutoSort === 'function') discardCatchupAutoSort();
             _ffProgressHide();
         }
         _ffErrorStreak = 0;
@@ -299,6 +300,7 @@ function _ffFinishCatchup() {
     if (!_acc) { flushTickRender(); return; }
     let _longCatchup = _acc.ticks >= 30;
     let _deferredSave = typeof takeCatchupSaveRequest === 'function' && takeCatchupSaveRequest();
+    try { if (typeof flushCatchupAutoSort === 'function') flushCatchupAutoSort(); } catch (e) {}
     if (_longCatchup) {   // ≥3 秒的補跑（回前景補幀）：統一刷新＋存檔＋摘要
         try { renderMobs(); updateUI(); renderTabs(true); } catch (e) {}
     } else {
@@ -427,6 +429,7 @@ function resetCatchupForRoleSwitch() {
     _ffAcc = null;
     _ffErrorStreak = 0;
     if (typeof resetCatchupGainItemIndex === 'function') resetCatchupGainItemIndex();
+    if (typeof discardCatchupAutoSort === 'function') discardCatchupAutoSort();
     _ffProgressHide();
     if (typeof state !== 'undefined' && state) {
         state.ff = false;
@@ -562,9 +565,10 @@ function tick() {
     if (inAbsBarrier()) canAct = false;   // 🛡️ 絕對屏障：無法攻擊/施法/自動行動
 
     if (!inAbsBarrier()) {   // 🛡️ 絕對屏障：不自然恢復 HP/MP
-        let _hpIv = Math.max(30, 160 - 10 * ((player.d && player.d.hpRegenFaster) || 0));   // 🏺 巨魔的再生戒指：HP 自然恢復間隔縮短（每 1 秒=10 tick·下限 3 秒；MP 維持 16 秒節奏）
+        let _hpIv = Math.max(30, 160 - 10 * ((player.d && player.d.hpRegenFaster) || 0));   // 🏺 巨魔的再生戒指：HP 自然恢復間隔縮短（每 1 秒=10 tick·下限 3 秒）
         if (player.buffs && (player.buffs.sk_heal_energy_storm || 0) > 0) _hpIv = Math.min(_hpIv, (DB.skills.sk_heal_energy_storm && DB.skills.sk_heal_energy_storm.hpRegenIv) || 30);   // 🌀 治癒能量風暴：維持中 HP 自然恢復間隔固定 3 秒（取更快者·MP 不受影響）
-        let _hpDue = (state.ticks % _hpIv === 0), _mpDue = (state.ticks % 160 === 0);
+        let _mpIv = wisMpRegenIntervalTicks((player.d && player.d.wis) || 0);
+        let _hpDue = (state.ticks % _hpIv === 0), _mpDue = (state.ticks % _mpIv === 0);
         if (_hpDue) _regenHP();
         if (_mpDue) _regenMP();
         if ((_hpDue || _mpDue) && typeof updateUI === 'function') updateUI();

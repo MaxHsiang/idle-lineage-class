@@ -1059,10 +1059,11 @@ function trialDropBlocked(id) {
     if (typeof TRIAL_ITEM_CLASS === 'undefined') return false;
     let owner = TRIAL_ITEM_CLASS[id]; if (!owner) return false;
     if (typeof player === 'undefined') return false;
-    if (Array.isArray(owner) ? (owner.indexOf(player.cls) === -1) : (player.cls !== owner)) return true;
-    // 🔥 v3.0.78 試煉接取制：試煉道具須「已接取對應試煉、未完成、且持有未達需求數量」才會掉落／顯示於掉落表（trialItemActive 見 js/12）
-    if (typeof trialItemActive === 'function' && !trialItemActive(id)) return true;
-    return false;
+    let mainClassOk = Array.isArray(owner) ? owner.indexOf(player.cls) !== -1 : player.cls === owner;
+    // 🔥 接取制試煉：主玩家或任一參戰隊員符合職業、已接取且尚未集滿，才保留掉落判定。
+    if (mainClassOk && (typeof trialItemActive !== 'function' || trialItemActive(id))) return false;
+    if (typeof allyTrialItemActive === 'function' && allyTrialItemActive(id)) return false;
+    return true;
 }
 // 🔧 三階黑暗精靈水晶掉落表（怪物名稱 → [[水晶ID, 機率%], ...]；於擊殺結算套用，受席琳世界 _dropMult 影響）
 // bk_dark_fang=暗影之牙 / bk_dark_dodge=暗影閃避 / bk_dark_crit=會心一擊 / bk_dark_erup=迴避提升 / bk_dark_double=雙重破壞 / bk_dark_armorbreak=破壞盔甲
@@ -1730,30 +1731,10 @@ function getWisMpRegen(wis) {
         [84,27],[89,28],[92,30],[95,31],[97,32],[99,33]
     ], 34); // …78~79=+26；80~84=+27；85~89=+28；90~92=+30；93~95=+31；96~97=+32；98~99=+33；100=+34（81~100 依 60→80 段曲線鏡射拓展）
 }
-function getWisMpOnKill(wis) {
-    // 精神(WIS)：擊殺敵人時立即額外恢復的 MP 量
-    if (wis >= 99) return 22;  // 99~100（81~100 依 60→80 段曲線鏡射拓展）
-    if (wis >= 96) return 21;  // 96~98
-    if (wis >= 93) return 20;  // 93~95
-    if (wis >= 90) return 19;  // 90~92
-    if (wis >= 87) return 18;  // 87~89
-    if (wis >= 84) return 17;  // 84~86
-    if (wis >= 79) return 16;  // 79~83
-    if (wis >= 76) return 15;  // 76~78
-    if (wis >= 73) return 14;  // 73~75
-    if (wis >= 70) return 13;  // 70~72
-    if (wis >= 67) return 12;  // 67~69
-    if (wis >= 64) return 11;  // 64~66
-    if (wis >= 60) return 10;  // 60~63
-    if (wis >= 53) return 9;   // 53~59
-    if (wis >= 45) return 8;   // 45~52
-    if (wis >= 38) return 7;   // 38~44
-    if (wis >= 30) return 6;   // 30~37
-    if (wis >= 25) return 5;   // 25~29
-    if (wis >= 20) return 3;   // 20~24
-    if (wis >= 15) return 2;   // 15~19
-    if (wis >= 11) return 1;   // 11~14
-    return 0;                  // 7~10（含以下）
+function wisMpRegenIntervalTicks(wis) {
+    // 基準為 16 秒；每 10 點精神縮短 1 秒，最低仍保留 1 秒自然回魔間隔。
+    let steps = Math.max(0, Math.floor((Number(wis) || 0) / 10));
+    return Math.max(10, 160 - steps * 10);
 }
 function getWisMR(wis) {
     // 精神7~10 = 0；11 = +4；之後每精神+1 MR+4；精神超過60以60計（上限 +200）

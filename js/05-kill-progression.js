@@ -249,6 +249,25 @@ function partyActiveMemberCount() { return Math.min(8, 1 + ((player.allies || []
 function partyExpShareCount() { return partyActiveMemberCount(); }   // 相容 native-preview／舊外部呼叫；不再作為除數
 function partyRewardMult() { return partyActiveMemberCount(); }
 function partyDropRate(rate) { return Math.min(1, Math.max(0, Number(rate) || 0) * partyRewardMult()); }
+// 任務道具的主玩家與隊員分流：隊員先記入快照暫存，於安全區/解散時走既有待領帳本回到來源角色背包。
+function grantPartyTrialQuestDrop(itemId, cnt) {
+    cnt = Math.max(1, Math.floor(Number(cnt) || 1));
+    let main = typeof trialItemActive !== 'function' || trialItemActive(itemId);
+    let allies = typeof allyQueueTrialQuestItem === 'function' ? allyQueueTrialQuestItem(itemId, cnt) : [];
+    if (main) gainItem(itemId, cnt);
+    return { main: main, allies: allies || [] };
+}
+function grantPartyStageQuestDrop(itemId, mainActive, cnt) {
+    cnt = Math.max(1, Math.floor(Number(cnt) || 1));
+    let allies = typeof allyQueueStageQuestItem === 'function' ? allyQueueStageQuestItem(itemId, cnt) : [];
+    if (mainActive) gainItem(itemId, cnt);
+    return { main: !!mainActive, allies: allies || [] };
+}
+function partyQuestDropSubject(result) {
+    let names = (result && result.allies) || [];
+    if (result && result.main) return names.length ? `你與隊員 ${names.join('、')}` : '你';
+    return names.length ? `隊員 ${names.join('、')}` : '你';
+}
 // 🤝 組隊經驗加成保留：每名未倒地隊友使每位存活成員取得的完整怪物經驗再增加（王族隊長 8%／非王族 4%）。
 function partyExpBonusPct() {
     let _mates = (player.allies || []).filter(a => a && !a._downed).length;
@@ -364,13 +383,6 @@ function killMob(idx) {
             if (_up > 0) { try { if (typeof _allyLevelRecompute === 'function') _allyLevelRecompute(a); } catch (e) {} logCombat(`<span class="text-yellow-300 font-bold">協力傭兵 ${a._allyName} 升級了！目前 Lv.${a.lv}</span>`, 'mercenary'); try { renderSquadPanel(); } catch (e) {} }
         });
     }
-    // 精神(WIS)：擊殺敵人時立即額外恢復 MP
-    { let mpKill = getWisMpOnKill(player.d.wis); if (mpKill > 0 && player.mp < player.mmp) player.mp = Math.min(player.mmp, player.mp + mpKill); }
-    // 🔧 v2.7.28 傭兵 MP-on-kill 平價：擊殺一律歸主玩家(killMob)→傭兵原本領不到「擊殺回魔」，
-    //    而王族/龍騎士傭兵靠 MP 維持自我增益(灼熱武器/閃亮之盾/覺醒…)且精神低(mpR≈1)→MP 只出不進、持續歸零。
-    //    改為每名非倒地傭兵依「自身精神」各自回魔（等同該角色親自遊玩時的回魔），不受 mob.exp 閘限制。
-    if (player.allies && player.allies.length) player.allies.forEach(a => { if (!a || a._downed || !a.d) return; let _mk = getWisMpOnKill(a.d.wis || 0); if (_mk > 0 && (a.mp || 0) < (a.mmp || 0)) a.mp = Math.min(a.mmp, (a.mp || 0) + _mk); });
-    
     let _goldDropRate = mob.boss ? 1 : 0.7;   // 💰 一般怪 70%；頭目 100%
     if (!_kbNoReward && !mob.noGold && Math.random() < _goldDropRate) {
         let _goldRange = monsterGoldRange(mob);
@@ -418,14 +430,24 @@ function killMob(idx) {
     }
 
     // === 🔥 50級試煉條件掉落 ===
-    if (player.cls === 'knight' && player.trialStage === 1 && mob.n === '黑暗妖精將軍' && !player.inv.some(i => i.id === 'item_dantes_letter') && Math.random() < partyDropRate(0.01)) { gainItem('item_dantes_letter', 1); logSys('<span class="text-amber-300 font-bold">✦ 你取得了 丹特斯的召書。</span>'); }
-    if (player.cls === 'elf' && player.trialStage === 1 && mob.n === '巨大兵蟻' && !player.inv.some(i => i.id === 'item_ancient_book') && Math.random() < partyDropRate(0.01)) { gainItem('item_ancient_book', 1); logSys('<span class="text-amber-300 font-bold">✦ 你取得了 古代黑妖之秘笈。</span>'); }
-    if (player.cls === 'dark' && player.trialStage === 1 && mob.n === '黑暗棲林者' && !player.inv.some(i => i.id === 'item_chaos_key') && Math.random() < partyDropRate(0.01)) { gainItem('item_chaos_key', 1); logSys('<span class="text-amber-300 font-bold">✦ 你取得了 混沌鑰匙。</span>'); }
-    if (player.cls === 'royal' && player.trialStage === 1 && mob.n === '小惡魔' && !player.inv.some(i => i.id === 'item_royal_order') && Math.random() < partyDropRate(0.01)) { gainItem('item_royal_order', 1); logSys('<span class="text-amber-300 font-bold">✦ 你取得了 調職命令書。</span>'); }   // 👑 王族 50 級試煉（唯一，不受經典掉率影響，與其他職業一致）
-    if (player.cls === 'knight' && player.trialStage === 2 && mapState.current === 'elf_grave' && (player.inv || []).reduce((s, i) => s + (i.id === 'item_elf_whisper' ? (i.cnt || 0) : 0), 0) < 10 && Math.random() < partyDropRate(0.01)) { gainItem('item_elf_whisper', 1); logSys('<span class="text-amber-300 font-bold">✦ 你拾起了 精靈的私語。</span>'); }   // 🔧 已持有 10 個則不再掉落（上限）⚠️ v3.5.87 上限口徑＝總持有（含鎖定件）：questCountId 排除鎖定件·用它當上限會被「上鎖」繞過而超收
+    { let main = player.cls === 'knight' && player.trialStage === 1 && mob.n === '黑暗妖精將軍' && !player.inv.some(i => i.id === 'item_dantes_letter');
+      let ally = mob.n === '黑暗妖精將軍' && typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_dantes_letter');
+      if ((main || ally) && Math.random() < partyDropRate(0.01)) { let got = grantPartyStageQuestDrop('item_dantes_letter', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}取得了 丹特斯的召書。</span>`); } }
+    { let main = player.cls === 'elf' && player.trialStage === 1 && mob.n === '巨大兵蟻' && !player.inv.some(i => i.id === 'item_ancient_book');
+      let ally = mob.n === '巨大兵蟻' && typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_ancient_book');
+      if ((main || ally) && Math.random() < partyDropRate(0.01)) { let got = grantPartyStageQuestDrop('item_ancient_book', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}取得了 古代黑妖之秘笈。</span>`); } }
+    { let main = player.cls === 'dark' && player.trialStage === 1 && mob.n === '黑暗棲林者' && !player.inv.some(i => i.id === 'item_chaos_key');
+      let ally = mob.n === '黑暗棲林者' && typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_chaos_key');
+      if ((main || ally) && Math.random() < partyDropRate(0.01)) { let got = grantPartyStageQuestDrop('item_chaos_key', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}取得了 混沌鑰匙。</span>`); } }
+    { let main = player.cls === 'royal' && player.trialStage === 1 && mob.n === '小惡魔' && !player.inv.some(i => i.id === 'item_royal_order');
+      let ally = mob.n === '小惡魔' && typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_royal_order');
+      if ((main || ally) && Math.random() < partyDropRate(0.01)) { let got = grantPartyStageQuestDrop('item_royal_order', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}取得了 調職命令書。</span>`); } }   // 👑 王族 50 級試煉（唯一，不受經典掉率影響，與其他職業一致）
+    { let main = player.cls === 'knight' && player.trialStage === 2 && mapState.current === 'elf_grave' && (player.inv || []).reduce((s, i) => s + (i.id === 'item_elf_whisper' ? (i.cnt || 0) : 0), 0) < 10;
+      let ally = mapState.current === 'elf_grave' && typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_elf_whisper');
+      if ((main || ally) && Math.random() < partyDropRate(0.01)) { let got = grantPartyStageQuestDrop('item_elf_whisper', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}拾起了 精靈的私語。</span>`); } }   // 已持有 10 個則不再掉落（含鎖定件）
     if (mob.n === '魔族暗殺團') {
-        if (player.cls === 'elf' && player.trialStage === 2 && !player.inv.some(i => i.id === 'item_sealed_intel')) { gainItem('item_sealed_intel', 1); logSys('<span class="text-amber-300 font-bold">✦ 你從魔族暗殺團身上取得了 密封的情報書。</span>'); }
-        if (player.cls === 'mage' && player.trialStage === 1 && !player.inv.some(i => i.id === 'item_spy_report')) { gainItem('item_spy_report', 1); logSys('<span class="text-amber-300 font-bold">✦ 你從魔族暗殺團身上取得了 間諜報告書。</span>'); }
+        { let main = player.cls === 'elf' && player.trialStage === 2 && !player.inv.some(i => i.id === 'item_sealed_intel'); let ally = typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_sealed_intel'); if (main || ally) { let got = grantPartyStageQuestDrop('item_sealed_intel', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}從魔族暗殺團身上取得了 密封的情報書。</span>`); } }
+        { let main = player.cls === 'mage' && player.trialStage === 1 && !player.inv.some(i => i.id === 'item_spy_report'); let ally = typeof allyStageQuestItemActive === 'function' && allyStageQuestItemActive('item_spy_report'); if (main || ally) { let got = grantPartyStageQuestDrop('item_spy_report', main); if (got.main || got.allies.length) logSys(`<span class="text-amber-300 font-bold">✦ ${partyQuestDropSubject(got)}從魔族暗殺團身上取得了 間諜報告書。</span>`); } }
     }
 
     // === 🔥 炎魔友好度（隱藏值）：於魔族神殿擊殺任意敵人 +1（用於解鎖炎魔謁見所；需先完成 50 級試煉才能進入魔族神殿） ===
@@ -462,7 +484,7 @@ function killMob(idx) {
         let ratePct = entry[1];               // 機率(%)
         if(!DB.items[itemId]) return;          // 該物品不存在於資料庫則略過
         if(trialDropBlocked(itemId)) return;   // 🔒 試煉兌換道具：僅本職擊殺才掉＋🔥 v3.0.78 須已接取對應試煉且未達需求數量
-        if (typeof trialForced100 === 'function' && trialForced100(itemId)) { gainItem(itemId, 1); return; }   // 🔥 接取制試煉道具：通過閘門後 100% 掉落
+        if (typeof trialForced100 === 'function' && trialForced100(itemId)) { grantPartyTrialQuestDrop(itemId, 1); return; }   // 🔥 接取制試煉道具：通過閘門後 100% 掉落
         let _clMult = (mob.n === '卡瑞' && itemId === 'wpn_dragonslayer') ? 1 : trialItemDropMult(itemId);   // 🔧 v2.6.75 卡瑞·屠龍劍固定 100%（獎勵已綁「擊殺消耗四任務道具」的成本）；trialItemDropMult 現恆 1
         let _relicX2 = (DB.items[itemId].relic && typeof mainPlayerHasEquippedEffect === 'function' && mainPlayerHasEquippedEffect('relicDropX2')) ? 2 : 1;   // 幸運暴走兔腳只讀主操作玩家裝備
         if(Math.random() < partyDropRate((ratePct * _dropBase * _clMult * _relicX2) / 100)) gainItem(itemId, 1);
@@ -511,12 +533,12 @@ function killMob(idx) {
     // === 🐉 龍騎士掉落（任務道具／書板／鎖鏈劍）：僅龍騎士主玩家擊殺時判定 ===
     { let _drd = (typeof DRAGON_DROPS !== 'undefined') ? DRAGON_DROPS[mob.n] : null;   // 🐉 龍騎士掉落表改為全職可掉（書板/鎖鏈劍·就算不能裝備也掉）；妖魔搜索文件等試煉道具由 trialDropBlocked 限定 dragon＋接取制
       if (_drd && !_kbNoReward) _drd.forEach(e => { if (!DB.items[e[0]] || trialDropBlocked(e[0])) return;
-          if (typeof trialForced100 === 'function' && trialForced100(e[0])) { gainItem(e[0], 1); return; }   // 🔥 v3.0.78 接取制試煉道具：100% 掉落
+          if (typeof trialForced100 === 'function' && trialForced100(e[0])) { grantPartyTrialQuestDrop(e[0], 1); return; }   // 🔥 v3.0.78 接取制試煉道具：100% 掉落
           if (Math.random() < (e[1] * _dropBase * partyRewardMult() * trialItemDropMult(e[0])) / 100) gainItem(e[0], 1); }); }   // 🐉 龍騎士試煉道具（trialItemDropMult 恆 1）
     // === ⚔️ 戰士技能印記掉落（全職可掉·僅戰士可學）===
     { let _wrd = (typeof WARRIOR_DROPS !== 'undefined') ? WARRIOR_DROPS[mob.n] : null;
       if (_wrd && !_kbNoReward) _wrd.forEach(e => { if (!DB.items[e[0]] || trialDropBlocked(e[0])) return;   // 🔥 v3.0.78 戰士試煉道具（若列於此表）同樣吃接取制閘門
-          if (typeof trialForced100 === 'function' && trialForced100(e[0])) { gainItem(e[0], 1); return; }
+          if (typeof trialForced100 === 'function' && trialForced100(e[0])) { grantPartyTrialQuestDrop(e[0], 1); return; }
           if (Math.random() < (e[1] * _dropMult) / 100) gainItem(e[0], 1); }); }
     // 🔮 記憶水晶掉落（幻術士法術書·全職可掉，獨立 roll·與 MOB_DROPS 並存）
     { let _memd = (typeof MEM_DROPS !== 'undefined') ? MEM_DROPS[mob.n] : null;
