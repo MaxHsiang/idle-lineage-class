@@ -24,6 +24,18 @@ async function collect(browser, url) {
     const categoryCounts = groups => Object.fromEntries(
       Object.entries(groups || {}).map(([key, ids]) => [key, Array.isArray(ids) ? ids.length : 0])
     );
+    const clean = value => JSON.parse(JSON.stringify(value));
+    const equipRelevant = Object.fromEntries(Object.entries(DB.items || {}).filter(([id, d]) => {
+      if (!d || typeof d !== 'object') return false;
+      return ['wpn', 'arm', 'acc'].includes(d.type)
+        || id.startsWith('pet_')
+        || id.startsWith('doll_')
+        || id.startsWith('relic_')
+        || id.startsWith('rem_')
+        || d.relic || d.doll || d.petEquip;
+    }).map(([id, d]) => [id, clean(d)]));
+    const skillBooks = Object.fromEntries(Object.entries(DB.items || {}).filter(([id, d]) => d && d.type === 'skillbk').map(([id, d]) => [id, clean(d)]));
+    const skillDefs = Object.fromEntries(Object.entries(DB.skills || {}).map(([id, d]) => [id, clean(d)]));
     return {
       gameVersion: typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : null,
       cardDex: sortedKeys(CARD_MOB_INFO),
@@ -41,6 +53,19 @@ async function collect(browser, url) {
         equipment: categoryCounts(EQUIP_CAT_ITEMS),
         misc: categoryCounts(MISC_CAT_ITEMS),
         relics: categoryCounts(RELIC_CAT_ITEMS)
+      },
+      analysis: {
+        equipment: equipRelevant,
+        skillBooks,
+        skills: skillDefs,
+        petBook: typeof PET_BOOK !== 'undefined' ? clean(PET_BOOK) : null,
+        petExpReq: typeof petExpReq === 'function' ? Object.fromEntries([1,10,20,30,40,50,60,70,80,90,99,100].map(lv => [lv, petExpReq(lv)])) : null,
+        globals: {
+          petBookCount: typeof PET_BOOK !== 'undefined' ? Object.keys(PET_BOOK || {}).length : null,
+          skillCount: Object.keys(DB.skills || {}).length,
+          skillBookCount: Object.keys(skillBooks).length,
+          equipmentCount: Object.keys(equipRelevant).length
+        }
       }
     };
   });
@@ -109,7 +134,8 @@ function readPreviousBaseline() {
   fs.writeFileSync('collection-misc.json', JSON.stringify(currentManifest.miscDex, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-relic.json', JSON.stringify(currentManifest.relicDex, null, 2) + '\n', 'utf8');
   fs.writeFileSync('collection-missing-all.json', JSON.stringify(missingAll, null, 2) + '\n', 'utf8');
-  console.log(JSON.stringify({ counts: delta.counts, missing: missingAll.counts }));
+  fs.writeFileSync('game-analysis.json', JSON.stringify(currentManifest.analysis, null, 2) + '\n', 'utf8');
+  console.log(JSON.stringify({ counts: delta.counts, missing: missingAll.counts, analysis: currentManifest.analysis.globals }));
 })().catch(err => {
   console.error(err);
   process.exit(1);
