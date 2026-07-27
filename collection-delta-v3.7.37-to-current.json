@@ -1,46 +1,100 @@
 {
-  "generatedAt": "2026-07-22T11:44:49.469Z",
+  "generatedAt": "2026-07-27T08:29:28.816Z",
   "fromVersion": "v3.7.37",
-  "toVersion": "v3.7.43",
+  "toVersion": "v3.8.34",
   "cardDex": {
-    "added": [],
+    "added": [
+      "大地荒龍",
+      "被侵蝕的安塔瑞斯",
+      "喀瑪王",
+      "喀瑪南",
+      "喀瑪南王",
+      "喀瑪焰",
+      "喀瑪焰王"
+    ],
     "removed": []
   },
   "equipDex": {
-    "added": [],
+    "added": [
+      "arm_ancient_dragonscale_earth",
+      "arm_ancient_dragonscale_fire",
+      "arm_ancient_dragonscale_water",
+      "arm_ancient_dragonscale_wind",
+      "arm_antharas_charm",
+      "arm_antharas_majesty",
+      "arm_antharas_power",
+      "arm_antharas_spring",
+      "wpn_angel_wand",
+      "wpn_crimson_xbow"
+    ],
     "removed": []
   },
   "miscDex": {
-    "added": [],
+    "added": [
+      "item_dragon_egg",
+      "item_dragon_egg2",
+      "item_sealed_earth_eye",
+      "mat_antharas_blood",
+      "mat_antharas_bone",
+      "mat_antharas_claw",
+      "mat_antharas_eye",
+      "mat_antharas_fang",
+      "mat_antharas_flesh",
+      "mat_antharas_heart",
+      "mat_antharas_scale"
+    ],
     "removed": []
   },
   "relicDex": {
-    "added": [],
+    "added": [
+      "relic_ashbeast_chain",
+      "relic_corrosive_jelly_skin",
+      "relic_flame_baphomet_armor",
+      "relic_flame_dk_sword",
+      "relic_follower_cloak",
+      "relic_ghost_teardrop",
+      "relic_goat_demon_feet",
+      "relic_golem_lifemark",
+      "relic_kurt_shield",
+      "relic_mageblade_knife",
+      "relic_necro_book",
+      "relic_priest_collar",
+      "relic_priest_gloves",
+      "relic_priest_hood",
+      "relic_priest_robe",
+      "relic_priest_sandals",
+      "relic_serrated_fangs",
+      "relic_sky_god_avatar",
+      "relic_spider_queen_footprints",
+      "relic_succubus_queen_kiss",
+      "relic_true_dragonslayer",
+      "relic_wing_chaos_blades"
+    ],
     "removed": []
   },
   "counts": {
     "cardDex": {
       "old": 462,
-      "current": 462,
-      "added": 0,
+      "current": 469,
+      "added": 7,
       "removed": 0
     },
     "equipDex": {
       "old": 615,
-      "current": 615,
-      "added": 0,
+      "current": 625,
+      "added": 10,
       "removed": 0
     },
     "miscDex": {
       "old": 479,
-      "current": 479,
-      "added": 0,
+      "current": 490,
+      "added": 11,
       "removed": 0
     },
     "relicDex": {
       "old": 344,
-      "current": 344,
-      "added": 0,
+      "current": 366,
+      "added": 22,
       "removed": 0
     }
   }
