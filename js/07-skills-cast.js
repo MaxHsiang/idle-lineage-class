@@ -1060,6 +1060,7 @@ function autoActions() {
 
     if((player.d.loadTier||0) < 2) player.skills.forEach(sid => {
         let sk = DB.skills[sid];
+        if (!sk) return;   // 已移除或舊版自訂技能不得中斷整個自動技能循環
         if(sk.type === 'buff') {
             if(sk.haste && (player.buffs.haste > 0 || player._equipHaste)) return;  // 已有加速來源（含裝備常駐），不重複施放
             if(typeof TEAM_AURA_SKILLS !== 'undefined' && TEAM_AURA_SKILLS.includes(sid) && _teamAuraHas(sid, player)) return;   // 團隊光環已有其他隊員維持時不重複施放／扣魔

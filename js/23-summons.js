@@ -61,7 +61,9 @@ const SUMMON_TIERS = [
     { reqLv: 72, reqCha: 36, fixedCount: 1, cap: 1, ringCap: 1, mobs: [
         { n: '巨大牛人', lv: 53, hp: 1000, aspd: 15, ring: true, proc: [{ kind: 'magic', p: 0.20, name: '寒冰鎚', ele: 'water', heavy: 1.6, slow: true }] } ] },
     { reqLv: 72, reqCha: 44, fixedCount: 1, cap: 1, ringCap: 1, premium: 1.15, mobs: [
-        { n: '黑豹', lv: 63, hp: 2000, aspd: 22, ring: true, proc: [{ kind: 'magic', p: 0.20, name: '地面震裂', ele: 'earth', heavy: 1.6, stun: true }] } ] }
+        { n: '黑豹', lv: 63, hp: 2000, aspd: 22, ring: true, proc: [{ kind: 'magic', p: 0.20, name: '地面震裂', ele: 'earth', heavy: 1.6, stun: true }] } ] },
+    { reqLv: 1, fixedCount: 2, cap: 2, ringCap: 2, genesisOmni: true, mobs: [
+        { n: '終極死亡騎士', lv: 1, hp: 1, aspd: 3, ring: true, genesisUltimateDeathKnight: true } ] }
 ];
 const SUMMON_NO_RING_MAX_LV = 52;   // 無戒指：固定召喚「已解鎖最高階」預設怪，上限 52 魔熊階
 
@@ -70,6 +72,7 @@ function _sumTierOf(name) { for (const t of SUMMON_TIERS) { const m = t.mobs.fin
 function _sumQualified(name, owner) {   // owner 目前可召喚此怪？（等級＋魅力＋戒指）
     owner = owner || player;
     const e = _sumTierOf(name); if (!e) return false;
+    if (e.tier.genesisOmni && !(owner.cls === 'omni' || owner.genesisOmni === true)) return false;
     if ((owner.lv || 1) < e.tier.reqLv) return false;
     if (e.tier.reqCha && ((owner.d && owner.d.cha) || 0) < e.tier.reqCha) return false;
     if (e.mob.ring && !hasSummonCtrlRing(owner)) return false;
@@ -79,6 +82,7 @@ function _sumDefaultForm(owner) {   // 無戒指（或未選擇）的預設：�
     owner = owner || player;
     let best = null;
     for (const t of SUMMON_TIERS) {
+        if (t.genesisOmni) continue;
         if (t.reqLv > SUMMON_NO_RING_MAX_LV) continue;
         if ((owner.lv || 1) >= t.reqLv) best = t.mobs[0].n;
     }
@@ -437,8 +441,8 @@ function _genesisUltimateDeathKnightDerive(s, owner) {
         allStats50: inherited
     };
 }
-const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_elf_summon', 'sk_elf_summon2', 'sk_genesis_omni_summon'];
-const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '殭屍隨從', sk_elf_summon: '精靈', sk_elf_summon2: '精靈', sk_genesis_omni_summon: '全能召喚' };
+const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_elf_summon', 'sk_elf_summon2'];
+const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '殭屍隨從', sk_elf_summon: '精靈', sk_elf_summon2: '精靈' };
 function summonV2ActiveSk() { return (player && player._summonV2Sk) || 'sk_summon'; }
 
 // ---------- 二、施放／解散／自動重施 ----------
@@ -484,26 +488,21 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
         if (!form) { if (!silent) logSys('<span class="text-red-400">等級不足：召喚術需要等級 28 以上。</span>'); return false; }
         let cnt = _sumCountFor(form);
         const _genCtrl = player.eq && Object.keys(player.eq).some(k => player.eq[k] && player.eq[k].id === 'rng_genesis_control');
-        if (_genCtrl) cnt = Math.max(1, cnt) + 1;
+        if (_genCtrl && form !== '終極死亡騎士') cnt = Math.max(1, cnt) + 1;
         if (cnt <= 0) { if (!silent) logSys(`<span class="text-red-400">魅力不足：無法召喚 ${form}（數量=(魅力+6)/${(_sumTierOf(form).tier.div || 8)}）。</span>`); return false; }
         const e = _sumTierOf(form);
-        for (let i = 0; i < cnt; i++) ents.push({ uid: uid(), skId: skId, form: form, lv: e.mob.lv, hp: e.mob.hp, mhp: e.mob.hp, _atkCd: 5 + i * 3 });
+        for (let i = 0; i < cnt; i++) {
+            if (e.mob.genesisUltimateDeathKnight) {
+                const inheritedHp = Math.max(1, Math.floor((player.mhp || 1) * 0.5));
+                const entity = {
+                    uid:uid(), skId:skId, form:form, formGfx:'死亡騎士', lv:player.lv || 1,
+                    hp:inheritedHp, mhp:inheritedHp, _atkCd:5 + i * 3, genesisUltimateDeathKnight:true, spriteScale:2/3
+                };
+                _genesisUltimateDeathKnightDerive(entity, player);
+                ents.push(entity);
+            } else ents.push({ uid: uid(), skId: skId, form: form, lv: e.mob.lv, hp: e.mob.hp, mhp: e.mob.hp, _atkCd: 5 + i * 3 });
+        }
         castMsg = `你召喚了 <span class="text-purple-300">${form}</span> ×${cnt}。`;
-    } else if (skId === 'sk_genesis_omni_summon') {
-        if (!(player.cls === 'omni' || player.genesisOmni === true)) {
-            if (!silent) logSys('<span class="text-red-400">只有全能師能施展全能召喚。</span>');
-            return false;
-        }
-        const inheritedHp = Math.max(1, Math.floor((player.mhp || 1) * 0.5));
-        for (let i = 0; i < 2; i++) {
-            const entity = {
-                uid:uid(), skId:skId, form:'終極死亡騎士', formGfx:'死亡騎士', lv:player.lv || 1,
-                hp:inheritedHp, mhp:inheritedHp, _atkCd:5 + i * 3, genesisUltimateDeathKnight:true, spriteScale:2/3
-            };
-            _genesisUltimateDeathKnightDerive(entity, player);
-            ents.push(entity);
-        }
-        castMsg = '你施展 <span class="text-cyan-300 font-bold">全能召喚</span>，2隻終極死亡騎士同時降臨。';
     } else if (skId === 'sk_zombie') {   // 🧟 造屍術：單一殭屍·階級依玩家等級/職業
         const t = _zmbTierForPlayer();
         if (!t) { if (!silent) logSys('<span class="text-red-400">等級不足，無法施展造屍術。</span>'); return false; }
@@ -523,7 +522,7 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
             : `你召喚了 <span class="text-purple-300">${form}</span>。`;
     } else return false;
     if (player.eq && Object.keys(player.eq).some(k => player.eq[k] && player.eq[k].id === 'rng_genesis_control')) {
-        ents.forEach(e => { e.hp = e.mhp = Math.max(1, Math.floor((e.mhp || e.hp || 1) * 1.20)); });
+        ents.forEach(e => { if (!e.genesisUltimateDeathKnight) e.hp = e.mhp = Math.max(1, Math.floor((e.mhp || e.hp || 1) * 1.20)); });
     }
     // 同時只能有一種召喚：清除其他召喚 buff＋舊管線殘留（比照 setupSummon 的清除迴圈）
     (player.skills || []).forEach(s => { const d = DB.skills[s]; if (d && d.summon) player.buffs[s] = 0; });
@@ -849,14 +848,16 @@ function openSummonSelect() {
             const ok = _sumQualified(m.n);
             const cnt = ok ? _sumCountFor(m.n) : 0;
             const usable = ok && cnt > 0;   // v3.2.39 稽核修：已解鎖但數量0（魅力不足）也不可選，否則施放永遠失敗
-            const d = ok ? _sumDerive({ n: m.n }) : null;
+            const d = ok ? (m.genesisUltimateDeathKnight ? _genesisUltimateDeathKnightDerive({genesisUltimateDeathKnight:true}, player) : _sumDerive({ n: m.n })) : null;
             const sel = cur === m.n;
+            const shownLv = m.genesisUltimateDeathKnight ? (player.lv || 1) : m.lv;
+            const shownHp = m.genesisUltimateDeathKnight ? Math.max(1, Math.floor((player.mhp || 1) * 0.5)) : m.hp;
             return `<button ${usable ? `onclick="chooseSummon('${m.n}')"` : 'disabled'} class="btn" style="display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:4px 8px;margin:2px 0;border-radius:4px;border:1px solid ${sel ? '#a78bfa' : '#334155'};background:${sel ? 'linear-gradient(135deg,#4c1d95,#5b21b6)' : '#0f172a'};${usable ? '' : 'opacity:0.45;cursor:not-allowed;'}">
-                <span><b class="${sel ? 'text-purple-200' : 'text-slate-200'}">${m.n}</b> <span class="text-slate-400" style="font-size:11px;">Lv.${m.lv}·HP${m.hp}</span></span>
+                <span><b class="${sel ? 'text-purple-200' : 'text-slate-200'}">${m.n}</b> <span class="text-slate-400" style="font-size:11px;">Lv.${shownLv}·HP${shownHp}</span></span>
                 <span class="text-slate-400" style="font-size:11px;white-space:nowrap;">${usable ? `×${cnt}·攻1D${d.dice}+${d.flat}·${(m.aspd / 10).toFixed(1)}s` : (ok ? `魅力不足（數量 0·需(魅力+6)/${t.div}≥1）` : (t.reqCha && (player.d.cha || 0) < t.reqCha ? `需魅力${t.reqCha}` : '未解鎖'))}</span>
             </button>`;
         }).join('');
-        return `<div style="margin-bottom:6px;"><div class="text-amber-300 font-bold" style="font-size:12px;">${t.reqLv} 級以上${t.reqCha ? '·魅力 ' + t.reqCha : ''}<span class="text-slate-500">（數量 ${t.fixedCount ? '固定 1 隻' : `(魅力+6)/${t.div}·最多 ${t.cap}${t.ringCap > t.cap ? '（戒指 ' + t.ringCap + '）' : ''} 隻`}）</span></div>${mobs}</div>`;
+        return `<div style="margin-bottom:6px;"><div class="text-amber-300 font-bold" style="font-size:12px;">${t.genesisOmni ? '全能師專屬' : t.reqLv + ' 級以上'}${t.reqCha ? '·魅力 ' + t.reqCha : ''}<span class="text-slate-500">（數量 ${t.fixedCount ? '固定 ' + t.fixedCount + ' 隻' : `(魅力+6)/${t.div}·最多 ${t.cap}${t.ringCap > t.cap ? '（戒指 ' + t.ringCap + '）' : ''} 隻`}）</span></div>${mobs}</div>`;
     }).join('');
     ov.innerHTML = `<div style="width:460px;max-height:82vh;overflow-y:auto;background:#0b1220;border:1px solid #6d28d9;border-radius:8px;padding:12px;font-size:13px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">

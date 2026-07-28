@@ -3,7 +3,6 @@
 
   const PASS_ID = 'item_genesis_perfect_pass';
   const AWAKEN_ID = 'sk_genesis_omni_awakening';
-  const OMNI_SUMMON_ID = 'sk_genesis_omni_summon';
   const PET_WPN_ID = 'petwpn_genesis_dragon_fang';
   const PET_ARM_ID = 'petarm_genesis_dragon_armor';
   const ULTIMATE_MAP_ID = 'genesis_ultimate';
@@ -107,11 +106,29 @@
       img:'assets/icons/genesis/omni-awakening.png',
       d:'同時啟用所有職業的全部50級覺醒／專精，不需要在每個職業中擇一。'
     };
-    DB.skills[OMNI_SUMMON_ID] = {
-      n:'全能召喚', type:'buff', tier:1, mp:20, dur:3600, summon:true, reqGenesis:1, genesisSkill:true,
-      img:'assets/anim/死亡騎士/idle_0.png',
-      d:'同時召喚2隻「終極死亡騎士」。外型為死亡騎士原尺寸的2/3，每隻持續即時繼承主角穿戴全部裝備後最終能力值的50%。'
-    };
+    delete DB.skills.sk_genesis_omni_summon;   // v1.6.17：改為原「召喚術」選單中的召喚物，不再建立獨立技能
+    // 清除舊存檔殘留的獨立「全能召喚」，避免自動技能讀到不存在的 DB 定義。
+    if (window.player) {
+      if (Array.isArray(player.skills)) {
+        player.skills = player.skills.filter(function (id) { return id !== 'sk_genesis_omni_summon'; });
+      }
+      if (Array.isArray(player.grantedSkills)) {
+        player.grantedSkills = player.grantedSkills.filter(function (id) { return id !== 'sk_genesis_omni_summon'; });
+      }
+      if (player.buffs) delete player.buffs.sk_genesis_omni_summon;
+      if (player.config && player.config.autoBuffSkills) {
+        if (Array.isArray(player.config.autoBuffSkills)) {
+          player.config.autoBuffSkills = player.config.autoBuffSkills.filter(function (id) { return id !== 'sk_genesis_omni_summon'; });
+        } else {
+          delete player.config.autoBuffSkills.sk_genesis_omni_summon;
+        }
+      }
+      if (player._summonV2Sk === 'sk_genesis_omni_summon') {
+        player._summonV2Sk = 'sk_summon';
+        player._summonV2On = false;
+        player.summonsV2 = [];
+      }
+    }
     try {
       DRAGONS.forEach(function (x) {
         PET_BOOK[x.form] = {

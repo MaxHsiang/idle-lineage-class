@@ -16,6 +16,7 @@ const maps = fs.readFileSync(path.join(root, 'js', '11-world-map.js'), 'utf8');
 const backgrounds = fs.readFileSync(path.join(root, 'js', '13-shop-save.js'), 'utf8');
 const drops = fs.readFileSync(path.join(root, 'js', '05-kill-progression.js'), 'utf8');
 const summons = fs.readFileSync(path.join(root, 'js', '23-summons.js'), 'utf8');
+const skillCast = fs.readFileSync(path.join(root, 'js', '07-skills-cast.js'), 'utf8');
 
 assert.ok(content.includes('player.genesisMiniDragons'), 'runtime must create character-owned mini dragons');
 assert.ok(content.includes('owner===lastRuntimeOwner'), 'switching characters must bypass the repair throttle');
@@ -25,10 +26,10 @@ assert.ok(pets.includes("document.getElementById('town-npc-map')"), 'native mini
 assert.ok(generator.includes('p.genesisMiniDragons = miniDragons.map'), 'generated save must embed all four dragons');
 assert.ok(poly.includes('genesisCreatorBreath'), 'Creator transformation must have a breathing glow');
 assert.ok(poly.includes('atkApm:180, wlk:3.2'), 'Creator form card must show 3 attacks/sec and 500% movement');
-assert.ok(index.includes('v3.8.34-genesis-175'), 'browser cache must be bumped');
-assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-175'), 'item/status cache must be bumped');
-assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-175'), 'VFX cache must be bumped');
-assert.ok(index.includes('1.6.15-static-bootstrap'), 'Genesis loader cache must be bumped');
+assert.ok(index.includes('v3.8.34-genesis-177'), 'browser cache must be bumped');
+assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-177'), 'item/status cache must be bumped');
+assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-177'), 'VFX cache must be bumped');
+assert.ok(index.includes('1.6.17-static-bootstrap'), 'Genesis loader cache must be bumped');
 assert.ok(clan.includes("p.cls === 'omni'"), 'Omni class must qualify as a clan founder');
 assert.ok(clan.includes('if (!clanCanFound(player))'), 'clan creation and leadership gates must use Omni-aware eligibility');
 assert.ok(clan.includes('clanCanFound(r.player)'), 'Omni founder must remain a valid clan leader for siege');
@@ -60,9 +61,12 @@ assert.ok(maps.includes("{v:'genesis_ultimate',t:'終極之地'") && maps.includ
 assert.ok(backgrounds.includes("genesis_ultimate: 'assets/area/龍之谷.jpg'"), 'Ultimate Land must use the built-in Dragon Valley background');
 assert.ok(drops.includes("mapState.current === 'genesis_ultimate'") && drops.includes('_dropBase *= 10'), 'Ultimate Land must grant 10x drops');
 assert.ok(vfx.includes("mapState.current === 'genesis_ultimate'"), 'Ultimate Land must suppress local combat and loot VFX');
-assert.ok(content.includes("n:'全能召喚'"), 'Omni Summoning skill definition must exist');
-assert.ok(summons.includes("form:'終極死亡騎士'") && summons.includes('for (let i = 0; i < 2; i++)'), 'Omni Summoning must create two Ultimate Death Knights');
+assert.ok(!content.includes("n:'全能召喚'") && content.includes('delete DB.skills.sk_genesis_omni_summon'), 'standalone Omni Summoning skill must be retired');
+assert.ok(content.includes("player.skills.filter") && content.includes("id !== 'sk_genesis_omni_summon'"), 'legacy saves must remove the retired standalone summon skill');
+assert.ok(skillCast.includes('if (!sk) return;'), 'automatic skill loop must safely ignore unknown legacy skill IDs');
+assert.ok(summons.includes("{ n: '終極死亡騎士'") && summons.includes('fixedCount: 2'), 'Summon Monster selection must offer two Ultimate Death Knights');
+assert.ok(summons.includes("form !== '終極死亡騎士'") && summons.includes('e.mob.genesisUltimateDeathKnight'), 'Genesis control bonus must not increase the fixed pair to three');
 assert.ok(summons.includes('ownerFinalStats50') && summons.includes('d[k] * 0.5'), 'each Ultimate Death Knight must inherit 50% of the final player sheet');
 assert.ok(pets.includes('p.genesisUltimateDeathKnight') && pets.includes("height='80px'"), 'Ultimate Death Knight must use boss animation at two-thirds scale');
 
-console.log('Genesis v1.6.15 regression test passed: Ultimate Land, two inherited Ultimate Death Knights, v3.8.34 sync and Genesis systems.');
+console.log('Genesis v1.6.17 regression test passed: Ultimate Land and two inherited Death Knights inside the native Summon Monster selector.');

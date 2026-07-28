@@ -461,7 +461,7 @@ function decorateClassicInventoryTab(div){
 }
 
 // ===== 召喚類技能互斥：迷魅 / 召喚 / 造屍 / 召喚屬性精靈 / 召喚強力屬性精靈 同時只能開啟一個 =====
-const SUMMON_BUFF_IDS = ['sk_zombie', 'sk_summon', 'sk_elf_summon', 'sk_elf_summon2', 'sk_genesis_omni_summon'];
+const SUMMON_BUFF_IDS = ['sk_zombie', 'sk_summon', 'sk_elf_summon', 'sk_elf_summon2'];
 function summonBuffChecked() {
     for (let id of SUMMON_BUFF_IDS) { let c = document.getElementById('auto-sk-' + id); if (c && c.checked) return id; }
     return null;
