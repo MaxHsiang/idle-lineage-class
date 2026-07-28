@@ -461,7 +461,7 @@ function decorateClassicInventoryTab(div){
 }
 
 // ===== 召喚類技能：全能師可全部共存；原職業維持原版互斥 =====
-const SUMMON_BUFF_IDS = ['sk_zombie', 'sk_summon', 'sk_elf_summon', 'sk_elf_summon2'];
+const SUMMON_BUFF_IDS = ['sk_zombie', 'sk_summon', 'sk_channel_spirit', 'sk_elf_summon', 'sk_elf_summon2'];
 function summonBuffChecked() {
     for (let id of SUMMON_BUFF_IDS) { let c = document.getElementById('auto-sk-' + id); if (c && c.checked) return id; }
     return null;

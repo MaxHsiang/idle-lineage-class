@@ -1605,7 +1605,7 @@ function _petAnimApply() {
             else if (!p._downed) _petWanderStep(p, host, hostRect);   // 倒地/死亡殘影不再移動（v3.2.19 修：原本倒地仍會閒晃漂移）
             let dir = (p._dir != null) ? p._dir : 6;
             let gfxForm = p.formGfx || (PET_BOOK[p.form] && PET_BOOK[p.form].formGfx) || p.form;   // 👑 v3.2.25 動態別名：顯示名≠圖檔資料夾
-            let _bossAnim = !!(p.genesisMiniDragon || p.genesisUltimateDeathKnight || (PET_BOOK[p.form] && PET_BOOK[p.form].genesisMiniDragon));
+            let _bossAnim = !!(p.genesisMiniDragon || p.genesisUltimateDeathKnight || p.bossSummon || (PET_BOOK[p.form] && PET_BOOK[p.form].genesisMiniDragon));
             let _animKey = gfxForm + (_bossAnim ? '#boss' : '#' + dir);
             let a = _pet8Cache[_animKey];
             if (a === undefined) { if(_bossAnim)_petBossProbe(gfxForm);else _pet8Probe(gfxForm,dir); }
@@ -1616,6 +1616,11 @@ function _petAnimApply() {
                 if (!a || a === 'probing') continue;
             } else p._dirLoaded = dir;
             let el = _petSpriteEl(layer, p);
+            // 頭目召喚物沿用原生頭目動畫，僅在容器底部中心縮放；一般寵物與既有召喚不受影響。
+            el.style.transform = p.bossSummon && p.spriteScale
+                ? `translate(-50%,-100%) scale(${p.spriteScale})`
+                : 'translate(-50%,-100%)';
+            el.style.transformOrigin = '50% 100%';
             if (p.genesisMiniDragon || String(p.form || '').startsWith('迷你')) {
                 let _mi=el.querySelector('.pet-body'),_ms=el.querySelector('.pet-shadow');
                 if(_mi){_mi.style.width='auto';_mi.style.height='58px';_mi.style.objectFit='contain';}

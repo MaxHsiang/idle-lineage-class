@@ -1673,6 +1673,7 @@ const DB = {
         "bk_dark_shadow": { type: "skillbk", n: "魔法書(黑闇之影)", p: 8250, sk: "sk_dark_shadow", gachaWeight: 70 },
 
         "bk_zombie": { type: "skillbk", n: "魔法書(造屍術)", p: 18000, sk: "sk_zombie", gachaWeight: 60 },
+        "bk_channel_spirit": { type: "skillbk", n: "魔法書(通靈之術)", p: 72000, sk: "sk_channel_spirit", gachaWeight: 1 },
         "bk_haste_spell": { type: "skillbk", n: "魔法書(加速術)", p: 18000, sk: "sk_haste_spell", gachaWeight: 60 },
         "bk_cancel": { type: "skillbk", n: "魔法書(魔法相消術)", p: 18000, sk: "sk_cancel", gachaWeight: 10 },
         "bk_earthquake": { type: "skillbk", n: "魔法書(地裂術)", p: 18000, sk: "sk_earthquake", gachaWeight: 20 },
@@ -2819,7 +2820,8 @@ const DB = {
         "sk_dark_shadow": { n: "黑闇之影", type: "atk", tier: 5, reqM: 20, reqE: 40, mp: 25, dmgType: "magic", status: { kind: "blind", pbase: 150, hit: 5, dur: 20 } },
 
         // 六階魔法 (Lv 24)
-        "sk_zombie": { n: "造屍術", type: "buff", tier: 6, reqM: 24, reqE: 48, mp: 35, dur: 3600, desc: "以死靈魔法喚醒倒下的人形軀殼，使其服從施術者並肩作戰。施術者的力量越成熟，甦醒的亡者也越強韌。", summon: { n: "隨從：人形殭屍", dmgDice: [1, 12], dmgDiv: 5, dmgLvDiv: 20, dmgMult: 0.90, interval: 20, kind: "melee", hitLvOff: 0 } },
+        "sk_zombie": { n: "造屍術", type: "buff", tier: 6, reqM: 24, reqE: 48, mp: 35, dur: 3600, desc: "以死靈魔法轉化戰場上剛倒下的怪物屍體，喚醒體型縮為原本四分之一的巨大骷髏；場上最多同時存在兩隻。", summon: { n: "隨從：巨大骷髏", corpse: true, max: 2, interval: 20, kind: "melee" } },
+        "sk_channel_spirit": { n: "通靈之術", type: "buff", tier: 8, reqM: 52, mp: 60, dur: 3600, desc: "呼喚提卡爾傑弗雷庫的靈體並肩作戰；靈體體型為原本的四分之一，場上最多一隻。", summon: { n: "靈體：提卡爾傑弗雷庫", spirit: true, max: 1 } },
         "sk_haste_spell": { n: "加速術", type: "buff", tier: 6, reqM: 24, reqE: 48, mp: 40, dur: 1200, haste: true, msg: "你感到身體變得非常輕盈。" },
         "sk_cancel": { n: "魔法相消術", type: "heal", tier: 6, reqM: 24, reqE: 48, mp: 40, msg: "你全身上下感到涼意。" },
         "sk_earthquake": { n: "地裂術", type: "atk", tier: 6, reqM: 24, reqE: 48, mp: 25, dmgType: "magic", ele: "earth", dmgDice: [5, 3], dmgBase: 50 },

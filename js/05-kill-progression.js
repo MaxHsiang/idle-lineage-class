@@ -367,6 +367,7 @@ function killMob(idx) {
     try {
     if (typeof pvpOnKillMob === 'function') pvpOnKillMob(mob);
     if (typeof necroBookOnKill === 'function') necroBookOnKill(mob);   // 🏺 v3.8.12 死靈之書：全隊1%回復＋骷髏復生（建築由函式內排除）
+    if (typeof zombieCorpseOnKill === 'function') zombieCorpseOnKill(mob);   // 🧟 造屍術：趁死亡實體尚未清除前，消耗屍體喚起巨大骷髏（最多2隻）
     if(typeof auditTrackKill === 'function') auditTrackKill(mob);   // 統計：累計經驗/擊殺
     // 🔧 轉場建築（往上層的樓梯 / 遺忘之島傳送門）：擊敗即進入下一層/島，不顯示「擊敗了…」戰鬥訊息（race 建築且 noAutoTeleport，排除攻城塔/城門）
     let _hideKillMsg = (mob.race === '建築' && mob.noAutoTeleport);

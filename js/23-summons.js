@@ -415,6 +415,7 @@ function _spiritDerive(s) {
 // 依實體所屬技能分派衍生數值（攻速/防禦；召喚術另含傷害）
 function _sumDeriveAny(s, owner) {
     if (s && s.genesisUltimateDeathKnight) return _genesisUltimateDeathKnightDerive(s, owner);
+    if (s && s.channelSpirit) return _channelSpiritDerive(s, owner);
     if (s && s._necroSkeleton) return _necroSkeletonDerive(s, owner);
     if (s.skId === 'sk_zombie') return _zmbDerive(s, owner);
     if (s.skId === 'sk_elf_summon' || s.skId === 'sk_elf_summon2') return _spiritDerive(s);
@@ -442,8 +443,8 @@ function _genesisUltimateDeathKnightDerive(s, owner) {
         allStats50: inherited
     };
 }
-const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_elf_summon', 'sk_elf_summon2'];
-const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '殭屍隨從', sk_elf_summon: '精靈', sk_elf_summon2: '精靈' };
+const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_channel_spirit', 'sk_elf_summon', 'sk_elf_summon2'];
+const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '巨大骷髏', sk_channel_spirit: '通靈靈體', sk_elf_summon: '精靈', sk_elf_summon2: '精靈' };
 function summonV2ActiveSk() { return (player && player._summonV2Sk) || 'sk_summon'; }
 function summonV2Flags() {
     if (!player) return {};
@@ -471,6 +472,55 @@ function summonRenderList() {   // 供 js/22 寵物圖層渲染（含死亡殘�
     if (typeof player === 'undefined' || !player || !player.cls) return [];
     const now = Date.now();
     return summonV2List().concat(necroSkeletonList()).filter(s => !s._downed || (now - (s._diedAt || 0)) < 2000);
+}
+
+const CHANNEL_SPIRIT_FORM = '提卡爾傑弗雷庫';
+const CHANNEL_SPIRIT_GFX = '提卡爾杰弗雷庫(雄)';
+const CHANNEL_SPIRIT_MAX = 1;
+const CORPSE_SKELETON_FORM = '巨大骷髏';
+const CORPSE_SKELETON_MAX = 2;
+const BOSS_SUMMON_SCALE = 0.25;
+
+function _channelSpiritDerive(s, owner) {
+    owner = owner || player;
+    // 單體靈體沿用最高階單一召喚物的成長曲線，保留等級、魅力、裝備與召喚精通加成。
+    const d = _sumDerive({ form: '黑豹', n: '黑豹' }, owner);
+    return Object.assign({}, d, {
+        aspd: 12,
+        dmgMult: (d.dmgMult || 1) * 1.25,
+        hit: (d.hit || 0) + 10,
+        ac: Math.min(-15, d.ac || 0),
+        dr: Math.max(10, d.dr || 0)
+    });
+}
+
+function _corpseSkeletonEntity(mob) {
+    const t = _zmbTierForPlayer(player);
+    if (!t) return null;
+    const hp = Math.max(1, t.hp);
+    return {
+        uid: uid(), skId: 'sk_zombie', form: CORPSE_SKELETON_FORM, formGfx: CORPSE_SKELETON_FORM,
+        lv: t.lv, hp: hp, mhp: hp, _atkCd: 5,
+        corpseSkeleton: true, corpseSource: mob && mob.n || '', bossSummon: true, spriteScale: BOSS_SUMMON_SCALE
+    };
+}
+
+// 造屍術不憑空產生隨從：只有敵人真正進入 killMob 的死亡結算時才消耗該屍體。
+function zombieCorpseOnKill(mob) {
+    if (!mob || mob.race === '建築' || !player || player.dead) return false;
+    if (!summonV2SkillOn('sk_zombie') || !summonV2Knows('sk_zombie') || (player.buffs.sk_zombie || 0) <= 0) return false;
+    if (typeof necroBookPassiveEnabled === 'function' && necroBookPassiveEnabled(player)) return false;
+    const alive = summonV2List().filter(s => s && s.skId === 'sk_zombie' && !s._downed && (s.hp || 0) > 0);
+    if (alive.length >= CORPSE_SKELETON_MAX) return false;
+    const entity = _corpseSkeletonEntity(mob);
+    if (!entity) return false;
+    if (player.eq && Object.keys(player.eq).some(k => player.eq[k] && player.eq[k].id === 'rng_genesis_control')) {
+        entity.hp = entity.mhp = Math.max(1, Math.floor(entity.mhp * 1.20));
+    }
+    player.summonsV2 = (player.summonsV2 || []).concat(entity);
+    logCombat(`造屍術將 <span class="${getMobColor(mob.lv)}">${mob.n}</span> 的屍體轉化為 <span class="text-purple-300">${CORPSE_SKELETON_FORM}</span>（${alive.length + 1}/${CORPSE_SKELETON_MAX}）。`, 'magic', 'summon');
+    renderSummonPanel(true);
+    return true;
 }
 function summonV2ActiveForm(owner) {   // 本次施放要召的怪（owner 預設玩家·傭兵召喚術傳 ally）
     owner = owner || player;
@@ -512,11 +562,18 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
             } else ents.push({ uid: uid(), skId: skId, form: form, lv: e.mob.lv, hp: e.mob.hp, mhp: e.mob.hp, _atkCd: 5 + i * 3 });
         }
         castMsg = `你召喚了 <span class="text-purple-300">${form}</span> ×${cnt}。`;
-    } else if (skId === 'sk_zombie') {   // 🧟 造屍術：單一殭屍·階級依玩家等級/職業
+    } else if (skId === 'sk_channel_spirit') {
+        const spiritHp = Math.max(2500, Math.floor((player.mhp || 1) * 0.75));
+        ents.push({
+            uid: uid(), skId: skId, form: CHANNEL_SPIRIT_FORM, formGfx: CHANNEL_SPIRIT_GFX,
+            lv: Math.max(70, player.lv || 1), hp: spiritHp, mhp: spiritHp, _atkCd: 5,
+            channelSpirit: true, bossSummon: true, spriteScale: BOSS_SUMMON_SCALE
+        });
+        castMsg = `你施放通靈之術，喚來 <span class="text-purple-300">${CHANNEL_SPIRIT_FORM}</span> 的靈體（${CHANNEL_SPIRIT_MAX}/${CHANNEL_SPIRIT_MAX}）。`;
+    } else if (skId === 'sk_zombie') {   // 🧟 造屍術：啟動屍體轉化；擊殺時才產生巨大骷髏
         const t = _zmbTierForPlayer();
         if (!t) { if (!silent) logSys('<span class="text-red-400">等級不足，無法施展造屍術。</span>'); return false; }
-        ents.push({ uid: uid(), skId: skId, form: '人形殭屍', lv: t.lv, hp: t.hp, mhp: t.hp, _atkCd: 5 });
-        castMsg = `你施放造屍術，喚起了 <span class="text-purple-300">人形殭屍</span>（Lv.${t.lv}·HP ${t.hp}）。`;
+        castMsg = `你施放造屍術；接下來擊敗的怪物屍體將被轉化為 <span class="text-purple-300">${CORPSE_SKELETON_FORM}</span>（最多 ${CORPSE_SKELETON_MAX} 隻）。`;
     } else if (skId === 'sk_elf_summon' || skId === 'sk_elf_summon2') {   // 🧝 屬性精靈：依玩家屬性·一律 1 隻（👑 v3.2.25 精靈精通改為昇華精靈王·不再加隻數）
         const king = _spiritIsKing(skId);
         const elements = (typeof genesisElementList === 'function') ? genesisElementList(player) : (player.elfEle ? [player.elfEle] : []);
@@ -540,7 +597,9 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
     }
     // 只替換同一技能的舊實體；不同召喚技能與迷魅術全部保留並共存。
     player.buffs[skId] = (DB.skills[skId].dur || 3600);
-    player.summonsV2 = (player.summonsV2 || []).filter(s => s && s.skId !== skId).concat(ents);
+    // 造屍術只是啟動契約，重施時保留目前由屍體轉化出的巨大骷髏；其他技能只替換自己的召喚群。
+    if (skId === 'sk_zombie') player.summonsV2 = player.summonsV2 || [];
+    else player.summonsV2 = (player.summonsV2 || []).filter(s => s && s.skId !== skId).concat(ents);
     player._summonV2Sk = skId;
     player._summonV2On = true;   // 舊欄位保留相容
     summonV2Flags()[skId] = true;
@@ -612,7 +671,7 @@ function summonV2Tick() {
     player._summonV2RecastCdBySkill = player._summonV2RecastCdBySkill || {};
     SUMMON_V2_SKILLS.forEach(skId => {
         const groupAlive = alive.some(s => s && s.skId === skId);
-        if (summonV2SkillOn(skId) && !groupAlive && summonV2Knows(skId) && !(skId === 'sk_zombie' && necroBookPassiveEnabled(player))
+        if (skId !== 'sk_zombie' && summonV2SkillOn(skId) && !groupAlive && summonV2Knows(skId)
             && (typeof _petInWild !== 'function' || _petInWild())
             && state.ticks >= (player._summonV2RecastCdBySkill[skId] || 0)) {
             player._summonV2RecastCdBySkill[skId] = state.ticks + 20;
