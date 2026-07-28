@@ -608,11 +608,14 @@ d.mr += (baseMr + bonusMr);
     }
 
     // 單屬性防禦：所選屬性抗性 +50
-    if(p.buffs.sk_elf_singleres > 0 && p.elfEle) {
+    if(p.buffs.sk_elf_singleres > 0 && p.elfEle && !(typeof genesisHasAllElements === 'function' && genesisHasAllElements(p))) {
         if(p.elfEle === 'fire')  d.resFire  += 50;
         if(p.elfEle === 'water') d.resWater += 50;
         if(p.elfEle === 'earth') d.resEarth += 50;
         if(p.elfEle === 'wind')  d.resWind  += 50;
+    }
+    if(p.buffs.sk_elf_singleres > 0 && typeof genesisHasAllElements === 'function' && genesisHasAllElements(p)) {
+        d.resFire += 50; d.resWater += 50; d.resEarth += 50; d.resWind += 50;
     }
 
     // 🏺 v3.5.27 黑騎士的精銳長槍＋鎧衛隊的漆黑塔盾 同時裝備：近距離傷害 +15（格檔100%／經典模式亦可格檔＝js/04 受擊路徑）

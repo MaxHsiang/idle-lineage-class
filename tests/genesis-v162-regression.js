@@ -17,6 +17,8 @@ const backgrounds = fs.readFileSync(path.join(root, 'js', '13-shop-save.js'), 'u
 const drops = fs.readFileSync(path.join(root, 'js', '05-kill-progression.js'), 'utf8');
 const summons = fs.readFileSync(path.join(root, 'js', '23-summons.js'), 'utf8');
 const skillCast = fs.readFileSync(path.join(root, 'js', '07-skills-cast.js'), 'utf8');
+const genesisClass = fs.readFileSync(path.join(root, 'js', 'genesis', 'genesis-class.js'), 'utf8');
+const stats = fs.readFileSync(path.join(root, 'js', '02-stats-recompute.js'), 'utf8');
 
 assert.ok(content.includes('player.genesisMiniDragons'), 'runtime must create character-owned mini dragons');
 assert.ok(content.includes('owner===lastRuntimeOwner'), 'switching characters must bypass the repair throttle');
@@ -26,10 +28,10 @@ assert.ok(pets.includes("document.getElementById('town-npc-map')"), 'native mini
 assert.ok(generator.includes('p.genesisMiniDragons = miniDragons.map'), 'generated save must embed all four dragons');
 assert.ok(poly.includes('genesisCreatorBreath'), 'Creator transformation must have a breathing glow');
 assert.ok(poly.includes('atkApm:180, wlk:3.2'), 'Creator form card must show 3 attacks/sec and 500% movement');
-assert.ok(index.includes('v3.8.34-genesis-177'), 'browser cache must be bumped');
-assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-177'), 'item/status cache must be bumped');
-assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-177'), 'VFX cache must be bumped');
-assert.ok(index.includes('1.6.17-static-bootstrap'), 'Genesis loader cache must be bumped');
+assert.ok(index.includes('v3.8.34-genesis-178'), 'browser cache must be bumped');
+assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-178'), 'item/status cache must be bumped');
+assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-178'), 'VFX cache must be bumped');
+assert.ok(index.includes('1.6.18-static-bootstrap'), 'Genesis loader cache must be bumped');
 assert.ok(clan.includes("p.cls === 'omni'"), 'Omni class must qualify as a clan founder');
 assert.ok(clan.includes('if (!clanCanFound(player))'), 'clan creation and leadership gates must use Omni-aware eligibility');
 assert.ok(clan.includes('clanCanFound(r.player)'), 'Omni founder must remain a valid clan leader for siege');
@@ -68,5 +70,11 @@ assert.ok(summons.includes("{ n: '終極死亡騎士'") && summons.includes('fix
 assert.ok(summons.includes("form !== '終極死亡騎士'") && summons.includes('e.mob.genesisUltimateDeathKnight'), 'Genesis control bonus must not increase the fixed pair to three');
 assert.ok(summons.includes('ownerFinalStats50') && summons.includes('d[k] * 0.5'), 'each Ultimate Death Knight must inherit 50% of the final player sheet');
 assert.ok(pets.includes('p.genesisUltimateDeathKnight') && pets.includes("height='80px'"), 'Ultimate Death Knight must use boss animation at two-thirds scale');
+assert.ok(genesisClass.includes('player.genesisAllElements = true'), 'Omni class must be marked as owning all four elements');
+assert.ok(content.includes("['fire','water','wind','earth']"), 'Omni element helper must expose all four elements');
+assert.ok(summons.includes("fire: '流星雨'") && summons.includes("water: '冰雪颶風'") && summons.includes("wind: '雷霆風暴'") && summons.includes("earth: '震裂術'"), 'four elemental spirits must use the requested magic spells');
+assert.ok(summons.includes('validElements.forEach') && summons.includes("terrorVisageOnDamage(m, dmg, 'magic')"), 'Omni elemental summon must create all four spirits and deal magic damage');
+assert.ok(stats.includes('d.resFire += 50; d.resWater += 50; d.resEarth += 50; d.resWind += 50;'), 'single-element resistance must cover all elements for Omni');
+assert.ok(skillCast.includes("sid === 'sk_elf_summon'") && skillCast.includes('auto-sk-sk_elf_summon2'), 'auto select must prefer the stronger spirit summon instead of recasting both');
 
-console.log('Genesis v1.6.17 regression test passed: Ultimate Land and two inherited Death Knights inside the native Summon Monster selector.');
+console.log('Genesis v1.6.18 regression test passed: Omni owns all elements and the four spirits cast dedicated magic.');

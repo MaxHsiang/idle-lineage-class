@@ -177,6 +177,12 @@
     }
     window.genesisOmniMasteryIds = function () { return Array.from(allMasteryIds()); };
     window.genesisOmniAwakeningActive = omniAwakeningActive;
+    window.genesisHasAllElements = function (owner) {
+      return !!(owner && (owner.cls === 'omni' || owner.genesisOmni === true || owner.genesisAllElements === true));
+    };
+    window.genesisElementList = function (owner) {
+      return window.genesisHasAllElements(owner) ? ['fire','water','wind','earth'] : ((owner && owner.elfEle) ? [owner.elfEle] : []);
+    };
     window.onGenesisOmniAwakeningToggle = function () {
       if (!window.player) return;
       const box=document.getElementById('auto-sk-' + AWAKEN_ID);

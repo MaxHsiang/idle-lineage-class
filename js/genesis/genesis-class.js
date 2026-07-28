@@ -16,6 +16,7 @@
       if (!player.genesisBaseClass && player.cls !== G.config.classId && player.cls !== 'omni') player.genesisBaseClass = player.cls;
       player.genesisClass = true;
       player.genesisOmni = true;
+      player.genesisAllElements = true;
       player.className = G.config.className;
       if (!player.avatar) player.avatar = '公主';
     }

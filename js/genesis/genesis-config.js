@@ -1,6 +1,6 @@
 window.Genesis = window.Genesis || {};
 window.Genesis.config = Object.freeze({
-  version: 'v1.6.17-dev',
+  version: 'v1.6.18-dev',
   classId: 'genesis',
   className: '創世全能師',
   baseClassId: 'royal',

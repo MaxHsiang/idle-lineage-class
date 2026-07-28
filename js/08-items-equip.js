@@ -735,8 +735,9 @@ function useItem(u, silent = false) {
         if(player.lv < reqLv) { logSys(`等級不足，需要等級 ${reqLv} 才能學習「${sd.n}」。`); return; }
         
         // 👇 補上這兩行：確保屬性相符才能吃水晶！
-        if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }
-        if(sd.reqEleAny && !player.elfEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }
+        let _genAllEle = typeof genesisHasAllElements === 'function' && genesisHasAllElements(player);
+        if(sd.reqEle && player.elfEle !== sd.reqEle && !_genAllEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }
+        if(sd.reqEleAny && !player.elfEle && !_genAllEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }
 
         if(!player.skills.includes(d.sk)) {
             player.skills.push(d.sk);
@@ -1398,6 +1399,7 @@ function renderStatusEffects() {
     // to look empty. Always retain a useful Genesis summary here.
     if (player && (player.cls === 'omni' || player.genesisOmni || player.genesisClass)) {
         buffs.unshift('<span class="text-cyan-300 font-bold">全能師</span>');
+        if (typeof genesisHasAllElements === 'function' && genesisHasAllElements(player)) buffs.push('<span class="text-cyan-200 font-bold">全屬性契約（火／水／風／地）</span>');
         if (player._genesisPageOneSet || player._genesisFullSet) buffs.push('<span class="text-amber-200 font-bold">創世套裝</span>');
         if (player.poly && player.buffs && player.buffs.poly > 0 && (player.poly.genesisCreatorForm || player.poly.genesisArkata)) buffs.push('<span class="text-cyan-200 font-bold">創世神型態</span>');
         if (typeof genesisOmniAwakeningActive === 'function' && genesisOmniAwakeningActive(player)) buffs.push('<span class="text-violet-300 font-bold">全能覺醒（全職業全部專精）</span>');
