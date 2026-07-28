@@ -42,6 +42,7 @@
     };
     DB.skills[AWAKEN_ID] = {
       n:'全能覺醒', type:'passive', tier:1, reqGenesis:1, genesisSkill:true, genesisAllMasteries:true,
+      img:'assets/icons/genesis/omni-awakening.png',
       d:'同時啟用所有職業的全部50級覺醒／專精，不需要在每個職業中擇一。'
     };
     try {

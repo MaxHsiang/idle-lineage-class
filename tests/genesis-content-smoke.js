@@ -29,6 +29,7 @@ vm.runInThisContext(fs.readFileSync(file,'utf8'),{filename:file});
 assert.strictEqual(Genesis.content.install(),true);
 assert.ok(DB.items.item_genesis_perfect_pass);
 assert.ok(DB.skills.sk_genesis_omni_awakening.genesisAllMasteries);
+assert.strictEqual(DB.skills.sk_genesis_omni_awakening.img, 'assets/icons/genesis/omni-awakening.png');
 assert.strictEqual(hasMastery('k_counter'),true);
 assert.strictEqual(hasMastery('m_echo'),true);
 assert.strictEqual(entityHasMastery(player,'m_strike'),true);
