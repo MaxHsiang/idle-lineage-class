@@ -3397,6 +3397,12 @@ const DB = {
     }
 })();
 
+// 創世擴充模組由獨立 classic script 載入；頂層 const DB 不會自動成為 window 屬性。
+// 提供唯讀橋接，讓擴充模組可在不複製資料庫的情況下註冊創世物品與技能。
+try {
+    Object.defineProperty(window, 'DB', { configurable: true, get: function () { return DB; } });
+} catch (e) { try { window.DB = DB; } catch (_e) {} }
+
 // ===== 套裝代碼初始化：將 DB.sets 反向掛到各裝備的 .set 屬性 =====
 // 修正：原本沒有任何物品擁有 .set，導致 setCheck 永遠為空、套裝加成與底色判定都不會觸發。
 // 註：.set 掛在「基底物品 ID」上，與強化/祝福/遠古/屬性詞綴（存在裝備實例上）無關，

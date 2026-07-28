@@ -344,6 +344,11 @@ function playSelfFx(skn, anchorRect) {   // 🩹 v3.0.95 第2參 anchorRect（�
         let fxH, fxW, left, top;
         let _geom = () => {
             fxH = refH * (cfg.h || 0.5); fxW = fxH * ar;
+            // Head-top spell artwork is 30% smaller for the Genesis class.
+            if (cfg.overHead && typeof player !== 'undefined' && player &&
+                (player.cls === 'omni' || player.genesisOmni || player.genesisClass)) {
+                fxH *= 0.70; fxW *= 0.70;
+            }
             let pr = anchorRect || ((typeof _pmCasterRect === 'function') ? _pmCasterRect() : null);   // 🧝 v3.0.49 玩家變身 sprite 顯示中→特效錨定 sprite 身上（水平置中）；v3.0.95 顯式錨點優先
             if (pr) {
                 left = (pr.left + pr.width / 2 - fxW / 2) + 'px';
@@ -574,7 +579,7 @@ function _vfxNumber(x, y, dmg, ele, big) {
     el.className = 'vfx-dmg' + (big ? ' vfx-crit' : '') + (big === 'crit' ? ' vfx-critical' : (big === 'heavy' ? ' vfx-heavy' : '')) + (isMiss ? ' vfx-miss' : '');
     el.style.left = x + 'px'; el.style.top = y + 'px';
     el.style.color = isMiss ? 'rgba(203,213,225,.78)' : (big === 'crit' ? '#ff3b30' : (big === 'heavy' ? '#ffd54f' : (_VFX_ELE_COLOR[ele] || '#f1f5f9')));   // 未命中淡灰／爆擊大紅／重擊大金／其餘依屬性
-    el.style.fontSize = (isMiss ? 14 : (big ? 32 : 20)) + 'px';   // 未命中刻意較小；傷害飄字保留強弱差異
+    el.style.fontSize = (isMiss ? 10 : (big ? 22 : 14)) + 'px';   // 縮小傷害飄字，避免遮住角色與怪物
     const dmgText = dmg >= 10000 ? (dmg / 1000).toFixed(1) + 'k' : ('' + dmg);
     if (big === 'crit' || big === 'heavy') {
         const tag = document.createElement('span');
@@ -834,6 +839,10 @@ function _vfxSlotRect(uid) {
 function _vfxProjectile(rect, ele) {
     try {
         if (window.__vfxOff || !rect) return;
+        // Omni attacks retain native weapon/spell artwork only. Suppress this
+        // generic CSS projectile at its source, including direct skill paths.
+        if (typeof player !== 'undefined' && player &&
+            (player.cls === 'omni' || player.genesisOmni || player.genesisClass)) return;
         let bv = document.getElementById('battle-view'); let br = bv && bv.getBoundingClientRect();
         if (!br || br.width === 0) return;
         let layer = _vfxLayer();
@@ -874,6 +883,11 @@ function _vfxProjectile(rect, ele) {
 // castSkill 包裝用：對本次施法「掉了血」的怪各射一發拋射物（before=施法前 HP/位置快照）
 function _vfxCastProjectiles(before, ele) {
     if (window.__vfxOff || !before) return;
+    // Genesis/Omni keeps native weapon and spell artwork only.  This helper
+    // creates the unwanted radial-gradient orb stream, so skip it entirely.
+    if (typeof player !== 'undefined' && player && (player.cls === 'omni' || player.genesisOmni || player.genesisClass)) return;
+    // 全能師只使用原生武器與法術特效，不播放額外合成的圓球投射動畫。
+    if (typeof player !== 'undefined' && player && (player.cls === 'omni' || player.genesisOmni || player.genesisClass)) return;
     let e = (ele && ele !== 'none') ? ele : 'magic';
     for (const b of before) {
         if (!b) continue;
@@ -2132,7 +2146,10 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
     let form = _playerBattleForm();
     let bv = document.getElementById('battle-view');
     let inBattle = bv && !bv.classList.contains('hidden') && bv.classList.contains('area-fit');
-    if (!form || !inBattle) { if (_pmState.el) _playerMorphRemove(); return; }
+    let tv = document.getElementById('town-view'), tm = document.getElementById('town-npc-map');
+    let inTown = tm && tv && !tv.classList.contains('hidden') && !tm.classList.contains('hidden');
+    let spriteHost = inBattle ? bv : (inTown ? tm : null);
+    if (!form || !spriteHost) { if (_pmState.el) _playerMorphRemove(); return; }
     // 🌀 v3.0.102 傳送術特效期間：暫時隱藏玩家 sprite（特效結束自動恢復·期間跳過渲染）
     if (_teleportFxUntil > Date.now()) { if (_pmState.el) _pmState.el.style.visibility = 'hidden'; return; }
     if (_pmState.el && _pmState.el.style.visibility === 'hidden') _pmState.el.style.visibility = '';
@@ -2142,8 +2159,10 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
     if (_pmState.name !== form.domKey) { _playerMorphRemove(); _pmState.name = form.domKey; }   // 🧭 v3.2.12 只在武器/變身(domKey)變時重建·換朝向(form.key 變·domKey 不變)只換幀
     // 受擊：HP-delta 偵測（涵蓋物理/魔法/DoT 所有傷害落點）
     let hp = player.hp;
-    if (_pmState.prevHp != null && hp < _pmState.prevHp && hp > 0) _playerMorphTrigger('hurt');
+    if (!inTown && _pmState.prevHp != null && hp < _pmState.prevHp && hp > 0) _playerMorphTrigger('hurt');
     _pmState.prevHp = hp;
+    // The town sprite is presentation-only: keep the normal standing pose.
+    if (inTown) { _pmState.act = null; _pmState.pendAtk = false; }
     // 死亡/復活：以遊戲的 player.dead 旗標為準（手動改 hp 不觸發·regen 亦不誤判）；復活(revive 清旗標)→解除凍結回待機
     let _dead = !!player.dead || hp <= 0;
     if (_dead) { if (_pmState.act !== 'death') { _pmState.act = 'death'; _pmState.t = Date.now(); _pmState.pendAtk = false; try { if (typeof playMorphDeathSfx === 'function') playMorphDeathSfx(); } catch (e) {} } }   // 🧝 v3.0.47 變身死亡音（該怪物死亡音·一次）
@@ -2158,13 +2177,16 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
         let cr = document.createElement('img'); cr.className = 'pm-castle-crown'; cr.src = 'assets/ui/castle-crown.gif?v=v3.6.22'; cr.style.visibility = 'hidden';
         [sh, bd, wp, cr].forEach(i => { i.alt = ''; i.draggable = false; });
         el.append(sh, bd, wp, cr);
-        bv.appendChild(el);
+        spriteHost.appendChild(el);
         _pmState.el = el; _pmState.imgs = { sh: sh, bd: bd, wp: wp, cr: cr };
         let w = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
         el.style.width = w + 'px';
-    } else if (_pmState.el.parentElement !== bv) bv.appendChild(_pmState.el);
+    } else if (_pmState.el.parentElement !== spriteHost) spriteHost.appendChild(_pmState.el);
     // 🗡️ v3.0.71 每輪更新：站怪物格縫隙(依 5格/3格版面動態)·免 transform；🤝 v3.6.89 固定站位＝玩家恆前排中央（bottom/zIndex 一併固定）
-    { let _pp = _partySpritePos().P, _pw = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100; _pmState.el.style.left = 'calc(' + _pp.x + ' - ' + Math.round(_pw / 2) + 'px)'; _pmState.el.style.bottom = (_pp.b - _playerMorphYOffset(form)) + 'px'; _pmState.el.style.zIndex = String(30 - _pp.b); }
+    { let _pp = _partySpritePos().P, _pw = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
+      if (inTown) { _pmState.el.style.left = 'calc(50% - ' + Math.round(_pw / 2) + 'px)'; _pmState.el.style.bottom = '12%'; _pmState.el.style.zIndex = '520'; }
+      else { _pmState.el.style.left = 'calc(' + _pp.x + ' - ' + Math.round(_pw / 2) + 'px)'; _pmState.el.style.bottom = (_pp.b - _playerMorphYOffset(form)) + 'px'; _pmState.el.style.zIndex = String(30 - _pp.b); }
+    }
     if (CLASS_ANIM_3DIR.has(player.avatar) || MORPH_ANIM_3DIR.has(_playerMorphName() || '')) _class3Facing(player, _pmState.el);   // 🧭 v3.2.12 依攻擊目標更新朝向（寫 player._face3·下一幀 _classForm/_playerBattleForm 生效）·v3.5.10 三方向變身亦更新
     // 動作＋幀（比照 _mobAnimApply：單次動作播一輪回待機·death 凍結最後一幀）
     let act = null, f = 0, _useW = false;
@@ -2186,7 +2208,7 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
         } else if (_pmState.act !== 'death') _pmState.act = null;   // 該動作無序列→回待機（death 無序列則維持 idle）
         else act = null;
     }
-    if (act === null && a.idle) { act = 'idle'; f = Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) % a.idle.length; _useW = false; }
+    if (act === null && a.idle) { act = 'idle'; f = inTown ? 0 : (Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) % a.idle.length); _useW = false; }
     if (act === null) return;
     let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
     let I = _pmState.imgs;

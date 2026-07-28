@@ -1168,8 +1168,12 @@ function npcClanMaybeStartGroupBattle(mob) {
     return true;
 }
 
+function clanCanFound(p) {
+    return !!(p && (p.cls === 'royal' || p.cls === 'omni' || p.genesisOmni || p.genesisClass));
+}
+
 function npcClanSetWar(clanId, on) {
-    if (!player || player.cls !== 'royal') { alert('只有王族可以對 NPC 血盟宣戰或停止宣戰。'); return; }
+    if (!clanCanFound(player)) { alert('只有王族或全能師可以對 NPC 血盟宣戰或停止宣戰。'); return; }
     if (!clanGetModeInfo(player)) { alert('你尚未加入血盟。'); return; }
     let mode = clanModeKey(player);
     let now = Date.now();
@@ -1211,7 +1215,7 @@ function npcClanSetWar(clanId, on) {
 }
 
 function npcClanMercyAction(clanId, action) {
-    if (!player || player.cls !== 'royal') { alert('只有王族可以回應 NPC 血盟盟主。'); return; }
+    if (!clanCanFound(player)) { alert('只有王族或全能師可以回應 NPC 血盟盟主。'); return; }
     let mode = clanModeKey(player);
     let result = _clanWithLock(st => {
         let world = st.npcWorlds[mode];
@@ -1262,7 +1266,7 @@ function openNpcClanMercyMenu(clanId, ev) {
         if (typeof logSys === 'function') logSys('<span class="text-slate-400">這則求饒私訊已經失效。</span>');
         return;
     }
-    if (player.cls !== 'royal') {
+    if (!clanCanFound(player)) {
         if (typeof logSys === 'function') logSys('<span class="text-slate-400">只有王族角色可以代表血盟回應。</span>');
         return;
     }
@@ -1287,7 +1291,7 @@ function _npcClanMercyWhisper(clan) {
     if (!clan || typeof logSys !== 'function') return;
     let name = clanEsc(clan.leader && clan.leader.n ? clan.leader.n : (clan.name + '盟主'));
     let line = clanEsc(_npcClanPick(NPC_CLAN_MERCY_LINES));
-    if (player && player.cls === 'royal') {
+    if (clanCanFound(player)) {
         logSys(`<span class="wander-chat-in"><button type="button" class="pvp-kill-whisper-name" onclick="openNpcClanMercyMenu('${clanEsc(clan.id)}',event)">[${name}]</button> ${line}</span>`);
     } else {
         logSys(`<span class="wander-chat-in"><span class="wander-chat-speaker">[${name}]</span> ${line}</span>`);
@@ -1395,7 +1399,7 @@ function clanLeaderRole(p) {
     let mode = clanModeKey(p || player);
     let info = clanGetModeInfo(p || player);
     if (!info) return null;
-    return clanScanRoles(mode).find(r => r.id === info.leaderId && r.player && r.player.cls === 'royal') || null;
+    return clanScanRoles(mode).find(r => r.id === info.leaderId && clanCanFound(r.player)) || null;
 }
 
 function clanHasFoundingRoyal(p) {
@@ -1473,7 +1477,7 @@ function clanOnRoleDeleted(oldPlayer) {
 }
 
 function clanCreateFromInput() {
-    if (!player || player.cls !== 'royal') { alert('只有王族可以創立血盟。'); return; }
+    if (!clanCanFound(player)) { alert('只有王族或全能師可以創立血盟。'); return; }
     let input = document.getElementById('clan-name-input');
     let name = String(input ? input.value : '').trim();
     if (!name || name.length > 20) { alert('血盟名稱需為 1 至 20 個字。'); return; }
@@ -1656,7 +1660,7 @@ function clanToggleBuff(on) {
 
 // 👑 v3.6.01 血盟改名（用戶需求）：僅創立血盟的王族盟主本人可改；只動共用狀態的 name，貢獻/經驗/城堡不變。
 function clanRenameFromInput() {
-    if (!player || player.cls !== 'royal') { alert('只有王族盟主可以更改血盟名稱。'); return; }
+    if (!clanCanFound(player)) { alert('只有王族或全能師盟主可以更改血盟名稱。'); return; }
     let input = document.getElementById('clan-rename-input');
     let name = String(input ? input.value : '').trim();
     if (!name || name.length > 20) { alert('血盟名稱需為 1 至 20 個字。'); return; }
@@ -1679,7 +1683,7 @@ function clanRenameFromInput() {
 }
 
 function clanNpcVisible(npcId, townId) {
-    if (!player || !player.cls || player.cls === 'royal') return false;
+    if (!player || !player.cls || clanCanFound(player)) return false;
     let info = clanGetModeInfo(player);
     if (!info || !clanHasFoundingRoyal(player)) return false;
     if (info.faction === 'esti') return npcId === 'npc_esti' && townId === 'town_heine';
@@ -1736,7 +1740,7 @@ function _npcClanWarRemainingText(ms) {
 function _npcClanHostilePanelHtml() {
     let world = npcClanGetWorld(player);
     let clans = world && Array.isArray(world.clans) ? world.clans.filter(Boolean) : [];
-    let royal = player.cls === 'royal';
+    let royal = clanCanFound(player);
     let rows = clans.map(clan => {
         let status, statusCls;
         if (clan.war && clan.hostile) { status = '互相宣戰'; statusCls = 'clan-dip-mutual'; }
@@ -1793,7 +1797,7 @@ function renderClanTab() {
                     <div class="text-amber-200 font-bold text-lg">你尚未加入血盟</div>
                     <div class="text-sm text-slate-400 mt-1">此模式需由王族角色創立血盟。</div>
                 </div>
-                ${player.cls === 'royal' ? `
+                ${clanCanFound(player) ? `
                 <div class="flex flex-col gap-2">
                     <label class="text-sm text-slate-300" for="clan-name-input">血盟名稱</label>
                     <input id="clan-name-input" maxlength="20" class="w-full bg-slate-900 border border-slate-600 text-white px-3 py-2 rounded" placeholder="輸入 1 至 20 個字">
@@ -1878,7 +1882,7 @@ function renderClanTab() {
                 <div class="text-slate-100 font-bold mb-1">血盟成員</div>
                 ${memberRows || '<div class="text-slate-400 py-2">目前沒有可顯示的成員。</div>'}
             </div>
-            ${(player.cls === 'royal' && id === info.leaderId) ? `
+            ${(clanCanFound(player) && id === info.leaderId) ? `
             <div class="border-t border-slate-700 pt-3">
                 <div class="text-slate-100 font-bold mb-2">血盟改名（限盟主）</div>
                 <div class="flex gap-2">
@@ -1886,7 +1890,7 @@ function renderClanTab() {
                     <button class="btn px-3 py-2 font-bold bg-amber-800 border-amber-500 text-amber-100" onclick="clanRenameFromInput()">改名</button>
                 </div>
             </div>` : ''}
-            ${player.cls === 'royal' ? '<button class="btn py-3 font-bold bg-red-900 border-red-600 text-red-100" onclick="clanOpenSiegePanel()">攻城</button>' : ''}
+            ${clanCanFound(player) ? '<button class="btn py-3 font-bold bg-red-900 border-red-600 text-red-100" onclick="clanOpenSiegePanel()">攻城</button>' : ''}
         </div>`;
 }
 

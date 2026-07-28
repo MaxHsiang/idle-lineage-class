@@ -1155,6 +1155,8 @@ button.classic-skill-cell { cursor:pointer; }
     color:#a99d83; font-size:clamp(7px,.78vw,11px); font-weight:700; text-shadow:0 1px 2px #000;
 }
 .classic-skill-mode button:hover,.classic-skill-mode button.active { color:#ffe29a; border-color:#d8a94b; background:rgba(90,57,16,.82); box-shadow:0 0 6px rgba(238,183,73,.55); }
+.classic-skill-mode.omni { left:85.5%; top:10.8%; width:12.8%; gap:2px; }
+.classic-skill-mode.omni button { padding:2px 1px; font-size:clamp(6px,.66vw,9px); line-height:1.05; }
 .classic-skill-scroll { position:absolute; z-index:8; right:3.8%; width:6.2%; height:5.2%; padding:0; border:0; border-radius:50%; background:transparent; opacity:.01; }
 .classic-skill-scroll:hover { opacity:.18; background:#fff3b0; }
 .classic-skill-scroll-up { top:11.4%; }

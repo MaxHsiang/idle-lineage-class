@@ -33,7 +33,7 @@ function _initTabGuard() {
 //   底圖 assets/ui/技能欄位.png（193×282，4 欄 × 6 排）＋左側階級指示 assets/ui/skill-level/539..548.png。
 //   模式：一般（reqM 通用魔法·1~10 階 tier strip 導覽）／職業（各職 req 欄位技能）／裝備（頭盔授予）。
 //   底部 S.power=玩家魔法傷害(player.d.magicDmg)、M.resist=玩家魔防(player.d.mr) 填入黑框。⚠️格 class 帶 tip-host 讓 Fable5 data-tip-skill tooltip 生效。
-let classicSkillBookState = { mode: 'general', tier: 1, page: 0 };
+let classicSkillBookState = { mode: 'general', tier: 1, page: 0, classKey: 'mage' };
 function refreshClassicSkillBookOnly() {
     let div = document.getElementById('tab-skill');
     if (div) renderClassicSkillBook(div);
@@ -77,28 +77,39 @@ function classicSkillChooseMode(mode) {
     classicSkillBookState.page = 0;
     refreshClassicSkillBookOnly();
 }
-function classicSkillClassLabel() {
-    return ({ knight:'騎士技術', mage:'法師魔法', elf:'精靈魔法', dark:'黑妖魔法', illusion:'幻術魔法', dragon:'龍騎魔法', warrior:'戰士技能', royal:'王族魔法' })[player.cls] || '職業技能';
+function classicSkillChooseClass(classKey) {
+    classicSkillBookState.classKey = classKey || 'mage';
+    classicSkillBookState.mode = classKey === 'mage' ? 'general' : 'class';
+    classicSkillBookState.page = 0;
+    refreshClassicSkillBookOnly();
 }
-function classicSkillIsClassSkill(sk) {
+function classicSkillClassLabel(classKey) {
+    return ({ omni:'全能師技能', knight:'騎士技術', mage:'法師魔法', elf:'精靈魔法', dark:'黑妖魔法', illusion:'幻術魔法', dragon:'龍騎魔法', warrior:'戰士技能', royal:'王族魔法' })[classKey || player.cls] || '職業技能';
+}
+function classicSkillIsClassSkill(sk, classKey) {
+    if (classKey === 'omni') return !!(sk && sk.genesisSkill);
     if (!sk || sk.procOnly) return false;
-    if (player.cls === 'knight') return sk.reqK !== undefined && sk.reqM === undefined;
-    if (player.cls === 'elf') return sk.reqE !== undefined && sk.reqM === undefined;
-    if (player.cls === 'dark') return sk.reqD !== undefined;
-    if (player.cls === 'illusion') return sk.reqI !== undefined && sk.reqM === undefined;
-    if (player.cls === 'dragon') return sk.reqDk !== undefined && sk.reqM === undefined;
-    if (player.cls === 'warrior') return sk.reqW !== undefined;
-    if (player.cls === 'royal') return sk.reqRoy !== undefined;
+    classKey = classKey || player.cls;
+    if (classKey === 'mage') return sk.reqM !== undefined;
+    if (classKey === 'knight') return sk.reqK !== undefined && sk.reqM === undefined;
+    if (classKey === 'elf') return sk.reqE !== undefined && sk.reqM === undefined;
+    if (classKey === 'dark') return sk.reqD !== undefined;
+    if (classKey === 'illusion') return sk.reqI !== undefined && sk.reqM === undefined;
+    if (classKey === 'dragon') return sk.reqDk !== undefined && sk.reqM === undefined;
+    if (classKey === 'warrior') return sk.reqW !== undefined;
+    if (classKey === 'royal') return sk.reqRoy !== undefined;
     return false;
 }
 function renderClassicSkillBook(sDiv) {
     if (!sDiv || typeof player === 'undefined' || !player) return;
     let stateBook = classicSkillBookState;
     let allIds = Object.keys(DB.skills).filter(id => DB.skills[id] && !DB.skills[id].procOnly && id.indexOf('sk_helm_') !== 0);
-    let accessibleGeneral = allIds.filter(id => { let sk = DB.skills[id]; return sk.reqM !== undefined && skillReqLv(sk, id) !== undefined; });
-    let classSkills = allIds.filter(id => classicSkillIsClassSkill(DB.skills[id]));
+    let omniAccess = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
+    let activeClass = omniAccess ? (stateBook.classKey || 'mage') : player.cls;
+    let accessibleGeneral = allIds.filter(id => { let sk = DB.skills[id]; return sk.reqM !== undefined && (omniAccess || skillReqLv(sk, id) !== undefined); });
+    let classSkills = allIds.filter(id => classicSkillIsClassSkill(DB.skills[id], activeClass));
     let granted = (player.grantedSkills || []).filter(id => DB.skills[id]);
-    let classLabel = classicSkillClassLabel();
+    let classLabel = classicSkillClassLabel(activeClass);
     if (stateBook.mode === 'class' && !classSkills.length) stateBook.mode = 'general';
     if (stateBook.mode === 'equipment' && !granted.length) stateBook.mode = 'general';
     if (stateBook.mode === 'general' && !accessibleGeneral.length && classSkills.length) stateBook.mode = 'class';   // 🔧 無一般魔法職業(騎士/戰士)→預設顯示職業技能，不留空白格
@@ -124,7 +135,7 @@ function renderClassicSkillBook(sDiv) {
         let needLv = grantedSkill ? 0 : skillReqLv(sk, id);
         let elementOk = !sk.reqEle || player.elfEle === sk.reqEle;
         let elementChosen = !sk.reqEleAny || !!player.elfEle;
-        let usable = learned && elementOk && elementChosen && (grantedSkill || needLv === undefined || player.lv >= needLv);
+        let usable = learned && (omniAccess || (elementOk && elementChosen && (grantedSkill || needLv === undefined || player.lv >= needLv)));
         let dim = learned ? (usable ? '' : ' classic-skill-unavailable') : ' classic-skill-unlearned';
         let img = '<img src="' + getIconUrl(sk, true) + '" onerror="this.style.display=\'none\';" alt="' + sk.n + '">';
         let tierAttr = entry.tier ? ' data-tier="' + entry.tier + '"' : '';
@@ -136,15 +147,24 @@ function renderClassicSkillBook(sDiv) {
     let tierButtons = '';
     for (let t = 1; t <= 10; t++) tierButtons += '<button class="classic-skill-tier-hit tier-' + t + (tierAvailable.has(t) ? '' : ' disabled') + '" ' + (tierAvailable.has(t) ? 'onclick="classicSkillChooseTier(' + t + ')"' : 'disabled') + ' title="' + t + '階一般魔法"></button>';
     let sprite = 538 + stateBook.tier;
-    let modeButtons = '<button class="' + (stateBook.mode === 'general' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'general\')">一般</button>'
-        + (classSkills.length ? '<button class="' + (stateBook.mode === 'class' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'class\')">' + (player.cls === 'elf' ? '精靈' : '職業') + '</button>' : '')
-        + (granted.length ? '<button class="' + (stateBook.mode === 'equipment' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'equipment\')">裝備</button>' : '');
+    let modeButtons;
+    if (omniAccess) {
+        let professions = [['omni','全能'],['mage','法師'],['royal','王族'],['knight','騎士'],['elf','妖精'],['dark','黑妖'],['dragon','龍騎'],['illusion','幻術'],['warrior','戰士']];
+        modeButtons = professions.map(function(row){
+            let active = activeClass === row[0] && stateBook.mode !== 'equipment';
+            return '<button class="' + (active ? 'active' : '') + '" onclick="classicSkillChooseClass(\'' + row[0] + '\')">' + row[1] + '</button>';
+        }).join('') + (granted.length ? '<button class="' + (stateBook.mode === 'equipment' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'equipment\')">裝備</button>' : '');
+    } else {
+        modeButtons = '<button class="' + (stateBook.mode === 'general' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'general\')">一般</button>'
+            + (classSkills.length ? '<button class="' + (stateBook.mode === 'class' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'class\')">' + (player.cls === 'elf' ? '精靈' : '職業') + '</button>' : '')
+            + (granted.length ? '<button class="' + (stateBook.mode === 'equipment' ? 'active' : '') + '" onclick="classicSkillChooseMode(\'equipment\')">裝備</button>' : '');
+    }
     let heading = stateBook.mode === 'general' ? (stateBook.tier + '階一般魔法') : (stateBook.mode === 'equipment' ? '裝備授予魔法' : classLabel);
     let _spv = (player.d && player.d.magicDmg != null) ? Math.round(player.d.magicDmg) : 0;
     let _mrv = (player.d && player.d.mr != null) ? Math.round(player.d.mr) : 0;
     sDiv.innerHTML = '<div class="classic-skill-window">'
         + '<div class="classic-skill-heading">' + heading + '</div>'
-        + '<div class="classic-skill-mode">' + modeButtons + '</div>'
+        + '<div class="classic-skill-mode' + (omniAccess ? ' omni' : '') + '">' + modeButtons + '</div>'
         + '<div class="classic-skill-tier-strip" style="background-image:url(\'assets/ui/skill-level/' + sprite + '.png\')">' + tierButtons + '</div>'
         + '<div class="classic-skill-grid-scroll" onscroll="classicSkillSyncTierFromScroll(this)"><div class="classic-skill-grid">' + cells + '</div></div>'
         + '<button type="button" class="classic-skill-scroll classic-skill-scroll-up" aria-label="技能向上捲動" onclick="classicSkillScrollRows(-1)"></button>'
@@ -188,7 +208,9 @@ function renderTabs(force) {
     for (let k in player.eq) {
         let e = player.eq[k];
         if(e) {
-            let ed = DB.items[e.id];
+            // Retired/custom ids may remain briefly while Genesis repairs a save.
+            // Treat an unknown definition as a non-set item instead of aborting all tabs.
+            let ed = DB.items[e.id] || {};
             if(ed.set && !_setSeen[e.id]) { _setSeen[e.id] = true; setCheck[ed.set] = (setCheck[ed.set]||0) + 1; }   // 🔧 與 calcStats 一致：同款物品只計 1 件
         }
     }
@@ -219,29 +241,31 @@ function renderTabs(force) {
             return;
         }
         let eq = player.eq[s.k];
+        let eqDef = eq && DB.items[eq.id];
+        // An unknown legacy item renders as an empty slot until migration replaces it.
+        if (eq && !eqDef) eq = null;
         let isSetActive = false, _setN = 0;
-        if(eq && DB.items[eq.id].set && activeSets.includes(DB.items[eq.id].set)) { isSetActive = true; _setN = setCheck[DB.items[eq.id].set] || 0; }
+        if(eqDef && eqDef.set && activeSets.includes(eqDef.set)) { isSetActive = true; _setN = setCheck[eqDef.set] || 0; }
         // 🔮 席琳套裝：⚠️v3.1.68 綠色反光只給「遺骸欄」（套裝效果改由遺骸承載）；一般裝備欄的舊詞綴不再發光（不計件）
         // 🦴 v3.1.73 遺骸欄三階視覺（實體 CSS class·見 style.css：1.8 皮膚 !important 會蓋掉 Tailwind 的 bg/ring/shadow）
         //    未觸發(<2 件) → rem-slot-dim：把圖示綠光壓弱；已觸發(2/3/5 件) → rem-slot-lit + rem-tier-N：綠框 + 反光遮罩掃光
         let _remGrp = (s.k.startsWith('rem_') && eq && eq.seteff) ? eq.seteff.slice(0, 2) : null;
         let _remN = _remGrp ? ((player._sherineSetCnt && player._sherineSetCnt[_remGrp]) || 0) : 0;
         let isSherineActive = _remN >= 2;
-        let _remCls = !_remGrp ? ''
-            : (isSherineActive ? ` rem-slot-lit ${_remN >= 5 ? 'rem-tier-5' : (_remN >= 3 ? 'rem-tier-3' : 'rem-tier-2')}` : ' rem-slot-dim');
+        let _remCls = _remGrp ? ' rem-slot-dim' : '';
         // 🛡️ v3.1.74 一般套裝：同樣的框光＋反光遮罩，配色改琥珀金；階數依實際裝備件數（2/3/5）
-        let _setCls = isSetActive ? ` set-slot-lit ${_setN >= 5 ? 'set-tier-5' : (_setN >= 3 ? 'set-tier-3' : 'set-tier-2')}` : '';
+        let _setCls = '';
 
         let el = document.createElement('div');
         // 🔧 底色優先序：席琳套裝(綠) > 舊套裝(琥珀金，原綠色讓給席琳) > 一般
         el.className = `list-item text-base rounded mb-1 ${isSherineActive
-            ? 'bg-green-900 border border-green-400 ring-1 ring-green-400/60 shadow-[0_0_10px_rgba(74,222,128,0.6)]'
-            : (isSetActive ? 'bg-amber-900 border border-amber-400 ring-1 ring-amber-400/60 shadow-[0_0_10px_rgba(245,158,11,0.55)]' : 'bg-slate-800')}${_remCls}${_setCls}`;
+            ? 'bg-green-900 border border-green-700'
+            : (isSetActive ? 'bg-amber-900 border border-amber-700' : 'bg-slate-800')}${_remCls}${_setCls}`;
         if(eq) {
-            let d = DB.items[eq.id];
+            let d = eqDef;
             let imgUrl = getIconUrl(d);
             // 👇 判斷如果裝備本身是祝福的，或者物品基底(卷軸)是祝福的，就套用螢光特效
-            let glowClass = getGlowClass(eq, d);
+            let glowClass = (d && d.genesisItem) ? '' : getGlowClass(eq, d);
             let imgHtml = `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="object-contain pointer-events-none ${glowClass}">`;
             let _showEquipped = (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc') && !d.isArrow;
             let _cornerValue = (Number(eq.en) || 0) > 0
@@ -483,7 +507,7 @@ function onSummonToggle(sid) {
 // 🐉 覺醒互斥（無覺醒精通）：勾選一種覺醒 → 自動取消另外兩種，並重繪（重繪會把未勾選的兩種設為 disabled 鎖定）；有覺醒精通(k_awaken)則三種可並存、不鎖
 function onAwakenToggle(sid) {
     let c = document.getElementById('auto-sk-' + sid);
-    if (c && c.checked && player.mastery !== 'k_awaken') {
+    if (c && c.checked && !hasMastery('k_awaken')) {
         ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].forEach(id => {
             if (id !== sid) { let o = document.getElementById('auto-sk-' + id); if (o) o.checked = false; }
         });
@@ -517,6 +541,24 @@ function onAutoBuffToggle(sid) {
         endAutoBuffNow(sid);
     }
 }
+function toggleAllAutoSkills() {
+    if (!player || !Array.isArray(player.skills)) return;
+    player.config = player.config || {}; player.config.autoBuffSkills = player.config.autoBuffSkills || {};
+    let ids = player.skills.filter(sid => {
+        let sk=DB.skills[sid];
+        return !!(sk && !sk.procOnly && (sk.type === 'buff' || sk.genesisAllMasteries || (sk.type === 'heal' && sk.autoBuff) || sid === 'sk_antidote' || sid === 'sk_holy_light' || sid === 'sk_cancel'));
+    });
+    let turnOn = ids.some(sid => player.config.autoBuffSkills[sid] !== true);
+    ids.forEach(sid => { player.config.autoBuffSkills[sid] = turnOn; let c=document.getElementById('auto-sk-'+sid); if(c)c.checked=turnOn; if(!turnOn)endAutoBuffNow(sid); });
+    // 全能覺醒會改變所有 Lv50 專精判定；全選／取消全選後必須立即重算面板與狀態。
+    if (ids.includes('sk_genesis_omni_awakening')) {
+        try { if (typeof calcStats === 'function') calcStats(); } catch(e) {}
+        try { if (typeof renderStatusEffects === 'function') renderStatusEffects(); } catch(e) {}
+        try { if (typeof updateUI === 'function') updateUI(); } catch(e) {}
+    }
+    renderSkillSelects();
+    try { saveGame(); } catch(e) {}
+}
 // 🔧 藥水/卷軸類維持型增益（靜態勾選框 set-*）：取消打勾即立即結束對應 buff（不等自然倒數）。於 window.onload 掛一次（勾選框是靜態 DOM、持久存在）。
 const POTION_BUFF_ENDERS = [['set-haste','haste'],['set-brave','brave'],['set-blue','blue'],['set-cautious','cautious'],['set-elfcookie','elfcookie'],['set-poly','poly'],['set-magicbarrier','sk_magic_shield']];
 function wireBuffEnders() {
@@ -542,36 +584,40 @@ function renderSkillSelects() {
     let prevHeal = document.getElementById('sel-heal-skill') ? document.getElementById('sel-heal-skill').value : '';
     let prevConvert = document.getElementById('sel-convert-skill') ? document.getElementById('sel-convert-skill').value : '';
     let aHtml = '<option value="">無</option>', hHtml = '<option value="">無</option>', cHtml = '<option value="">無</option>';
-    let buffHtml = '';
+    let buffHtml = '', omniBuffHtml = '';
     let sortedSkills = [...player.skills].filter(s => DB.skills[s] && !DB.skills[s].procOnly).sort((a,b) => DB.skills[a].tier - DB.skills[b].tier);   // 🏛️ 過濾 procOnly（惡魔之吻等純武器proc：不顯示於施放下拉/勾選）
     
     sortedSkills.forEach(sid => {
         let sk = DB.skills[sid];
         let isAvail = true;
-        let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
+        let __omniAccess = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
+        let __granted = __omniAccess || (player.grantedSkills && player.grantedSkills.includes(sid));
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
-        if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
+        if(!__omniAccess && !__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
+        if(!__omniAccess && !__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
         if(sk.type === 'atk' && !sk.healSlot) aHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;
         if((sk.type === 'heal' && !sk.autoBuff && !['sk_antidote','sk_holy_light','sk_cancel'].includes(sid)) || (sk.type === 'atk' && sk.healSlot)) hHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;
         let __isPurify = (sid === 'sk_antidote' || sid === 'sk_holy_light' || sid === 'sk_cancel');
-        if(sk.type === 'buff' || (sk.type === 'heal' && sk.autoBuff) || __isPurify) {
-            let checked = document.getElementById(`auto-sk-${sid}`)?.checked ? 'checked' : '';
+        if(sk.type === 'buff' || sk.genesisAllMasteries || (sk.type === 'heal' && sk.autoBuff) || __isPurify) {
+            let _oldAuto = document.getElementById(`auto-sk-${sid}`);
+            let _savedAuto = player.config && player.config.autoBuffSkills && player.config.autoBuffSkills[sid] === true;
+            let checked = ((_oldAuto && _oldAuto.checked) || (!_oldAuto && _savedAuto)) ? 'checked' : '';
             let sumAttr = sk.summon ? ` onchange="onSummonToggle('${sid}')" data-summon="1" data-unavail="${isAvail?'0':'1'}"` : '';
             // 魔法相消術涵蓋解毒術與聖潔之光：勾選相消時鎖定這兩者
             let __cancelOn = player.skills.includes('sk_cancel') && document.getElementById('auto-sk-sk_cancel')?.checked;
             let __locked = (sid === 'sk_antidote' || sid === 'sk_holy_light') && __cancelOn;
             // 🐉 覺醒互斥（無覺醒精通）：已勾選一種覺醒時，鎖定另外兩種「未勾選」的覺醒；已勾選那一個維持可點以便取消
-            let __awakenLocked = sk.awaken && player.mastery !== 'k_awaken' && !document.getElementById('auto-sk-'+sid)?.checked && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => document.getElementById('auto-sk-'+a)?.checked);
+            let __awakenLocked = !__omniAccess && sk.awaken && player.mastery !== 'k_awaken' && !document.getElementById('auto-sk-'+sid)?.checked && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => document.getElementById('auto-sk-'+a)?.checked);
             let __awakenAttr = sk.awaken ? ` onchange="onAwakenToggle('${sid}')"` : '';
             let __dis = (!isAvail || __locked || __awakenLocked) ? 'disabled' : '';
             let __purAttr = (sid === 'sk_cancel') ? ` onchange="renderSkillSelects()"` : '';
             // 🔧 一般 buff / HoT 治癒（非召喚/覺醒/淨化）：取消打勾即立即結束（召喚/覺醒已各自有 onchange；淨化為反應式無常駐增益）
             let __autoBuffAttr = (!__isPurify && !sk.summon && !sk.awaken && (sk.type === 'buff' || (sk.type === 'heal' && sk.autoBuff))) ? ` onchange="onAutoBuffToggle('${sid}')"` : '';
+            let __omniAwakenAttr = sk.genesisAllMasteries ? ' onchange="onGenesisOmniAwakeningToggle()"' : '';
             let __span = __isPurify ? 'text-teal-300' : 'text-purple-300';
             let __ttl = __locked ? ' title="魔法相消術已涵蓋此效果"' : (__awakenLocked ? ' title="同時只能使用一種覺醒（需「覺醒精通」才能三種並用）"' : '');
             // 🧙 v3.2.19 召喚術 v2：有召喚控制戒指→技能清單可點「選擇」開召喚物選單（無戒指顯示預設怪名）
@@ -583,7 +629,8 @@ function renderSkillSelects() {
                     ? ` <button onclick="openSummonSelect()" class="text-cyan-300 underline" style="font-size:11px;" title="召喚控制戒指：挑選召喚物">［${__cur}▾］</button>`
                     : ` <span class="text-slate-500" style="font-size:11px;" title="裝備召喚控制戒指可挑選召喚物">［${__cur}］</span>`;
             }
-            buffHtml += `<label class="cursor-pointer flex items-center gap-2 ${(isAvail && !__locked && !__awakenLocked)?'':'opacity-50'}"${__ttl}><input type="checkbox" id="auto-sk-${sid}" ${checked} ${__dis}${sumAttr}${__awakenAttr}${__purAttr}${__autoBuffAttr}> <span class="${__span}">${sk.n}</span>${__sumSel}</label>`;
+            let __row = `<label class="cursor-pointer flex items-center gap-2 ${(isAvail && !__locked && !__awakenLocked)?'':'opacity-50'}"${__ttl}><input type="checkbox" id="auto-sk-${sid}" ${checked} ${__dis}${sumAttr}${__awakenAttr}${__purAttr}${__autoBuffAttr}${__omniAwakenAttr}> <span class="${sk.genesisAllMasteries?'text-cyan-300 font-bold':__span}">${sk.n}</span>${__sumSel}</label>`;
+            if (sk.genesisAllMasteries) omniBuffHtml += __row; else buffHtml += __row;
         }
         if(sk.type === 'convert') {
             if (needLv !== undefined) cHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;   // 🔧 該職業無法學習的轉換技直接不顯示（如法師的心靈轉換/魂體轉換）；等級未達者仍顯示為灰字
@@ -603,8 +650,12 @@ function renderSkillSelects() {
         if(prevConvert && _convEl.querySelector(`option[value="${prevConvert}"]`)) _convEl.value = prevConvert;
     }
     let _convRow = document.getElementById('ui-convert-row');
-    if(_convRow) _convRow.classList.toggle('hidden', player.cls !== 'elf' && player.cls !== 'mage' && !(player.cls === 'royal' && hasMastery('k_royal_magic')));   // 🔧 轉換技能設置開放給法師/妖精；👑 王族（魔法精通）也開放以使用魔力奪取
-    document.getElementById('auto-buff-skills').innerHTML = buffHtml;
+    if(_convRow) _convRow.classList.toggle('hidden', !((typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess()) || player.cls === 'elf' || player.cls === 'mage' || (player.cls === 'royal' && hasMastery('k_royal_magic'))));   // 🔧 轉換技能設置開放給法師/妖精/全能師；👑 王族（魔法精通）也開放以使用魔力奪取
+    let _allAutoIds = sortedSkills.filter(sid => { let sk=DB.skills[sid]; return sk && (sk.type === 'buff' || sk.genesisAllMasteries || (sk.type === 'heal' && sk.autoBuff) || sid === 'sk_antidote' || sid === 'sk_holy_light' || sid === 'sk_cancel'); });
+    let _autoAllOn = _allAutoIds.length > 0 && _allAutoIds.every(sid => player.config && player.config.autoBuffSkills && player.config.autoBuffSkills[sid] === true);
+    let _omniSection = omniBuffHtml ? `<section class="mb-3 rounded border border-cyan-700/70 bg-slate-950/70 p-3"><div class="mb-2 text-cyan-200 font-bold tracking-wider">全能師技能</div><div class="flex flex-col gap-2">${omniBuffHtml}</div><div class="mt-2 text-xs text-slate-400">啟用後同時套用所有職業的全部 Lv50 覺醒／專精。</div></section>` : '';
+    document.getElementById('auto-buff-skills').innerHTML = _omniSection + buffHtml;
+    let _allBtn=document.getElementById('auto-skills-toggle-all'); if(_allBtn)_allBtn.textContent=_autoAllOn?'取消全選':'一鍵全選';
     updateSummonLock();
     if (typeof wireBuffEnders === 'function') wireBuffEnders();   // 🔧 確保藥水/卷軸維持型增益勾選框已掛「取消打勾即結束」監聽（_buffEnderWired 守衛→重複呼叫零成本）
 }

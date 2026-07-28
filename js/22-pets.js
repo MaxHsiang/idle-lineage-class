@@ -133,23 +133,57 @@ function petDerive(p) {
     let _gAc = _ga ? (_ga.petAc || 0) + _gaEn : 0;
     let _gInt = _ga ? (_ga.petInt || 0) : 0;
     let _gWis = _ga ? (_ga.petWis || 0) : 0;
+    // Mini Four Dragons inherit 25% of the current owner's combat sheet.
+    let _inh = (def.genesisMiniDragon && typeof player !== 'undefined' && player && player.d) ? player.d : null;
+    let _inhPhysDmg = _inh ? Math.floor(Math.max(_inh.meleeDmg || 0, _inh.rangedDmg || 0) * 0.25) : 0;
+    let _inhHit = _inh ? Math.floor(Math.max(_inh.meleeHit || 0, _inh.rangedHit || 0, _inh.magicHit || 0) * 0.25) : 0;
+    let _inhMagic = _inh ? Math.floor((_inh.magicDmg || 0) * 0.25) : 0;
+    let _inhCrit = _inh ? Math.floor(Math.max(_inh.meleeCrit || 0, _inh.rangedCrit || 0, _inh.magicCrit || 0) * 0.25) : 0;
+    let _ownerValue = function (flag) {
+        if (!_inh || !player.eq) return false;
+        let found=false;
+        Object.keys(player.eq).some(function (k) { let e=player.eq[k], x=e&&DB.items[e.id]; if(x&&x[flag]){found=x[flag];return true;} return false; });
+        return found;
+    };
+    let _ownerFinalStats = {};
+    if (_inh) Object.keys(_inh).forEach(function (k) {
+        if (typeof _inh[k] === 'number' && Number.isFinite(_inh[k])) _ownerFinalStats[k] = _inh[k] * 0.25;
+    });
+    let _summonDmgPct = _ownerValue('summonDmgPct') || 0;
+    let _ownerAtkSpd = _inh ? Math.max(0, _inh.atkSpdPct || 0) * 0.25 : 0;
     return {
         kind: def.kind, tier: t,
         dice: dice,
-        flat: flat,
+        flat: flat + _inhPhysDmg,
         attackMult: Math.max(1, def.goldenAtk || 1),
         magicMult: Math.max(1, def.goldenMagic || 1),
         drPierce: Math.max(0, Math.min(0.95, def.drPierce || 0)),
-        damageMult: ((def.goldenAtk || def.goldenMagic) ? 1 : (t === 2 ? 1 : (PET_TIER_DMG_MULT[t] || 1) * survivalDmgMult)) * petMasteryDmgMult(),   // 🦎 四蜥蜴以黃金龍為基準，普攻／魔法各自套用角色倍率；👑 夥伴精通 ×1.5
-        hit: Math.floor((g.hit0 + Math.floor(lv * g.hitG) + speedHit + t * 3 + elite.hit + PET_HIT_TUNE) * petMasteryHitMult()),   // 👑 夥伴精通 ×1.5
-        skillFlat: power.skillFlat + _gInt + (typeof petAuraSum === 'function' ? petAuraSum('petMdmgAll') : 0),   // 🏺 v3.7.20 蜥蜴領主的王冠 +3／珍藏的巨大胡蘿蔔 +1：寵物魔法（技能）傷害光環
-        ac: 10 - Math.floor(lv / g.acDiv) - t * g.acTier + hpAc + elite.ac + (def.acMod || 0) - _gAc,
-        dr: Math.floor(lv / g.drDiv) + t * g.drTier + hpDr + elite.dr,
-        er: Math.min(g.erCap, Math.floor(lv / g.erDiv)),                // ER
-        mr: Math.min(t === 2 ? 110 : g.mrCap, mr + (def.mrBonus || 0)) + (_ga ? (_ga.petMr || 0) : 0),
-        mmpBonus: _gWis * 5,                                            // 精神：MP 上限 +5/點（regen/施放/顯示用有效上限）
-        mpRegBonus: _gWis + (typeof petAuraSum === 'function' ? petAuraSum('petMpRAll') : 0),   // 精神：MP 恢復 +1/點；🏺 v3.7.20 蜥蜴領主的王冠：全寵物 MP 自然恢復 +5
-        atkItv: Math.max(3, Math.round(600 / def.apm)),                 // 攻擊間隔（ticks·600=每分鐘tick數）
+        damageMult: ((def.goldenAtk || def.goldenMagic) ? 1 : (t === 2 ? 1 : (PET_TIER_DMG_MULT[t] || 1) * survivalDmgMult)) * petMasteryDmgMult() * (1 + _summonDmgPct / 100),   // 🦎 四蜥蜴以黃金龍為基準，普攻／魔法各自套用角色倍率；👑 夥伴精通 ×1.5
+        hit: Math.floor((g.hit0 + Math.floor(lv * g.hitG) + speedHit + t * 3 + elite.hit + PET_HIT_TUNE) * petMasteryHitMult()) + _inhHit,
+        skillFlat: power.skillFlat + _gInt + _inhMagic + (typeof petAuraSum === 'function' ? petAuraSum('petMdmgAll') : 0),
+        critPct: _inhCrit,
+        inheritPct: _inh ? 25 : 0,
+        inheritGenesisFunctions: !!_inh,
+        ownerFinalStats25: _ownerFinalStats,
+        immPoison: _ownerValue('immPoison'),
+        immStone: _ownerValue('immStone'),
+        immSilence: _ownerValue('immSilence'),
+        immMagicSeal: _ownerValue('genesisMagicSealImmune'),
+        immSlow: _ownerValue('slowImmune'),
+        genesisDamageCapPct: _ownerValue('genesisDamageCapPct') ? 35 : 0,
+        genesisReflect: _ownerValue('genesisReflect'),
+        genesisLowMpRegenDouble: _ownerValue('genesisLowMpRegenDouble'),
+        genesisPulse: _ownerValue('genesisPulse'),
+        genesisEmergency: _ownerValue('genesisEmergency'),
+        genesisKillRestore: _ownerValue('genesisKillRestore'),
+        ac: 10 - Math.floor(lv / g.acDiv) - t * g.acTier + hpAc + elite.ac + (def.acMod || 0) - _gAc + (_inh ? Math.floor(((_inh.ac || 10) - 10) * 0.25) : 0),
+        dr: Math.floor(lv / g.drDiv) + t * g.drTier + hpDr + elite.dr + (_inh ? Math.floor((_inh.dr || 0) * 0.25) : 0),
+        er: Math.min(g.erCap, Math.floor(lv / g.erDiv)) + (_inh ? Math.floor((_inh.er || 0) * 0.25) : 0),
+        mr: Math.min(t === 2 ? 110 : g.mrCap, mr + (def.mrBonus || 0)) + (_ga ? (_ga.petMr || 0) : 0) + (_inh ? Math.floor((_inh.mr || 0) * 0.25) : 0),
+        mmpBonus: _gWis * 5 + (_inh && player.mmp ? Math.floor(player.mmp * 0.25) : 0),
+        hpRegBonus: (_inh ? Math.floor((_inh.hpR || 0) * 0.25) : 0),
+        mpRegBonus: _gWis + (_inh ? Math.floor((_inh.mpR || 0) * 0.25) : 0) + (typeof petAuraSum === 'function' ? petAuraSum('petMpRAll') : 0),   // 精神：MP 恢復 +1/點；🏺 v3.7.20 蜥蜴領主的王冠：全寵物 MP 自然恢復 +5
+        atkItv: Math.max(3, Math.round((600 / def.apm) / (1 + _ownerAtkSpd / 100))),                 // 攻擊間隔（ticks·600=每分鐘tick數）
         castItv: def.capm > 0 ? Math.max(5, Math.round(600 / def.capm)) : 0,
         stunTicks: Math.round((def.stun || 0.58) * 10)
     };
@@ -191,7 +225,24 @@ function petAuraSum(field) {
     return s;
 }
 // 🏺 v3.7.20 寵物有效 HP 上限＝存檔 mhp ＋ 光環加成（petHpAll·蜥蜴領主的王冠 +100）。恢復/治癒/顯示皆以此為上限；不改寫存檔 p.mhp。
-function petMhpEff(p) { return Math.max(1, (p && p.mhp || 1) + petAuraSum('petHpAll')); }
+function petMhpEff(p) {
+    let d = p && PET_BOOK[p.form];
+    let inherit = d && d.genesisMiniDragon && typeof player !== 'undefined' && player ? Math.floor((player.mhp || 0) * 0.25) : 0;
+    let total = (p && p.mhp || 1) + inherit + petAuraSum('petHpAll');
+    if (d && d.genesisMiniDragon && typeof player !== 'undefined' && player && player.eq && Object.keys(player.eq).some(function(k){let e=player.eq[k],x=e&&DB.items[e.id];return !!(x&&x.summonHpPct);})) total=Math.floor(total*1.20);
+    return Math.max(1, total);
+}
+const _petGenesisVitalState = new WeakMap();
+function petSyncInheritedVitals(p, d) {
+    let def=p&&PET_BOOK[p.form];if(!def||!def.genesisMiniDragon)return;
+    d=d||petDerive(p);let mh=petMhpEff(p),mm=(p.mmp||0)+((d&&d.mmpBonus)||0);
+    let prev=_petGenesisVitalState.get(p)||{},oldMh=Math.max(1,prev.mh||p.mhp||mh),oldMm=Math.max(1,prev.mm||p.mmp||mm);
+    if(mh!==oldMh){let ratio=Math.max(0,Math.min(1,(p.hp||0)/oldMh));p.hp=Math.max(p._downed?0:1,Math.min(mh,Math.round(mh*ratio)));}
+    if(mm!==oldMm){let ratio=Math.max(0,Math.min(1,(p.mp||0)/oldMm));p.mp=Math.max(0,Math.min(mm,Math.round(mm*ratio)));}
+    _petGenesisVitalState.set(p,{mh:mh,mm:mm});
+    // 清除舊版曾寫入存檔的暫存欄位；之後改用 WeakMap，不再污染角色存檔。
+    delete p._genesisEffectiveMhp;delete p._genesisEffectiveMmp;
+}
 function petRandomPhysicalDr(p, d) {
     let k = (d && d.kind) || ((p && PET_BOOK[p.form]) || {}).kind || 'mag';
     let div = k === 'phys' ? 3 : (k === 'spec' ? 4 : 5);
@@ -320,13 +371,13 @@ function _petMergeFromBucket(cur, key) {
             if (ft > pt && PET_BOOK[f.form]) {
                 p.form = f.form; p.lv = f.lv || 1; p.exp = f.exp || 0; p.expReqV = f.expReqV || PET_EXP_REQ_VERSION;
                 p.mhp = f.mhp || p.mhp; p.mmp = (f.mmp != null ? f.mmp : p.mmp);
-                p.hp = Math.min(p.hp, p.mhp); p.mp = Math.min(p.mp, p.mmp);
+                p.hp = Math.min(p.hp, petMhpEff(p)); p.mp = Math.min(p.mp, p.mmp + ((petDerive(p) || {}).mmpBonus || 0));
             }
         } else if ((f.lv || 1) > (p.lv || 1) || ((f.lv || 1) === (p.lv || 1) && (f.exp || 0) > (p.exp || 0))) {
             p.lv = f.lv; p.exp = f.exp || 0; p.expReqV = f.expReqV || PET_EXP_REQ_VERSION;
             if ((f.mhp || 0) > (p.mhp || 0)) p.mhp = f.mhp;
             if ((f.mmp || 0) > (p.mmp || 0)) p.mmp = f.mmp;
-            p.hp = Math.min(p.hp, p.mhp); p.mp = Math.min(p.mp, p.mmp);
+            p.hp = Math.min(p.hp, petMhpEff(p)); p.mp = Math.min(p.mp, p.mmp + ((petDerive(p) || {}).mmpBonus || 0));
         }
         // 🕐 裝備：版本戳較新者勝（v3.3.16）——修「別角色剛換的裝備被過期分頁/自動存檔洗掉＝裝備蒸發」。
         if ((f.eqV || 0) > (p.eqV || 0)) {
@@ -432,6 +483,8 @@ function _petPersist(p) {   // 只序列化長生欄位（戰鬥暫存 _ 前綴�
         for (let k of ['wpn', 'arm']) { let g = p.eq[k]; if (g && g.id) o.eq[k] = _petGearPack(g); }
         if (!o.eq.wpn && !o.eq.arm) delete o.eq;
     }
+    if (p.skillMode != null) o.skillMode = p.skillMode;
+    if (p.genesisMiniDragon) { o.genesisMiniDragon = true; if (p.formGfx) o.formGfx = p.formGfx; }
     return o;
 }
 function petMarkDirty() { _petRosterDirty = true; }
@@ -455,14 +508,22 @@ window.addEventListener('storage', ev => {
     } catch (e) {}
 });
 
-function petsOutList() { let owner = _petCurrentOwnerKey(); return owner ? petRoster().filter(p => String(p.outOwner || '') === owner) : []; }
-function petChaUsed() { return petsOutList().reduce((s, p) => s + ((PET_BOOK[p.form] || {}).cha || 6), 0); }
+function petsOutList() {
+    // 創世迷你四龍直接隨角色存檔，避免共用 localStorage 桶尚未同步時隊伍與戰鬥都變空。
+    if (typeof player !== 'undefined' && player && Array.isArray(player.genesisMiniDragons)) {
+        let direct = player.genesisMiniDragons.filter(p => p && p.genesisMiniDragon).slice(0, PET_CARRY_MAX);
+        if (direct.length) return direct;
+    }
+    let owner = _petCurrentOwnerKey();
+    return owner ? petRoster().filter(p => String(p.outOwner || '') === owner) : [];
+}
+function petChaUsed() { return petsOutList().reduce((s, p) => { let d=PET_BOOK[p.form]||{}; return s+(d.genesisMiniDragon?0:(d.cha == null ? 6 : d.cha)); }, 0); }
 function _petEnforceCarry() {   // 換角色載入：魅力不足/超過4隻→自動收回超出的
     let out = petsOutList();
     if (!player || !player.cls || !player.d || !Number.isFinite(Number(player.d.cha))) return;   // 載入/重算未完成時不可誤用魅力0收回寵物
     let cha = Number(player.d.cha), used = 0, n = 0;
     out.forEach(p => {
-        let need = (PET_BOOK[p.form] || {}).cha || 6;
+        let _pd=PET_BOOK[p.form]||{}, need=_pd.genesisMiniDragon?0:(_pd.cha == null ? 6 : _pd.cha);
         if (n >= PET_CARRY_MAX || used + need > cha) {
             p.outOwner = null; p.outSlot = null; p.outV = _petNowStamp(); _petRosterDirty = true;
             // 🐾 v3.3.30 補訊息（用戶回報黃金龍「莫名自己收回」＝原本靜默）：說明原因（魅力不足/超過上限）·同一寵收回後不再入 petsOutList→不會重複洗版
@@ -597,7 +658,13 @@ function petCaptureOnKill(mob) {   // killMob 掛點：專屬誘捕優先於一�
 }
 
 // ---------- 五、出戰／放生／進化（包武）----------
-function _petFind(uidv) { return petRoster().find(p => p.uid === uidv); }
+function _petFind(uidv) {
+    if (typeof player !== 'undefined' && player && Array.isArray(player.genesisMiniDragons)) {
+        let direct = player.genesisMiniDragons.find(p => p && p.uid === uidv);
+        if (direct) return direct;
+    }
+    return petRoster().find(p => p.uid === uidv);
+}
 function _petFindFresh(uidv) { _petRosterResync(); return _petFind(uidv); }   // 寫入前重讀共用桶，封住點擊與另一視窗存檔交界的舊鏡像
 function _petOwnedByOther(p) { return !!(p && _petOutStateKey(p) && _petOutStateKey(p) !== _petCurrentOwnerKey()); }
 function _petRejectForeignMutation(p) {
@@ -724,6 +791,13 @@ function petEvoChoose(p, avail) {   // 🐉 v3.2.63 兩種果實都有時的進�
 }
 function petDisplayName(p) { return (p.name ? p.name + '（' + p.form + '）' : p.form); }
 function petSetPotPct(uidv, v) { let p = _petFindFresh(uidv); if (!p || _petRejectForeignMutation(p)) return; p.potPct = Math.max(0, Math.min(95, parseInt(v, 10) || 0)); petMarkDirty(); }
+function petSetSkillMode(uidv, v) {
+    let p = _petFindFresh(uidv); if (!p || _petRejectForeignMutation(p)) return;
+    p.skillMode = (v === 'auto' || v === 'off') ? v : Math.max(0, parseInt(v, 10) || 0);
+    petMarkDirty(); try { petRosterSave(); } catch (e) {}
+    try { if (player && Array.isArray(player.genesisMiniDragons) && player.genesisMiniDragons.includes(p) && typeof saveGame === 'function') saveGame(); } catch (e) {}
+    let d = document.getElementById('interaction-content'); if (d && d.querySelector('[data-petui]')) renderPetStorageNPC(d);
+}
 
 // ---------- 五之二、寵物個別裝備（v3.2.37：武器 slot:petwpn／防具 slot:petarm·裝備存在寵物身上 p.eq={wpn,arm}·共用桶隨寵物走）----------
 const PET_GEAR_SLOT = { wpn: { slot: 'petwpn', n: '寵物武器' }, arm: { slot: 'petarm', n: '寵物防具' } };
@@ -759,7 +833,7 @@ function petGearOpen(uidv, key) {   // 點按鈕 → 清單：背包同部位物
             <button onclick="document.getElementById('pet-gear-overlay').remove()" class="btn" style="padding:2px 10px;border:1px solid #475569;border-radius:4px;">✕</button>
         </div>
         <div class="text-slate-400" style="font-size:11px;margin-bottom:6px;">目前：<b class="text-amber-300">${cur && DB.items[cur.id] ? DB.items[cur.id].n + ((cur.en || 0) > 0 ? '+' + cur.en : '') : '（無）'}</b></div>
-        ${cur ? `<button onclick="petGearUnequip('${p.uid}','${key}')" class="btn" style="display:block;width:100%;text-align:left;padding:5px 10px;margin:2px 0;border:1px solid #b91c1c;border-radius:4px;background:#1f0a0a;color:#fecaca;font-weight:bold;">卸下 ${DB.items[cur.id] ? DB.items[cur.id].n : ''}${(cur.en || 0) > 0 ? '+' + cur.en : ''}</button>` : ''}
+        ${cur && !(DB.items[cur.id] && DB.items[cur.id].genesisFixedPetGear) ? `<button onclick="petGearUnequip('${p.uid}','${key}')" class="btn" style="display:block;width:100%;text-align:left;padding:5px 10px;margin:2px 0;border:1px solid #b91c1c;border-radius:4px;background:#1f0a0a;color:#fecaca;font-weight:bold;">卸下 ${DB.items[cur.id] ? DB.items[cur.id].n : ''}${(cur.en || 0) > 0 ? '+' + cur.en : ''}</button>` : (cur ? '<div class="text-amber-300" style="padding:5px 0">創世專屬裝備已綁定，不可卸下。</div>' : '')}
         ${rows || '<div class="text-slate-500" style="text-align:center;padding:12px 0;">背包沒有可用的' + cfg.n + '——可到 亞丁 諾斯 處鍛造。</div>'}
     </div>`;
     document.body.appendChild(ov);
@@ -793,6 +867,7 @@ function petGearEquip(uidv, key, invUid) {
 }
 function petGearUnequip(uidv, key) {
     let p = _petFindFresh(uidv); if (!p || !p.eq || !p.eq[key]) return;
+    if (DB.items[p.eq[key].id] && DB.items[p.eq[key].id].genesisFixedPetGear) { logSys('<span class="text-amber-300">創世寵物裝備已綁定，無法卸下。</span>'); return; }
     if (_petRejectForeignMutation(p)) return;
     let snap = _petMutationSnapshot();
     let g = p.eq[key];
@@ -851,6 +926,8 @@ function petsTick() {
     let wild = _petInWild();
     outs.forEach(p => {
         let d = petDerive(p); if (!d) return;
+        // 最大值因主角裝備/Buff 改變時維持原血量百分比；受擊仍扣除實際傷害值。
+        petSyncInheritedVitals(p,d);
         // 倒地：非野外（安全區）免費復活；野外等 5 秒復活卷軸
         if (p._downed) {
             if (!wild) { _petReviveDone(p, '安全區'); return; }
@@ -866,10 +943,15 @@ function petsTick() {
         // 每 5 秒恢復（比照規格 HP恢復/MP恢復）
         let def = PET_BOOK[p.form];
         if (state.ticks % 50 === 0) {
-            { let _me = petMhpEff(p); if (p.hp < _me && def.hpReg) p.hp = Math.min(_me, p.hp + def.hpReg); }   // 🏺 v3.7.20 恢復上限含 petHpAll 光環
+            { let _me = petMhpEff(p), _hr=(def.hpReg||0)+(d.hpRegBonus||0); if (p.hp < _me && _hr>0) p.hp = Math.min(_me, p.hp + _hr); }   // 🏺 v3.7.20 恢復上限含 petHpAll 光環
             let _mmpEff = p.mmp + (d.mmpBonus || 0);   // 🛡️ v3.2.37 寵物防具 精神：MP上限+5/點·MP恢復+1/點
-            if (p.mp < _mmpEff && ((def.mpReg || 0) + (d.mpRegBonus || 0) > 0)) p.mp = Math.min(_mmpEff, p.mp + (def.mpReg || 0) + (d.mpRegBonus || 0));
+            let _mr=(def.mpReg||0)+(d.mpRegBonus||0);if(d.genesisLowMpRegenDouble&&p.mp<_mmpEff*0.30)_mr*=2;
+            if (p.mp < _mmpEff && _mr > 0) p.mp = Math.min(_mmpEff, p.mp + _mr);
         }
+        // 創世裝備的週期恢復與不滅瀕死回復屬於裝備功能，完整沿用。
+        let _now=Date.now(),_me=petMhpEff(p),_mm=p.mmp+(d.mmpBonus||0);
+        if(d.genesisPulse&&(!p._genPulseAt||_now-p._genPulseAt>=d.genesisPulse.seconds*1000)){p._genPulseAt=_now;p.hp=Math.min(_me,p.hp+Math.floor(_me*d.genesisPulse.hp/100));p.mp=Math.min(_mm,p.mp+Math.floor(_mm*d.genesisPulse.mp/100));}
+        if(d.genesisEmergency&&p.hp>0&&p.hp<_me*d.genesisEmergency.threshold/100&&_now>=(p._genEmergencyCd||0)){p._genEmergencyCd=_now+d.genesisEmergency.cooldown*1000;p.hp=Math.min(_me,p.hp+Math.floor(_me*d.genesisEmergency.hp/100));p.mp=Math.min(_mm,p.mp+Math.floor(_mm*d.genesisEmergency.mp/100));}
         // HP<X% 喝隊長的治癒藥水（邏輯同傭兵：讀 #set-pot 藥水·缺貨可自動補貨）
         petTryPotion(p);
         if (!wild || player.dead) return;
@@ -938,6 +1020,27 @@ function _petPickTarget(p) {
     }
     return best || fb;
 }
+function _genesisMiniDragonInheritedHit(p, d, target, dealt, allowSplash) {
+    if (!p || !d || !d.inheritGenesisFunctions || !(dealt > 0)) return;
+    let total = dealt;
+    // Equipment functions remain intact; only the inherited numeric sheet is
+    // scaled to 25%. Thus the sword still strikes every target.
+    if (allowSplash && typeof mapState !== 'undefined' && Array.isArray(mapState.mobs)) {
+        mapState.mobs.slice().forEach(function (m) {
+            if (!m || m === target || m.curHp <= 0) return;
+            let splash = Math.max(1, Math.floor(dealt));
+            let actual = Math.min(m.curHp, splash);
+            m.curHp -= actual; m.justHit = 'all'; total += actual;
+            if (m.curHp <= 0) { _petGenesisKillRestore(p,d,m); let idx = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (idx >= 0) killMob(idx); }
+        });
+    }
+    // Genesis sword drain is an equipment function, so its native 30% remains.
+    let drain = Math.floor(total * 0.30);
+    if (drain > 0) {
+        p.hp = Math.min(petMhpEff(p), (p.hp || 0) + drain);
+        p.mp = Math.min((p.mmp || 0) + (d.mmpBonus || 0), (p.mp || 0) + drain);
+    }
+}
 function petAttackOnce(p, d, target, forceCrit, addDmg, skName) {
     if (!target || target.curHp <= 0) return;
     _combatSrc = 'pet';
@@ -950,7 +1053,7 @@ function petAttackOnce(p, d, target, forceCrit, addDmg, skName) {
         let rawHit = p.lv + d.hit + cb.hit + pg.hit + (_ia ? _ia.eh : 0) - target.lv + mobEffAC(target) + (typeof _relicPartnerHit === 'function' ? _relicPartnerHit(p.form) : 0) - (_pst.weaken > 0 ? 2 : 0) - (_pst.disease > 0 ? 4 : 0) - (_pst.blind > 0 ? 6 : 0);
         let hv = stretchHitValue(rawHit);
         let r = roll(1, 20);
-        let heavy = (r === 20) || !!forceCrit;
+        let heavy = (r === 20) || !!forceCrit || ((d.critPct || 0) > 0 && Math.random() * 100 < d.critPct);
         if (heavy || (r !== 1 && hv >= r)) {
             let targetDr = Math.floor((target.dr || 0) * (1 - (d.drPierce || 0)));
             let dmg = (heavy ? d.dice : roll(1, d.dice)) + d.flat + cb.dmg + (addDmg || 0) + pg.dmg + (_ia ? _ia.ed : 0) + (petDevotionGuardOn(p) ? 8 : 0) - targetDr - (_pst.weaken > 0 ? 5 : 0);   // 🏺 v3.6.44 珍愛夥伴的執念：復活後 8 秒額外傷害 +8
@@ -961,11 +1064,12 @@ function petAttackOnce(p, d, target, forceCrit, addDmg, skName) {
             if (skName && typeof _relicPetSkillMult === 'function') dmg = Math.max(1, Math.floor(dmg * _relicPetSkillMult()));
             markBossPhysicalHit(target);
             target.curHp -= dmg; if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(target, dmg, skName ? 'magic' : 'melee'); target.justHit = 'none'; mobWake(target);   // 🌅 巨大骷髏：寵物普攻＝近距離、寵物技能＝魔法
+            _genesisMiniDragonInheritedHit(p, d, target, dmg, true);
             let _pw = p && p.eq && p.eq.wpn ? DB.items[p.eq.wpn.id] : null;
             if (_pw && _pw.petBleed && target.curHp > 0 && typeof applyBleed === 'function') applyBleed(target, dmg, 5, 'pet');   // 🏺 遺物 仿製小惡魔尖牙套：寵物一般攻擊命中造成出血；🎯 DPS 歸夥伴
             _petAnimAct(p, 'attack', target.uid);
             logCombat(`寵物 [${p.form}] ${skName ? `<span class="text-pink-300 font-bold">${skName}</span> ` : ''}攻擊 <span class="${getMobColor(target.lv)}">${target.n}</span>，造成 ${dmg}${heavy ? '（重擊）' : ''} 點傷害！`, 'player-special');
-            _petAfterDamage(target);
+            _petAfterDamage(target,p,d);
         } else {
             _petAnimAct(p, 'attack', target.uid);
             if (typeof vfxMiss === 'function') vfxMiss(target);
@@ -983,6 +1087,11 @@ function petDebuffChance(p, d, target, sk) {
 function petCastSkill(p, d, target) {
     let def = PET_BOOK[p.form];
     let usable = def.sk.filter(s => p.mp >= s.mp);
+    if (p.skillMode === 'off') return false;
+    if (p.skillMode !== undefined && p.skillMode !== null && p.skillMode !== 'auto' && usable.length) {
+        let chosen = def.sk[Math.max(0, parseInt(p.skillMode, 10) || 0)];
+        usable = chosen && p.mp >= chosen.mp ? [chosen] : [];
+    }
     if (!usable.length) return false;
     // 權重擇一（w 欄位·未標=均分）
     let sk;
@@ -1037,6 +1146,7 @@ function petCastSkill(p, d, target) {
                 let effMr = (m.st && m.st.mrhalf > 0) ? Math.floor((m.mr || 0) / 2) : (m.mr || 0);
                 let core = roll(sk.d[0], sk.d[1]) + d.skillFlat + _iaMd;   // 👑 v3.4.28 移除舊「夥伴精通 +魅力全額法傷」（改為 damageMult ×1.5）
                 let dmg = Math.floor(core * mrMult(effMr));
+                if ((d.critPct || 0) > 0 && Math.random() * 100 < d.critPct) dmg = Math.floor(dmg * 1.5);
                 if (sk.ele && sk.ele !== 'none' && m.e && m.e !== 'none' && typeof elementCounterMult === 'function') dmg = Math.floor(dmg * elementCounterMult(sk.ele, m.e));
                 dmg = Math.max(1, dmg - (m.dr || 0));
                 let magicMult = (d.damageMult || 1) * (d.magicMult || 1);
@@ -1044,6 +1154,7 @@ function petCastSkill(p, d, target) {
                 if (typeof _relicPetSkillMult === 'function') dmg = Math.max(1, Math.floor(dmg * _relicPetSkillMult()));   // 🏺 馴獸師的訓狗棒：寵物技能×1.5
                 if (sk.n && sk.n.includes('冰錐') && typeof equipSkillDmgMult === 'function') dmg = Math.max(1, Math.floor(dmg * equipSkillDmgMult(DB.skills.sk_ice_spike, 'sk_ice_spike')));   // 🏺 v3.2.35 暴走兔最愛的胡蘿蔔：攜帶的暴走兔/高等暴走兔施放的冰錐也 ×1.5（掃玩家裝備 skillDmgMult.sk_ice_spike·與訓狗棒相乘）
                 m.curHp -= dmg; if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(m, dmg, 'magic'); m.justHit = sk.ele || 'none'; mobWake(m);   // 🌅 巨大骷髏：寵物傷害技能視為魔法
+                _genesisMiniDragonInheritedHit(p, d, m, dmg, !sk.aoe);
                 let _fz = false;   // 🦎 v3.6.43 詛咒蜥蜴冰雪暴：freezeCh% 機率冰凍 4 秒（頭目免疫冰凍·比照 js/04 BOSS_IMMUNE）
                 if (sk.freezeCh && m.curHp > 0 && Math.random() * 100 < sk.freezeCh && !(m.boss && typeof BOSS_IMMUNE !== 'undefined' && BOSS_IMMUNE.includes('freeze'))) {
                     m.st = m.st || newMobStatus(); m.st.freeze = Math.max(m.st.freeze || 0, 40); _fz = true;
@@ -1052,15 +1163,21 @@ function petCastSkill(p, d, target) {
                 if (sk.drainHalf) { let heal = Math.floor(dmg / 2); if (heal > 0) p.hp = Math.min(petMhpEff(p), p.hp + heal); }
             });
             logCombat(`寵物 [${p.form}] 施放 <span class="text-pink-300 font-bold">${sk.n}</span> → ${texts.join('、')}${sk.drainHalf ? '（吸收傷害一半 HP）' : ''}`, 'player-special');
-            targets.forEach(m => _petAfterDamage(m));
+            targets.forEach(m => _petAfterDamage(m,p,d));
         }
     } catch (e) {}
     if (_snap && typeof _dpsDealt === 'function') { let _dd = _dpsDealt(_snap); if (_dd > 0) _dps.pet += _dd; }
     _combatSrc = null;
     return true;
 }
-function _petAfterDamage(m) {
-    if (m.curHp <= 0) { let idx = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (idx !== -1) killMob(idx); }
+function _petGenesisKillRestore(p,d,m) {
+    if (!p || !d || !d.genesisKillRestore || !m || m._genPetRestoreDone) return;
+    m._genPetRestoreDone=true;
+    let pct=m.boss?d.genesisKillRestore.boss:d.genesisKillRestore.normal,mh=petMhpEff(p),mm=(p.mmp||0)+(d.mmpBonus||0);
+    p.hp=Math.min(mh,(p.hp||0)+Math.floor(mh*pct/100));p.mp=Math.min(mm,(p.mp||0)+Math.floor(mm*pct/100));
+}
+function _petAfterDamage(m,p,d) {
+    if (m.curHp <= 0) { _petGenesisKillRestore(p,d,m); let idx = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (idx !== -1) killMob(idx); }
     else { try { renderMobs(); } catch (e) {} }
 }
 // 🦎 v3.6.43 災厄蜥蜴「堅硬」buff：生效中傷害減免 +dr（物理/魔法兩掛點皆吃·runtime 欄位不入桶）
@@ -1089,7 +1206,12 @@ function enemyAttackPet(mob, p) {
     dmg = Math.floor(Math.max(1, dmg) * (typeof teamDmgReduceMult === 'function' ? teamDmgReduceMult(true) : 1) * petMasteryTakenMult() * petArmorDmgReduceMult(p));   // 👑 夥伴精通：受到傷害 −50%；🏺 寵物專用盔甲：受傷 ×(1−petDmgReduce)
     dmg = Math.max(1, Math.floor(dmg * riftDamageMult()));
     if (petDevotionGuardOn(p)) dmg = 0;   // 🏺 v3.6.44 珍愛夥伴的執念：復活後 8 秒受到傷害 −100%
+    if (d.genesisDamageCapPct) dmg = Math.min(dmg, Math.max(1, Math.floor(petMhpEff(p) * d.genesisDamageCapPct / 100)));
     p.hp -= dmg;
+    if (d.genesisReflect && mob.curHp > 0 && Math.random() < 0.20) {
+        let reflected=Math.max(1,Math.floor(dmg*0.25));mob.curHp-=reflected;mob.justHit='none';
+        if(mob.curHp<=0){_petGenesisKillRestore(p,d,mob);let ri=mapState.mobs.findIndex(x=>x&&x.uid===mob.uid);if(ri>=0)killMob(ri);}
+    }
     _petAnimAct(p, 'hurt');
     if (!p._stunCycle) { p._atkCd = (p._atkCd || 0) + d.stunTicks; p._stunCycle = true; }   // 硬直：延後下次攻擊
     logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 攻擊寵物 <span class="text-sky-300 font-bold">${p.form}</span>，造成 ${dmg} 點傷害。`, 'enemy-attack', 'enemy');
@@ -1105,7 +1227,10 @@ function applyMobMagicToPet(mob, sk, p) {
     let mr = d.mr || 0, nm = '寵物·' + p.form;
     let shMul = (mob._sherine ? (mob._sherineMad ? 3 : 2) : 1) * (mob._grace ? 2 : 1);
     let chance = (base, src) => Math.random() * 100 < Math.max(0, (((src && src.pbase) !== undefined ? src.pbase : (sk.pbase !== undefined ? sk.pbase : base)) - mr) / 2);
-    let applyPure = (type, dur, label, base) => { if (chance(base)) { st[type] = Math.max(st[type] || 0, dur); logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放${sk.skn || '魔法'}，${nm}${label}！`, 'enemy'); } };
+    let applyPure = (type, dur, label, base) => {
+        if ((type==='stone'&&d.immStone)||(type==='silence'&&d.immSilence)||(type==='magicseal'&&d.immMagicSeal)||(type==='slowAtk'&&d.immSlow)) return;
+        if (chance(base)) { st[type] = Math.max(st[type] || 0, dur); logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放${sk.skn || '魔法'}，${nm}${label}！`, 'enemy'); }
+    };
     if (sk.type === 'stone') { applyPure('stone', 60, '被石化了', 100); return; }
     if (sk.type === 'paralyze') { applyPure('paralyze', 60, '被麻痺了', 50); return; }
     if (sk.type === 'silence') { applyPure('silence', 60, '被沉默了', 60); return; }
@@ -1120,7 +1245,7 @@ function applyMobMagicToPet(mob, sk, p) {
     if (sk.type === 'foulwater') { st.foulWater = Math.max(st.foulWater || 0, (sk.dur || 8) * 10); logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放${sk.skn || '汙濁之水'}，${nm} 陷入汙濁之水！（受到的治癒效果減半·持續 ${sk.dur || 8} 秒）`, 'enemy'); return; }   // 🌊 v3.6.20 必中（規格無機率項·不走 applyPure 的 pbase 判定）
     if (sk.type === 'frost_breath') { applyPure('slowAtk', (sk.dur || 8) * 10, '的攻擊速度大幅減慢', 200); return; }
     if (sk.type === 'scald') { if (chance(200)) { st.scald=(sk.dur||15)*10; st.scaldDmg=shMul*(sk.d||100); st.scaldTick=(sk.tick||3)*10; } return; }
-    if (sk.type === 'poison') { if (chance(100)) { st.poison=(sk.dur||6)*10; st.poisonDmg=shMul*(sk.d||1); st.poisonTick=(sk.tick||1)*10; } return; }
+    if (sk.type === 'poison') { if (!d.immPoison && chance(100)) { st.poison=(sk.dur||6)*10; st.poisonDmg=shMul*(sk.d||1); st.poisonTick=(sk.tick||1)*10; } return; }
     if (sk.type === 'burn') { st.burn=(sk.dur||6)*10; st.burnDmg=shMul*(sk.d||1); st.burnTick=(sk.tick||1)*10; return; }
     if (sk.type === 'bleed') { if (chance(200)) { st.bleed=(sk.dur||6)*10; st.bleedDmg=shMul*(sk.d||1); st.bleedTick=(sk.tick||1)*10; } return; }
     if (!sk.dmg) return;
@@ -1131,6 +1256,7 @@ function applyMobMagicToPet(mob, sk, p) {
     dmg = Math.max(1, Math.floor(Math.max(1, dmg * shMul) * (typeof teamDmgReduceMult === 'function' ? teamDmgReduceMult(true) : 1) * petMasteryTakenMult() * petArmorDmgReduceMult(p)));   // 👑 夥伴精通：受到傷害 −50%；🏺 寵物專用盔甲：受傷 ×(1−petDmgReduce)
     dmg = Math.max(1, Math.floor(dmg * riftDamageMult()));
     if (petDevotionGuardOn(p)) dmg = 0;   // 🏺 v3.6.44 珍愛夥伴的執念：復活後 8 秒受到傷害 −100%（魔法亦免）
+    if (d.genesisDamageCapPct) dmg = Math.min(dmg, Math.max(1, Math.floor(petMhpEff(p) * d.genesisDamageCapPct / 100)));
     p.hp -= dmg; _petAnimAct(p, 'hurt');
     if (!p._stunCycle) { p._atkCd = (p._atkCd || 0) + d.stunTicks; p._stunCycle = true; }
     logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 施放${sk.skn || '魔法'}，對 ${nm} 造成 ${dmg} 點魔法傷害。`, 'enemy');
@@ -1266,14 +1392,15 @@ function renderPetStorageNPC(div, confirmUid) {
         let def = PET_BOOK[p.form] || {};
         let d = petDerive(p) || {};
         let cb = petCharmCombatBonus();
-        let need = def.cha || 6;
+        let need = def.genesisMiniDragon ? 0 : (def.cha == null ? 6 : def.cha);
         let _evoOpts = petEvoOptions(p);   // 🐉 v3.2.63 一般型態才可進化（進化果實→高等／勝利果實→黃金龍）
         let canEvo = _evoOpts.length > 0;
         let _evoTip = _evoOpts.map(o => (DB.items[o.fruitId] ? DB.items[o.fruitId].n : o.fruitId) + '→' + o.target).join('　或　');
-        let thumb = 'assets/anim/' + encodeURIComponent(p.form) + '/d6/idle_0.png';
+        let thumb = def.genesisMiniDragon ? ('assets/anim/' + encodeURIComponent(p.formGfx || def.formGfx || p.form) + '/idle_0.png') : ('assets/anim/' + encodeURIComponent(p.form) + '/d6/idle_0.png');
         let expPct = Math.min(100, Math.floor((p.exp || 0) / petExpReq(p.lv) * 100));
         let isOut = !!_petCurrentOwnerKey() && String(p.outOwner || '') === _petCurrentOwnerKey();
         let otherOut = !!_petOutStateKey(p) && !isOut;
+        let skillPicker = def.sk && def.sk.length ? `<select onchange="petSetSkillMode('${p.uid}',this.value)" ${otherOut ? 'disabled' : ''} class="bg-slate-900 border border-cyan-800 rounded text-cyan-200" style="font-size:11px;padding:2px 3px;max-width:116px" title="選擇此寵物自動施放的技能"><option value="auto" ${p.skillMode == null || p.skillMode === 'auto' ? 'selected' : ''}>技能：自動</option>${def.sk.map((s,i)=>`<option value="${i}" ${String(p.skillMode)===String(i)?'selected':''}>${s.n}</option>`).join('')}<option value="off" ${p.skillMode==='off'?'selected':''}>停用技能</option></select>` : '';
         if (confirmUid === p.uid && !p.locked) {
             return `<div class="flex items-center justify-between gap-2 bg-red-950/60 border border-red-700 rounded px-2 py-2 text-sm">
                 <span class="text-red-300 font-bold">確定要放生 ${petDisplayName(p)}（Lv.${p.lv}）嗎？放生後將永遠消失！</span>
@@ -1293,9 +1420,10 @@ function renderPetStorageNPC(div, confirmUid) {
                 <span class="text-xs text-slate-300">HP ${p.hp}/${p.mhp}　MP ${p.mp}/${p.mmp + (d.mmpBonus || 0)}　EXP ${expPct}%　攻1D${Math.max(1, Math.round(d.dice * (d.damageMult || 1) * (d.attackMult || 1)))}+${Math.round((d.flat + cb.dmg) * (d.damageMult || 1) * (d.attackMult || 1))} 命中${d.hit + cb.hit} AC${d.ac} 減免${d.dr} ER${d.er} MR${d.mr}</span>
             </span>
             <span class="flex gap-1 shrink-0 flex-wrap justify-end" style="max-width:210px">
+                ${skillPicker}
                 ${!otherOut && canEvo && p.lv >= 30 ? `<button onclick="petEvolve('${p.uid}')" class="btn px-2 py-1 text-xs font-bold" style="background:linear-gradient(135deg,#713f12,#ca8a04);color:#fef9c3;border-color:#eab308;" title="進化：${_evoTip}（兩種果實都有可選擇）">進化</button>` : ''}
-                <button onclick="petGearOpen('${p.uid}','wpn')" ${otherOut ? 'disabled' : ''} class="btn px-2 py-1 text-xs font-bold" style="border-color:${p.eq && p.eq.wpn ? '#f59e0b' : '#475569'};color:${p.eq && p.eq.wpn ? '#fcd34d' : '#94a3b8'};${otherOut ? 'opacity:.4;' : ''}" title="${p.eq && p.eq.wpn && DB.items[p.eq.wpn.id] ? DB.items[p.eq.wpn.id].n + ((p.eq.wpn.en || 0) > 0 ? '+' + p.eq.wpn.en : '') : '未裝備寵物武器'}">武器</button>
-                <button onclick="petGearOpen('${p.uid}','arm')" ${otherOut ? 'disabled' : ''} class="btn px-2 py-1 text-xs font-bold" style="border-color:${p.eq && p.eq.arm ? '#f59e0b' : '#475569'};color:${p.eq && p.eq.arm ? '#fcd34d' : '#94a3b8'};${otherOut ? 'opacity:.4;' : ''}" title="${p.eq && p.eq.arm && DB.items[p.eq.arm.id] ? DB.items[p.eq.arm.id].n + ((p.eq.arm.en || 0) > 0 ? '+' + p.eq.arm.en : '') : '未裝備寵物防具'}">防具</button>
+                <button onclick="petGearOpen('${p.uid}','wpn')" ${otherOut ? 'disabled' : ''} class="btn px-2 py-1 text-xs font-bold" style="border-color:${p.eq && p.eq.wpn ? '#f59e0b' : '#475569'};color:${p.eq && p.eq.wpn ? '#fcd34d' : '#94a3b8'};${otherOut ? 'opacity:.4;' : ''}" title="${p.eq && p.eq.wpn && DB.items[p.eq.wpn.id] ? DB.items[p.eq.wpn.id].n + ((p.eq.wpn.en || 0) > 0 ? '+' + p.eq.wpn.en : '') + '｜' + (DB.items[p.eq.wpn.id].d || '') : '未裝備寵物武器'}">武器</button>
+                <button onclick="petGearOpen('${p.uid}','arm')" ${otherOut ? 'disabled' : ''} class="btn px-2 py-1 text-xs font-bold" style="border-color:${p.eq && p.eq.arm ? '#f59e0b' : '#475569'};color:${p.eq && p.eq.arm ? '#fcd34d' : '#94a3b8'};${otherOut ? 'opacity:.4;' : ''}" title="${p.eq && p.eq.arm && DB.items[p.eq.arm.id] ? DB.items[p.eq.arm.id].n + ((p.eq.arm.en || 0) > 0 ? '+' + p.eq.arm.en : '') + '｜' + (DB.items[p.eq.arm.id].d || '') : '未裝備寵物防具'}">防具</button>
                 <button onclick="petDeployToggle('${p.uid}')" ${otherOut ? 'disabled' : ''} class="btn px-2 py-1 text-xs font-bold" style="background:linear-gradient(135deg,${isOut ? '#374151,#4b5563' : (otherOut ? '#334155,#475569' : '#065f46,#059669')});color:${isOut ? '#e5e7eb' : (otherOut ? '#94a3b8' : '#a7f3d0')};border-color:${isOut ? '#6b7280' : (otherOut ? '#64748b' : '#10b981')};${otherOut ? 'opacity:.65;' : ''}">${isOut ? '收回' : (otherOut ? '使用中' : '出戰')}</button>
                 ${otherOut || p.locked ? '' : `<button onclick="petRelease('${p.uid}')" class="btn px-2 py-1 text-xs font-bold" style="background:linear-gradient(135deg,#7f1d1d,#991b1b);color:#fecaca;border-color:#b91c1c;">放生</button>`}
             </span>
@@ -1322,11 +1450,15 @@ function renderPetTeamHTML() {
     let outs = petsOutList();
     if (!outs.length) return '';
     return outs.map(p => {
-        let _mmpEff = p.mmp + (((typeof petDerive === 'function' && petDerive(p)) || {}).mmpBonus || 0);   // 🦴 v3.2.42 稽核修：MP 條/浮標含防具精神加成（原本米索莉寵顯示 35/30 爆表）
+        let _petDerived = ((typeof petDerive === 'function' && petDerive(p)) || {});
+        // 村莊不執行戰鬥 tick，也必須在隊伍面板第一次顯示時依原百分比同步繼承後 HP／MP。
+        petSyncInheritedVitals(p, _petDerived);
+        let _mmpEff = p.mmp + (_petDerived.mmpBonus || 0);   // 🦴 v3.2.42 稽核修：MP 條/浮標含防具精神加成（原本米索莉寵顯示 35/30 爆表）
         let _mhpE = petMhpEff(p); let hpPct = Math.max(0, Math.min(100, Math.floor(p.hp / Math.max(1, _mhpE) * 100)));
         let mpPct = Math.max(0, Math.min(100, Math.floor(p.mp / Math.max(1, _mmpEff) * 100)));
         let expPct = Math.min(100, Math.floor((p.exp || 0) / petExpReq(p.lv) * 100));
-        let thumb = 'assets/anim/' + encodeURIComponent(p.form) + '/d6/idle_0.png';
+        let _pdef=PET_BOOK[p.form]||{};
+        let thumb = _pdef.genesisMiniDragon ? ('assets/anim/' + encodeURIComponent(p.formGfx || _pdef.formGfx || p.form) + '/idle_0.png') : ('assets/anim/' + encodeURIComponent(p.form) + '/d6/idle_0.png');
         // 🐾 v3.2.33 高度減半（用戶指示·樣式/元素不變）：縮圖 36×32→26×22、內距/條高/字級/間距減半（用 inline style 避開預編譯 Tailwind 任意值缺漏）
         if (p._downed) {
             return `<div class="bg-slate-800/80 border border-red-800 rounded text-xs flex items-center gap-2" style="padding:3px 6px;">
@@ -1370,7 +1502,21 @@ function _pet8Probe(form, dir) {
     };
     acts.forEach(a => { probeSeq(out, a, a + '_', a === 'hurt' ? 1 : 2); probeSeq(out.shadow, a, a + '_s_', 1); });
 }
-function _petLayerHost() { return document.getElementById('battle-view') || document.getElementById('mob-list'); }   // ⚠️ 不能掛 #mob-list：renderMobs() 重寫其 innerHTML 會把圖層洗掉；#battle-view(.area-fit 800×242·relative·hidden) 穩定
+function _petBossProbe(form) {
+    let key=form+'#boss'; if(_pet8Cache[key]!==undefined)return;
+    _pet8Cache[key]='probing';
+    let folder='assets/anim/'+encodeURIComponent(form)+'/';
+    let out={shadow:{}},acts=['idle','attack','skill','death'],pending=acts.length*2;
+    let finish=()=>{if(--pending>0)return;if(out.idle){out.walk=out.idle;out.hurt=out.idle;out.shadow.walk=out.shadow.idle;out.shadow.hurt=out.shadow.idle;}_pet8Cache[key]=out.idle?out:null;};
+    let probeSeq=(target,k,pfx,minF)=>{_probeFramesWin(i=>folder+pfx+i+'.png',PET_ANIM_MAXF,minF||2,frames=>{target[k]=frames;finish();});};
+    acts.forEach(a=>{probeSeq(out,a,a+'_',2);probeSeq(out.shadow,a,a+'_s_',1);});
+}
+function _petLayerHost() {
+    let bv=document.getElementById('battle-view'),tv=document.getElementById('town-view'),tm=document.getElementById('town-npc-map');
+    if(bv && !bv.classList.contains('hidden'))return bv;
+    if(tv && !tv.classList.contains('hidden') && tm)return tm;
+    return bv || tm || document.getElementById('mob-list');
+}   // 戰鬥掛 battle-view；村莊掛 town-npc-map，兩者皆只使用原生寵物／頭目動畫。
 function _petLayerEl() {
     let host = _petLayerHost(); if (!host) return null;
     let layer = document.getElementById('pet-layer');
@@ -1439,34 +1585,45 @@ function _petAnimApply() {
     try {
         if (typeof document !== 'undefined' && document.hidden) return;
         let bv = document.getElementById('battle-view');
+        let tv = document.getElementById('town-view');
         let host = _petLayerHost();
         let layer = _petLayerEl();
         if (!host || !layer) return;
+        let townMode=!!(host && host.id==='town-npc-map' && tv && !tv.classList.contains('hidden'));
         let outs = (typeof player !== 'undefined' && player && player.cls) ? petsOutList() : [];
-        if (typeof summonRenderList === 'function') outs = outs.concat(summonRenderList());   // 🧙 v3.2.19 召喚物 v2 共用寵物圖層（同欄位協定：uid/form/_px/_py/_dir/_animAct/_downed）
-        let show = _petInWild() && !(bv && bv.classList.contains('hidden'));
+        if (!townMode && typeof summonRenderList === 'function') outs = outs.concat(summonRenderList());   // 🧙 召喚物只顯示於戰鬥；村莊固定只顯示出戰寵物。
+        let show = townMode || (_petInWild() && !(bv && bv.classList.contains('hidden')));
         // 清掉不在場的
         layer.querySelectorAll('[data-pet]').forEach(el => { if (!show || !outs.some(p => p.uid === el.getAttribute('data-pet'))) el.remove(); });
         if (!show) return;
         let hostRect = host.getBoundingClientRect();
         for (let p of outs) {
-            if (!p._downed) _petWanderStep(p, host, hostRect);   // 倒地/死亡殘影不再移動（v3.2.19 修：原本倒地仍會閒晃漂移）
+            if(townMode){let _townPos=[[.36,.88],[.44,.91],[.56,.91],[.64,.88]],_tp=_townPos[outs.indexOf(p)%_townPos.length];p._px=_tp[0];p._py=_tp[1];p._moving=false;p._dir=6;}
+            else if (!p._downed) _petWanderStep(p, host, hostRect);   // 倒地/死亡殘影不再移動（v3.2.19 修：原本倒地仍會閒晃漂移）
             let dir = (p._dir != null) ? p._dir : 6;
-            let gfxForm = p.formGfx || p.form;   // 👑 v3.2.25 動態別名：顯示名≠圖檔資料夾（精靈王借用強力精靈圖·強力精靈改用一般精靈圖）
-            let a = _pet8Cache[gfxForm + '#' + dir];
-            if (a === undefined) _pet8Probe(gfxForm, dir);
+            let gfxForm = p.formGfx || (PET_BOOK[p.form] && PET_BOOK[p.form].formGfx) || p.form;   // 👑 v3.2.25 動態別名：顯示名≠圖檔資料夾
+            let _bossAnim = !!(p.genesisMiniDragon || (PET_BOOK[p.form] && PET_BOOK[p.form].genesisMiniDragon));
+            let _animKey = gfxForm + (_bossAnim ? '#boss' : '#' + dir);
+            let a = _pet8Cache[_animKey];
+            if (a === undefined) { if(_bossAnim)_petBossProbe(gfxForm);else _pet8Probe(gfxForm,dir); }
             if (!a || a === 'probing') {
                 let fb = (p._dirLoaded != null) ? p._dirLoaded : 6;
-                a = _pet8Cache[gfxForm + '#' + fb];
-                if (a === undefined) _pet8Probe(gfxForm, fb);
+                a = _pet8Cache[gfxForm + (_bossAnim ? '#boss' : '#' + fb)];
+                if (a === undefined) { if(_bossAnim)_petBossProbe(gfxForm);else _pet8Probe(gfxForm,fb); }
                 if (!a || a === 'probing') continue;
             } else p._dirLoaded = dir;
             let el = _petSpriteEl(layer, p);
+            if (p.genesisMiniDragon || String(p.form || '').startsWith('迷你')) {
+                let _mi=el.querySelector('.pet-body'),_ms=el.querySelector('.pet-shadow');
+                if(_mi){_mi.style.width='auto';_mi.style.height='58px';_mi.style.objectFit='contain';}
+                if(_ms){_ms.style.width='auto';_ms.style.height='58px';_ms.style.objectFit='contain';}
+            }
             el.style.left = (p._px * 100) + '%';
             el.style.top = (p._py * 100) + '%';
             // 動作選擇：倒地=death 末幀 hold；單次動作(attack/skill/hurt/death)播完回 walk/idle
             let act = null, f = 0;
-            if (p._downed) {
+            if(townMode){act='idle';let seq=a.idle;let ofs=0,s=String(p.uid);for(let j=0;j<s.length;j++)ofs+=s.charCodeAt(j);f=(Math.floor(Date.now()/(1000/PET_ANIM_FPS))+ofs)%seq.length;}
+            else if (p._downed) {
                 let seq = a.death;
                 if (seq) { let ff = Math.floor((Date.now() - ((p._animAct && p._animAct.t) || 0)) / (1000 / PET_ANIM_FPS)); act = 'death'; f = Math.min(seq.length - 1, ff); }
             } else if (p._animAct) {

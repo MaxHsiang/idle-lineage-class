@@ -1,5 +1,5 @@
 function isMageSummonMastered(sm, owner) {
-    return !!(sm && owner && owner.mastery === 'm_summon' && (sm.skId === 'sk_zombie' || sm.skId === 'sk_summon'));
+    return !!(sm && owner && entityHasMastery(owner, 'm_summon') && (sm.skId === 'sk_zombie' || sm.skId === 'sk_summon'));
 }
 function summonAttackCount(sm, owner) {
     owner = owner || player;
@@ -12,7 +12,7 @@ function summonAttackCount(sm, owner) {
 //   玩家與傭兵都讀 js/23 四屬性表；傭兵保持無敵抽象召喚，但攻擊轉交 spiritAttackOnce 共用命中、傷害與精靈王 AOE。
 function _elfSpiritKingOverride(sm, owner) {
     if (!sm || (sm.skId !== 'sk_elf_summon' && sm.skId !== 'sk_elf_summon2') || typeof _spiritSpec !== 'function') return sm;
-    const king = sm.skId === 'sk_elf_summon2' && owner && owner.mastery === 'e_spirit';
+    const king = sm.skId === 'sk_elf_summon2' && owner && entityHasMastery(owner, 'e_spirit');
     const spec = _spiritSpec(sm.skId, sm.ele, king);
     sm.dmgDice = spec.dice; sm.elemScale = spec.scale; sm.dmgMult = spec.dmgMult;
     sm.mrPenBase = spec.mrPenBase; sm.hitLvOff = spec.hitLvOff; sm.interval = spec.aspd;
@@ -25,6 +25,7 @@ function summonDamageMult(sm, owner, magicBased, teamMagicDmg) {
     let magicDmg = Math.min(12, Math.max(0, ((owner.d && owner.d.magicDmg) || 0) + (teamMagicDmg || 0)));
     let mult = (sm.dmgMult || 1) * (1 + magicDmg / (magicBased ? 40 : 80));
     if(isMageSummonMastered(sm, owner)) mult *= 1.20;
+    if(owner && owner.eq && Object.keys(owner.eq).some(k => owner.eq[k] && owner.eq[k].id === 'rng_genesis_control')) mult *= 1.20;
     if(owner && owner !== player && typeof royalAllyMult === 'function') mult *= royalAllyMult();   // 👑 傭兵召喚傷害亦吃隊長魅力倍率；玩家召喚不受影響
     return mult;
 }
@@ -59,7 +60,7 @@ function summonAttack(sm, owner) {
     if((sm.skId === 'sk_elf_summon' || sm.skId === 'sk_elf_summon2') && typeof spiritAttackOnce === 'function') {
         let _st = getTarget(); if(!_st) return;
         sm.form = sm.form || sm.n || '屬性精靈';
-        sm._king = sm.skId === 'sk_elf_summon2' && owner.mastery === 'e_spirit';
+        sm._king = sm.skId === 'sk_elf_summon2' && entityHasMastery(owner, 'e_spirit');
         spiritAttackOnce(sm, _st, owner);
         return;
     }
@@ -196,7 +197,7 @@ function cubeTick() {
 //   歐吉：每2秒 3D20+(智力/5)×(1+等級/10) 近戰，命中=等級+10-怪等+智力+怪AC；巫妖：每3秒 同骰魔法必中受MR；鑽石高崙：每1秒 2D20+(智力/5)×(1+等級/5) 近戰，命中+20，10%冰矛圍籬
 function illuSummonTick(owner) {
     owner = owner || player;   // 🩸 v2.6.26 owner 參數化：owner=player 或 i_illusion 傭兵(ally)
-    if ((owner === player ? player.dead : owner._downed) || !state.running || owner.mastery !== 'i_illusion') return;
+    if ((owner === player ? player.dead : owner._downed) || !state.running || !entityHasMastery(owner, 'i_illusion')) return;
     const MAP = {
         sk_illu_ogre:  { iv: 20, dice: [3, 20], div: 10, kind: 'melee', hitOff: 10, n: '歐吉' },
         sk_illu_lich:  { iv: 30, dice: [3, 20], div: 10, kind: 'magic', n: '巫妖' },
@@ -240,16 +241,17 @@ function illuSummonTick(owner) {
 function manualCast(skId) {
     let sk = DB.skills[skId];
     if(!sk || !player.skills.includes(skId)) return;
+    let __omniAccess = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
     if(inAbsBarrier()) { logSys('絕對屏障期間與世界隔絕，無法行動。'); return; }   // 🛡️ 屏障中不得手動施放任何技能（含本技能再施放）
     if(player.statuses && (player.statuses.silence > 0 || player.statuses.magicseal > 0)) { logSys('你被沉默／魔法封印，無法施放魔法。'); return; }   // 🤐 v3.1.77 稽核中#10：手動施放補沉默/魔法封印閘（castSkillInner 有、原手動沒有→沉默中可傳送逃脫）
-    if(sk.reqJustice && typeof pvpIsJustice === 'function' && !pvpIsJustice()) { logSys(`<span class="text-sky-300">${sk.n} 需要正義性向（性向值 ≥ 1000）才能施放。</span>`); return; }   // 💙 v3.5.75 究極光裂術：限正義性向
+    if(!__omniAccess && sk.reqJustice && typeof pvpIsJustice === 'function' && !pvpIsJustice()) { logSys(`<span class="text-sky-300">${sk.n} 需要正義性向（性向值 ≥ 1000）才能施放。</span>`); return; }   // 💙 v3.5.75 究極光裂術：限正義性向
     // 傳送術：行動限制狀態（石化／麻痺／冰凍／暈眩）無法手動施放
     if(sk.mEff === 'teleport' && player.statuses &&
        (player.statuses.stone > 0 || player.statuses.paralyze > 0 || player.statuses.freeze > 0 || player.statuses.stun > 0 || player.statuses.sleep > 0)) {
         logSys('你目前無法行動（石化／麻痺／冰凍／暈眩），無法使用傳送術。');
         return;
     }
-    let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
+    let __granted = __omniAccess || (player.grantedSkills && player.grantedSkills.includes(skId));
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && needLv === undefined) { logSys('你的職業無法使用此技能。'); return; }
     if(!__granted && player.lv < needLv) { logSys('等級不足，無法使用此技能。'); return; }
@@ -309,7 +311,7 @@ function manualCast(skId) {
         if(typeof playSelfFx === 'function') { try { playSelfFx(sk.n); } catch(e){} }   // 🛡️ 絕對屏障特效疊在玩家頭上（手動技·不經 castSkill 的 isSupportSkill 掛點）
     }
     player.mp -= cost;
-    if (player.mastery === 'i_mana' && player.mp < _mpBeforeManual) manaMasteryRefund(_mpBeforeManual - player.mp);   // 🔮 魔力精通：手動施法消耗MP→傭兵回饋10%
+    if (hasMastery('i_mana') && player.mp < _mpBeforeManual) manaMasteryRefund(_mpBeforeManual - player.mp);   // 🔮 魔力精通：手動施法消耗MP→傭兵回饋10%
     player.manualCd[skId] = (sk.mEff === 'barrier') ? (sk.dur * 10 + 120) : getAutoCastInterval(player, isSupportSkill(sk), player.manualCd[skId]);   // 🛡️ 絕對屏障保留專屬長冷卻；其餘手動施法套用攻擊／輔助施法速度
     calcStats(); updateUI();
 }
@@ -320,7 +322,7 @@ let _reqWpnWarnAt = -9999;   // 🛡️ v2.6.69 審計#15：reqWpn 不符提示�
 let _costItemWarnAt = -9999;   // 🌀 costItem 施法材料不足提示節流（每 60 秒最多一次）
 function castSkill(skId) {
     let r;
-    if (!(player && player.mastery === 'i_mana')) { r = castSkillInner(skId); }
+    if (!(player && hasMastery('i_mana'))) { r = castSkillInner(skId); }
     else {
         let _before = player.mp;
         r = castSkillInner(skId);
@@ -371,10 +373,11 @@ function applyMoveDashBuffMutex(owner, sid) {
 function castSkillInner(skId) {
     let sk = DB.skills[skId];
     if(!sk) return false;
+    let __omniAccess = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
     if(inAbsBarrier()) return false;   // 🛡️ 絕對屏障：無法施法（自動/手動皆擋）
     if(skId === 'sk_sunlight' && KING_ROOMS[mapState.current]) { logSys('<span class="text-red-400">此區域中，日光術無法生效。</span>'); return false; }   // 🔧 軍王之室／底比斯祭壇：日光術無效
     if(skId === 'sk_magic_shield' && (player.magicShieldCd || 0) > 0) return false;   // 魔法屏障抵擋技能後冷卻中，無法施放
-    if(sk.reqJustice && typeof pvpIsJustice === 'function' && !pvpIsJustice()) {   // 💙 v3.5.75 究極光裂術：限正義性向（性向值 ≥ 1000）·自動施放節流提示防洗頻
+    if(!__omniAccess && sk.reqJustice && typeof pvpIsJustice === 'function' && !pvpIsJustice()) {   // 💙 v3.5.75 究極光裂術：限正義性向（性向值 ≥ 1000）·自動施放節流提示防洗頻
         _logSilenceOnce(`<span class="text-sky-300">${sk.n} 需要正義性向才能施放。</span>`);
         return false;
     }
@@ -388,11 +391,11 @@ function castSkillInner(skId) {
         return false;
     }
     
-    let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
+    let __granted = __omniAccess || (player.grantedSkills && player.grantedSkills.includes(skId));
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && (needLv === undefined || player.lv < needLv)) return false;
-    if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符
-    if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性
+    if(!__omniAccess && !__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符
+    if(!__omniAccess && !__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性
 
     // 🏺 烈焰巫師的正式長袍：燃燒的火球→爆裂的火球。
     // ⚠️ v3.6.65 必須放在**等級/屬性閘之後**：爆裂的火球是「非可學技能」（無 reqM/reqE），
@@ -662,12 +665,12 @@ function castSkillInner(skId) {
         if(sk.dmgType === 'physical') {
             let t = getTarget();
             if(!t) return false;
-            if(sk.reqWpn === 'w2h' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].w2h || DB.items[player.eq.wpn.id].isBow)) {   // 🛡️ v2.6.69 審計#4：「雙手且非弓」——維持雙手限定的同時保留舊版排除弓的設計（w2h 弓不得施放衝擊之暈）
+            if(!__omniAccess && sk.reqWpn === 'w2h' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].w2h || DB.items[player.eq.wpn.id].isBow)) {   // 🛡️ v2.6.69 審計#4：「雙手且非弓」——維持雙手限定的同時保留舊版排除弓的設計（w2h 弓不得施放衝擊之暈）
                 if (state.ticks - _reqWpnWarnAt > 600) { _reqWpnWarnAt = state.ticks; logSys(`<span class="text-slate-400">${sk.n} 需要「雙手（非弓）武器」，目前武器不符，已暫停施放。</span>`); }   // 🛡️ 審計#15：原本靜默不施放零提示→每 60 秒提示一次
                 return false;
             }
             // 三重矢：必須裝備弓（🧹 v3.1.79 大掃除：移除 reqWpn 'nonbow' 死閘——全技能無此值·衝擊之暈實際用 'w2h'·原註解誤導）
-            if(sk.reqWpn === 'bow' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].isBow)) return false;
+            if(!__omniAccess && sk.reqWpn === 'bow' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].isBow)) return false;
             let wpn = player.eq.wpn ? DB.items[player.eq.wpn.id] : null;
             let arrowData = null;
 
@@ -891,9 +894,9 @@ function castSkillInner(skId) {
     
     if(sk.type === 'buff') {
         if(sk.noRefresh && (player.buffs[skId] || 0) > 0) return false;   // 🔧 烈焰之魂等：效果未結束不可再施放（不刷新）
-        if(sk.reqWpn === 'w2h' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].w2h)) return false;
-        if(sk.reqWpnMelee && (!player.eq.wpn || DB.items[player.eq.wpn.id].isBow || DB.items[player.eq.wpn.id].ranged)) return false;   // 🐉 燃燒擊砍：須裝備近距離武器
-        if(sk.reqWpnBlunt && (!player.eq.wpn || !(getWeaponTags(player.eq.wpn.id).includes('單手鈍器') || getWeaponTags(player.eq.wpn.id).includes('雙手鈍器')))) return false;   // ⚔️ 戰斧投擲：須裝備單手／雙手鈍器
+        if(!__omniAccess && sk.reqWpn === 'w2h' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].w2h)) return false;
+        if(!__omniAccess && sk.reqWpnMelee && (!player.eq.wpn || DB.items[player.eq.wpn.id].isBow || DB.items[player.eq.wpn.id].ranged)) return false;   // 🐉 燃燒擊砍：須裝備近距離武器
+        if(!__omniAccess && sk.reqWpnBlunt && (!player.eq.wpn || !(getWeaponTags(player.eq.wpn.id).includes('單手鈍器') || getWeaponTags(player.eq.wpn.id).includes('雙手鈍器')))) return false;   // ⚔️ 戰斧投擲：須裝備單手／雙手鈍器
         if(sk.reqShield && !player.eq.shield && !(player.eq.wpn && getWeaponTags(player.eq.wpn.id).includes('武士刀'))) return false;   // 武士刀：免盾亦可施展
         // 🧙 v3.2.21 玩家召喚類 v2：sk_summon／sk_zombie（造屍術）／sk_elf_summon(2)（屬性精靈）分流到 js/23（多實體·可被攻擊·浮動框）；迷魅與傭兵維持舊 setupSummon 管線
         if(sk.summon) {
@@ -906,7 +909,7 @@ function castSkillInner(skId) {
         // 🧹 v3.1.79 大掃除：移除不可達的舊版淨化分支（sk_antidote/sk_holy_light/sk_cancel 的 type 皆為 'heal'→一律在上方 heal 淨化分支處理並 return·永遠到不了本 buff 分支；現行規則＝teamCleanseOne 一次只解一人·舊分支「只解玩家自身」語意已過時）
         player.buffs[skId] = sk.dur;
         applyMoveDashBuffMutex(player, skId);
-        if(sk.awaken && player.mastery !== 'k_awaken') { ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].forEach(_ak => { if(_ak !== skId) player.buffs[_ak] = 0; }); }   // 🐉 覺醒互斥：非覺醒精通時同時只能維持一種覺醒
+        if(!__omniAccess && sk.awaken && player.mastery !== 'k_awaken') { ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].forEach(_ak => { if(_ak !== skId) player.buffs[_ak] = 0; }); }   // 🐉 覺醒互斥：非覺醒精通時同時只能維持一種覺醒
         if(sk.haste) player.buffs.haste = Math.max(player.buffs.haste || 0, sk.dur); // 加速術 → 套用 haste 效果
         player.mp -= cost;
         if(sk.hpCost) player.hp = Math.max(1, player.hp - effHpCost(sk));  // 消耗 HP（冥想術/堅固防護/隱身術；🐉 龍血精通減半）
@@ -1017,7 +1020,7 @@ function autoActions() {
             if(sid === 'sk_haste_spell') { let _g = document.getElementById('auto-sk-sk_greater_haste'); if (_g && _g.checked && player.skills.includes('sk_greater_haste')) return; }
             if(sid === 'sk_sunlight' && KING_ROOMS[mapState.current]) return;   // 🔧 軍王之室／底比斯祭壇：日光術無效，跳過自動施放（否則每 tick 被擋下並狂洗系統日誌）
             if(sk.darkStealth && player._darkStealthCd > state.ticks) return;   // 🔧 暗隱術：冷卻中不自動施放（須身上無暗隱術且冷卻結束才再施放）
-            if(sk.awaken && player.mastery !== 'k_awaken' && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => (player.buffs[a]||0) > 0)) return;   // 🐉 覺醒互斥：已有一種覺醒生效時不自動施放其他覺醒（避免互相清除而反覆耗HP/MP）；覺醒精通可同時三種
+            if(!(typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess()) && sk.awaken && player.mastery !== 'k_awaken' && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => (player.buffs[a]||0) > 0)) return;   // 🐉 覺醒互斥：已有一種覺醒生效時不自動施放其他覺醒（避免互相清除而反覆耗HP/MP）；覺醒精通可同時三種
             if(sk.cube && mapState.current.startsWith('town_')) return;   // 🔮 立方：安全區(村莊)不自動施放，進入狩獵區(非 town_)才展開
             if(sk.stormInterval && mapState.current.startsWith('town_')) return;   // 🌨️🔥 火牢/冰雪颶風等持續傷害增益(STORM_BUFF_SKILLS)：安全區(村莊)無敵人→不自動施放(免空耗 MP/洗版)，與立方/轉換魔法一致
             if(sk.summon && typeof _petInWild === 'function' && !_petInWild()) return;   // 🧟 v3.2.21 召喚類增益：安全區/無怪區不自動施放（v2 施放會被擋→免反覆嘗試洗版·比照立方/颶風）

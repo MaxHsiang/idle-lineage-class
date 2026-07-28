@@ -680,7 +680,7 @@ function departToLastBattle() {
     if (!tgt || (!DB.maps[tgt] && !KING_ROOMS[tgt])) { logSys('<span class="text-slate-400">尚無上一張戰鬥地圖，請從地圖選單選擇前往。</span>'); return; }
     if (KING_ROOMS[tgt]) {   // 🔧 鑰匙閘改用「該房自己的鑰匙」(_kr.key)——底比斯歐西里斯祭壇需 item_thebes_altar_key，不再誤用 item_king_key（修：持軍王鑰匙竟能直接「出發」回祭壇）
         let _kk = KING_ROOMS[tgt].key || 'item_king_key';
-        if (!player.inv.some(i => i.id === _kk && (i.cnt || 1) >= 1)) {
+        if (!(typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass()) && !player.inv.some(i => i.id === _kk && (i.cnt || 1) >= 1)) {
             logSys(`<span class="text-red-400">鑰匙不足，無法進入${KING_ROOMS[tgt].name || '軍王之室'}。</span>`);
             return;
         }
@@ -1183,7 +1183,7 @@ function changeMap(force) {
         let _prev = mapState.current, _tgt = document.getElementById('map-select').value;
         let _need = null;
         for (let _cat in MAP_CATEGORIES) { let _e = (MAP_CATEGORIES[_cat] || []).find(m => m.v === _tgt); if (_e) { _need = _e.needKey; break; } }
-        if (!force && _need && _tgt !== _prev) {
+        if (!force && _need && _tgt !== _prev && !(typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass())) {
             let _ki = player.inv.findIndex(i => i.id === _need && (i.cnt || 1) >= 1);
             if (_ki < 0) { syncMapSelectors(); logSys('<span class="text-red-400">沒有 軍王的鑰匙，無法進入。</span>'); return; }
             let _kit = player.inv[_ki];
@@ -1539,8 +1539,9 @@ function renderPrideEntrance(container) {
 // ===== 🌑 v3.3.33 真‧冥皇丹特斯（長老會議廳·黑暗妖精聖地.md）：三選項入口 =====
 //   進入 黑暗妖精聖地／受詛咒的黑暗妖精聖地＝各消耗 1 本 死亡騎士之書；交出 吉爾塔斯的封印＝消耗 1 個→傳送 崩壞的長老會議廳。
 //   三張圖皆不在地圖選單（隱藏圖）→ 直接設定 mapState 進圖（仿 js/05 enterOblivionMap 的直接進圖流程）。
-function _sanctItemCount(id) { let c = 0; player.inv.forEach(i => { if (i.id === id) c += (i.cnt || 1); }); return c; }
+function _sanctItemCount(id) { if (typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass()) return 1; let c = 0; player.inv.forEach(i => { if (i.id === id) c += (i.cnt || 1); }); return c; }
 function _sanctConsume(id) {
+    if (typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass()) return true;
     let i = player.inv.findIndex(x => x.id === id && (x.cnt || 1) >= 1);
     if (i < 0) return false;
     let it = player.inv[i];
@@ -1550,7 +1551,8 @@ function _sanctConsume(id) {
 function sanctuaryEnter(mapKey, costId) {
     let d0 = DB.items[costId];
     if (!_sanctConsume(costId)) { logSys(`<span class="text-red-400">沒有 ${d0 ? d0.n : costId}，無法進入。</span>`); return; }
-    logSys(`<span class="text-amber-300">你交出了 1 個 ${d0 ? d0.n : costId}，${mapKey === 'collapsed_elder_council_hall' ? '被傳送到了 崩壞的長老會議廳' : '踏入了 ' + (mapKey === 'dark_elf_sanctuary' ? '黑暗妖精聖地' : '受詛咒的黑暗妖精聖地')}……</span>`);
+    let _pass = typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass();
+    logSys(`<span class="text-amber-300">${_pass ? '創世完美通行證開啟了道路（未消耗）' : '你交出了 1 個 ' + (d0 ? d0.n : costId)}，${mapKey === 'collapsed_elder_council_hall' ? '被傳送到了 崩壞的長老會議廳' : '踏入了 ' + (mapKey === 'dark_elf_sanctuary' ? '黑暗妖精聖地' : '受詛咒的黑暗妖精聖地')}……</span>`);
     closeNpcInteraction();
     try { if (typeof closeWarehouseWindow === 'function') closeWarehouseWindow(); } catch (e) {}   // 🏦 v3.5.94 本函式複製 changeMap 的戰鬥進場流程但不經過 changeMap；closeNpcInteraction 刻意不負責關倉庫(見其開頭註解)，故此處自行補上，否則浮動倉庫視窗會殘留到聖地並遮住 battle-view
     saveSiegeBossHp();
@@ -1578,10 +1580,11 @@ function sanctuaryEnter(mapKey, costId) {
 }
 function renderDantesGate(div) {
     let books = _sanctItemCount('item_dk_book'), seals = _sanctItemCount('item_giltas_seal'), orbs = _sanctItemCount('item_summonorb_full');
+    let _pass = typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass();
     div.innerHTML = `
         <div class="text-sm text-slate-300 space-y-2">
             <p>「嗚！嗚！嗚！……你也為了嘲笑我的愚蠢而來的嗎？<br><br>快離開吧，已經太遲了。」</p>
-            <p class="text-xs text-slate-400">持有：死亡騎士之書 ×${books}．吉爾塔斯的封印 ×${seals}．完整的召喚球 ×${orbs}</p>
+            <p class="text-xs ${_pass ? 'text-cyan-300 font-bold' : 'text-slate-400'}">${_pass ? '持有：創世完美通行證（所有入口與頭目重生皆可無限使用）' : `持有：死亡騎士之書 ×${books}．吉爾塔斯的封印 ×${seals}．完整的召喚球 ×${orbs}`}</p>
             <div class="space-y-2 pt-2">
                 <button class="w-full text-left px-3 py-2 rounded bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/40 ${books < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('dark_elf_sanctuary','item_dk_book')">⚔️ 進入 黑暗妖精聖地</button>
                 <button class="w-full text-left px-3 py-2 rounded bg-rose-900/60 hover:bg-rose-800 border border-rose-500/40 ${books < 1 ? 'opacity-50' : ''}" onclick="sanctuaryEnter('cursed_dark_elf_sanctuary','item_dk_book')">💀 進入 受詛咒的黑暗妖精聖地</button>

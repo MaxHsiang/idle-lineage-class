@@ -568,7 +568,7 @@ function settleDeadMobs() {
         let _krm = KING_ROOMS[mapState.current];
         let _keyId = (_krm && _krm.key) || 'item_king_key';
         let _keyNm = DB.items[_keyId] ? DB.items[_keyId].n : '鑰匙';
-        let _hasKey = _krm && player.inv.some(i => i.id === _keyId && (i.cnt || 1) >= 1);
+        let _hasKey = _krm && ((typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass()) || player.inv.some(i => i.id === _keyId && (i.cnt || 1) >= 1));
         if (_hasKey) {
             mapState.mobs = [null, null, null, null, null];
             mapState.spawnAt = [null, null, null, null, null];
@@ -609,7 +609,16 @@ function kbRoomRespawn() {
     if (!_kr) { state._kbRespawnAt = null; return; }
     let _keyId = _kr.key || 'item_king_key';
     let _keyNm = DB.items[_keyId] ? DB.items[_keyId].n : '鑰匙';
+    let _pass = typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass();
     let _ki = player.inv.findIndex(i => i.id === _keyId && (i.cnt || 1) >= 1);
+    if (_pass) {
+        if (_kr.dual) { _kr.bosses.forEach((bid, k) => spawnMob(k)); }
+        else { spawnMob(1); spawnMob(0); spawnMob(2); }
+        mapState.spawnAt = [null, null, null, null, null]; mapState.targetIdx = -1;
+        logSys('<span class="text-cyan-300 font-bold">創世完美通行證使頭目無消耗再度甦醒！</span>');
+        if (!state.ff) { renderMobs(); updateUI(); saveGame(); }
+        return;
+    }
     if (_ki < 0) { kbVictoryTeleport(); return; }   // 等待期間鑰匙意外用罄：傳送回村/回城
     let _kit = player.inv[_ki];
     if ((_kit.cnt || 1) > 1) _kit.cnt -= 1; else player.inv.splice(_ki, 1);
@@ -1040,7 +1049,14 @@ function checkLvUp() {
 function giltasKeepOnLeave() {
     if (!mapState || mapState.current !== 'cursed_dark_elf_sanctuary') return;
     let _gb = mapState.mobs && mapState.mobs.find(m => m && m.n === '吉爾塔斯' && m.curHp > 0);
+    let _pass = typeof hasGenesisPerfectPass === 'function' && hasGenesisPerfectPass();
     let _oi = player.inv.findIndex(i => i.id === 'item_summonorb_full' && (i.cnt || 1) >= 1);
+    if (_gb && _gb.curHp < _gb.hp && _pass) {
+        player.giltasKeep = { hp: Math.max(1, Math.floor(_gb.curHp)) };
+        logSys(`<span class="text-cyan-300">創世完美通行證保留了吉爾塔斯的傷勢（剩餘 HP ${player.giltasKeep.hp.toLocaleString()}），未消耗完整的召喚球。</span>`);
+        try { renderTabs(true); } catch (e) {}
+        return;
+    }
     if (_gb && _gb.curHp < _gb.hp && _oi >= 0) {
         let _ob = player.inv[_oi];
         if ((_ob.cnt || 1) > 1) _ob.cnt -= 1; else player.inv.splice(_oi, 1);

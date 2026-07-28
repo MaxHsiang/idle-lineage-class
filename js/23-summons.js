@@ -137,7 +137,7 @@ function _sumDerive(mob, owner) {
     const mean = (squadDps / designCount) * (m.aspd / 10);
     const flat = Math.round(mean * 0.55);
     const dice = Math.max(1, Math.round((mean - flat) * 2));
-    const mastery = (owner.mastery === 'm_summon');   // 🧙 召喚精通沿用：傷害×1.2、命中+5
+    const mastery = entityHasMastery(owner, 'm_summon');   // 🧙 召喚精通沿用：傷害×1.2、命中+5
     return {
         flat, dice, aspd: m.aspd,
         dmgMult: (mastery ? 1.2 : 1) * (1 + Math.min(12, Math.max(0, ((owner.d && owner.d.magicDmg) || 0) + _sumOwnerMdBonus(owner))) / 80),   // 🏺 v3.7.20 +summonMdmg
@@ -174,7 +174,7 @@ function _zmbDerive(s, owner) {
     const mean = dps * (ZOMBIE_ASPD / 10);
     const flat = Math.round(mean * 0.55);
     const dice = Math.max(1, Math.round((mean - flat) * 2));
-    const mastery = (owner.mastery === 'm_summon');   // 🧙 召喚精通沿用：造屍術隨從傷害×1.2、命中+5
+    const mastery = entityHasMastery(owner, 'm_summon');   // 🧙 召喚精通沿用：造屍術隨從傷害×1.2、命中+5
     return {
         flat, dice, aspd: ZOMBIE_ASPD,
         dmgMult: (mastery ? 1.2 : 1) * (1 + Math.min(12, Math.max(0, ((owner.d && owner.d.magicDmg) || 0) + _sumOwnerMdBonus(owner))) / 80),   // 🏺 v3.7.20 +summonMdmg
@@ -216,7 +216,7 @@ function _spiritSpec(skId, ele, king) {   // 實體規格（依技能/屬性/是
     const e = (base.ele && (base.ele[ele] || base.ele.water)) || {};
     return { lv: base.lv, mrPenBase: base.mrPenBase, hitLvOff: base.hitLvOff, dmgMult: base.dmgMult, aoe: king ? SPIRIT_KING.aoe : null, hp: e.hp || 400, aspd: e.aspd || 16, dice: e.dice || [1, 40], scale: e.scale || 20 };
 }
-function _spiritIsKing(skId) { return skId === 'sk_elf_summon2' && player && player.mastery === 'e_spirit'; }
+function _spiritIsKing(skId) { return skId === 'sk_elf_summon2' && player && hasMastery('e_spirit'); }
 function _spiritFormName(skId, ele) {
     if (_spiritIsKing(skId)) return (SPIRIT_ELE_ZH[ele] || '') + '之精靈王';   // 🏷️ v3.2.27 更名：〈屬〉之精靈系（圖檔資料夾仍為 X屬性精靈·由 formGfx 對應）
     return (SPIRIT_DEF[skId].strong ? '強力' : '') + (SPIRIT_ELE_ZH[ele] || '') + '之精靈';
@@ -280,7 +280,9 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
     if (skId === 'sk_summon') {
         const form = summonV2ActiveForm();
         if (!form) { if (!silent) logSys('<span class="text-red-400">等級不足：召喚術需要等級 28 以上。</span>'); return false; }
-        const cnt = _sumCountFor(form);
+        let cnt = _sumCountFor(form);
+        const _genCtrl = player.eq && Object.keys(player.eq).some(k => player.eq[k] && player.eq[k].id === 'rng_genesis_control');
+        if (_genCtrl) cnt = Math.max(1, cnt) + 1;
         if (cnt <= 0) { if (!silent) logSys(`<span class="text-red-400">魅力不足：無法召喚 ${form}（數量=(魅力+6)/${(_sumTierOf(form).tier.div || 8)}）。</span>`); return false; }
         const e = _sumTierOf(form);
         for (let i = 0; i < cnt; i++) ents.push({ uid: uid(), skId: skId, form: form, lv: e.mob.lv, hp: e.mob.hp, mhp: e.mob.hp, _atkCd: 5 + i * 3 });
@@ -303,6 +305,9 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
             ? `精靈之力在你的精通下昇華——你召喚了 <span class="text-purple-300 font-bold">${form}</span>！`
             : `你召喚了 <span class="text-purple-300">${form}</span>。`;
     } else return false;
+    if (player.eq && Object.keys(player.eq).some(k => player.eq[k] && player.eq[k].id === 'rng_genesis_control')) {
+        ents.forEach(e => { e.hp = e.mhp = Math.max(1, Math.floor((e.mhp || e.hp || 1) * 1.20)); });
+    }
     // 同時只能有一種召喚：清除其他召喚 buff＋舊管線殘留（比照 setupSummon 的清除迴圈）
     (player.skills || []).forEach(s => { const d = DB.skills[s]; if (d && d.summon) player.buffs[s] = 0; });
     if (player.summon && player.summon.skId !== 'sk_charm') player.summon = null;

@@ -5,29 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>放置天堂－創世全能師</title>
-<style>
-html,body,#game{margin:0;width:100%;height:100%;border:0;overflow:hidden;background:#020617}
-#loading{position:fixed;inset:0;display:grid;place-items:center;background:#020617;color:#fde68a;font:700 20px system-ui,sans-serif;z-index:5}
-</style>
+<style>html,body{margin:0;width:100%;height:100%;background:#020617;color:#fde68a;font:700 20px system-ui,sans-serif}body{display:grid;place-items:center}</style>
 </head>
 <body>
-<div id="loading">正在載入創世全能師 v1.3.0-dev……</div>
-<iframe id="game" src="index.html?genesis=1" title="放置天堂－創世全能師"></iframe>
+<div>正在載入創世全能師 v1.6.13-dev……</div>
 <script>
 (function(){
-  const frame=document.getElementById('game');
-  const loading=document.getElementById('loading');
-  frame.addEventListener('load',function(){
-    try{
-      const win=frame.contentWindow;
-      const doc=frame.contentDocument;
-      win.addEventListener('genesis:ready',function(){loading.remove();},{once:true});
-      const script=doc.createElement('script');
-      script.src='js/genesis/genesis-loader.js?v=1.3.0-dev';
-      script.onerror=function(){loading.textContent='創世框架載入失敗，請按 Ctrl+F5 後重試。';};
-      doc.body.appendChild(script);
-    }catch(e){loading.textContent='遊戲啟動失敗：'+e.message;}
-  });
+  location.replace('index.html?genesis=1&build=173');
 })();
 </script>
 </body>

@@ -349,6 +349,13 @@ function getItemColor(item) {
 //   單祝福→金光、單遠古→紫光（原樣）；屬性+遠古→紫光(加強)、屬性+祝福→金光(加強)，顯眼度比照雙詞綴；
 //   遠古+祝福→紫金交替(顯眼)；三詞綴→變色循環，顯眼度最高。
 function getGlowClass(item, d) {
+    // Genesis equipment and items keep their artwork but never receive any
+    // blessing, ancient, attribute, relic, legend or set glow animation.
+    const glowItemId = String((item && item.id) || (d && d.id) || '');
+    const glowItemImg = String((d && d.img) || '');
+    if ((d && (d.genesisItem || d.genesisPerfectPass || d.genesisPetGear)) ||
+        glowItemId.indexOf('genesis') >= 0 ||
+        glowItemImg.indexOf('/genesis/') >= 0) return '';
     // 🔮 席琳結晶：圖示帶與套裝文字同款的呼吸綠光
     if ((item && item.id === 'sherine_crystal') || (d && d.n === '席琳結晶')) return 'sherine-glow-icon';
     // 🔮 席琳套裝效果裝備：套裝光芒優先於傳說圖示光（名稱仍由 getItemColor 決定為琥珀金）
@@ -1359,6 +1366,16 @@ function renderStatusEffects() {
             let c = DEBUFF_COLORS[k] || 'text-red-400';
             debuffs.push(`<span class="${c} font-bold">${PLAYER_DEBUFF_NAME[k]}</span>`);
         }
+    }
+
+    // Native buff icons move above the battle view, so the detailed panel used
+    // to look empty. Always retain a useful Genesis summary here.
+    if (player && (player.cls === 'omni' || player.genesisOmni || player.genesisClass)) {
+        buffs.unshift('<span class="text-cyan-300 font-bold">全能師</span>');
+        if (player._genesisPageOneSet || player._genesisFullSet) buffs.push('<span class="text-amber-200 font-bold">創世套裝</span>');
+        if (player.poly && player.buffs && player.buffs.poly > 0 && (player.poly.genesisCreatorForm || player.poly.genesisArkata)) buffs.push('<span class="text-cyan-200 font-bold">創世神型態</span>');
+        if (typeof genesisOmniAwakeningActive === 'function' && genesisOmniAwakeningActive(player)) buffs.push('<span class="text-violet-300 font-bold">全能覺醒（全職業全部專精）</span>');
+        if (Array.isArray(player.genesisMiniDragons)) buffs.push('<span class="text-emerald-300 font-bold">迷你四龍出戰 ' + player.genesisMiniDragons.length + '/4（繼承最終能力與裝備功能 25%）</span>');
     }
 
     let html = `狀態: ${buffs.length ? buffs.join(" / ") : "正常"}`;

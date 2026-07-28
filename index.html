@@ -441,7 +441,11 @@
                         <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-magicbarrier" class="w-4 h-4"> <span class="text-cyan-300">魔法屏障卷軸</span></label>
                         <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-teleport" class="w-4 h-4"> <span class="text-sky-300">迴避頭目(瞬移卷軸)</span></label>
                         <label class="col-span-2 cursor-pointer flex items-center gap-2 border-t border-slate-700 pt-2 mt-1"><input type="checkbox" id="set-auto-buy-arrow" class="w-4 h-4" checked> <span class="text-orange-300">弓箭耗盡時自動購買 1000 銀箭</span></label>
-						<div id="auto-buff-skills" class="col-span-2 grid grid-cols-2 gap-1 mt-1 border-t border-slate-600 pt-2"></div>
+						<div class="col-span-2 flex items-center justify-between mt-1 border-t border-slate-600 pt-2">
+							<span class="text-cyan-300 font-bold">自動技能</span>
+							<button id="auto-skills-toggle-all" type="button" class="btn" style="padding:4px 10px;border-color:#22d3ee;color:#a5f3fc;background:#0f172a" onclick="toggleAllAutoSkills()">一鍵全選</button>
+						</div>
+						<div id="auto-buff-skills" class="col-span-2 grid grid-cols-2 gap-1"></div>
                     </div>
                     <!-- 匯出/存檔 已移至右上角按鈕區（3×4） -->
                 </div>
@@ -545,17 +549,17 @@
     </script>
 
     <script src="js/anim-manifest.js?v=v3.5.100-audit-tail"></script>
-    <script src="js/00-data.js?v=v3.7.37-return-select-btn-compact"></script>
-<script src="js/01-drops-config.js?v=v3.7.36-return-character-select"></script>
-<script src="js/02-stats-recompute.js?v=v3.7.22-relic-fixes"></script>
-    <script src="js/03-combat-core.js?v=v3.7.36-return-character-select"></script>
-    <script src="js/04-combat-attack.js?v=v3.7.22-relic-fixes"></script>
+    <script src="js/00-data.js?v=v3.7.37-genesis-window-bridge-151"></script>
+<script src="js/01-drops-config.js?v=v3.7.37-genesis-173"></script>
+<script src="js/02-stats-recompute.js?v=v3.7.37-genesis-173"></script>
+    <script src="js/03-combat-core.js?v=v3.7.37-genesis-173"></script>
+    <script src="js/04-combat-attack.js?v=v3.7.37-genesis-173"></script>
 <script src="js/05-kill-progression.js?v=v3.7.27-mass-taunt-battle"></script>
     <script src="js/06-status-allies.js?v=v3.7.32-merc-ledger-rename-safe"></script>
-    <script src="js/07-skills-cast.js?v=v3.7.22-relic-fixes"></script>
-<script src="js/08-items-equip.js?v=v3.7.28-catchup-item-index"></script>
-<script src="js/09-vfx-render.js?v=v3.7.24-true-catchup-boss-offline"></script>
-<script src="js/10-ui-tabs.js?v=v3.7.28-catchup-item-index"></script>
+    <script src="js/07-skills-cast.js?v=v3.7.37-genesis-173"></script>
+<script src="js/08-items-equip.js?v=v3.7.37-genesis-173"></script>
+<script src="js/09-vfx-render.js?v=v3.7.37-genesis-173"></script>
+<script src="js/10-ui-tabs.js?v=v3.7.37-genesis-173"></script>
 <script src="js/11-world-map.js?v=v3.7.29-old-weapon-attr"></script>
 <script src="js/12-npc-quests.js?v=v3.6.92-lock-stack-merge"></script>
 <script src="js/13-shop-save.js?v=v3.7.36-return-character-select"></script>
@@ -567,12 +571,13 @@
 <script src="js/19-equipment-window.js?v=v3.6.01-clan-audit-fix"></script>
 <script src="js/20-warehouse-window.js?v=v3.5.100-audit-tail"></script>
 <script src="js/21-relic-book.js?v=v3.5.100-audit-tail"></script>
-    <script src="js/23-summons.js?v=v3.7.22-relic-fixes"></script>
-    <script src="js/22-pets.js?v=v3.7.22-relic-fixes"></script>
+    <script src="js/23-summons.js?v=v3.7.37-genesis-173"></script>
+    <script src="js/22-pets.js?v=v3.7.37-genesis-173"></script>
     <script src="js/24-pandora-relic-market.js?v=v3.6.95-npc-align-stable"></script>
-    <script src="js/25-clan-system.js?v=v3.7.30-catchup-perf-fix"></script>
+    <script src="js/25-clan-system.js?v=v3.7.37-genesis-173"></script>
     <script src="js/26-world-channel.js?v=v3.7.29-old-weapon-attr"></script>
     <script src="js/27-offline-rewards.js?v=v3.7.36-return-character-select"></script>
 <script src="js/28-pvp-arena.js?v=v3.7.17-duel-no-potion"></script>
+<script src="js/genesis/genesis-loader.js?v=1.6.13-static-bootstrap"></script>
 </body>
 </html>
