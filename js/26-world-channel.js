@@ -1,8 +1,8 @@
 // ========== 🌐 v3.6.50 世界頻道問答系統 ==========
 //   ・玩家在世界頻道輸入列發問 → 隨機 1~3 名「線上玩家 NPC」回覆：可能認真回答、可能只是路過嘲笑。
 //   ・答案盡量取自真實遊戲資料（DB.maps 出怪等級／DB.items 職業可用裝備／MASTERY_DATA 精通），不寫死攻略文字。
-//   ・NPC 名字可點 → 嘲諷（依性向判定記仇並可能野外追殺）／感謝（好感回覆）。
-//   ⚠️ NPC 名冊只存在記憶體（重整即換一批）；唯一會寫進存檔的是「嘲諷記仇」，比照 js/24 叫賣 NPC 的 _startWandererChase。
+//   ・NPC 名字可點 → 嘲諷（依性向判定記仇並可能野外追殺）／感謝（好感回覆）／私訊（1 對 1 對話）。
+//   ⚠️ 線上名冊仍是即時資料；最近私訊的 20 位 NPC 與對話摘要會寫進角色存檔，供「社交＞私訊」再次聯絡。
 
 function _wcPick(list) { return (list && list.length) ? list[Math.floor(Math.random() * list.length)] : ''; }
 function _wcEsc(s) {
@@ -21,6 +21,8 @@ let _wcMenuDocHandler = null;                 // 點擊選單外時關閉浮動�
 let _wcAskCooldownUntil = 0;                 // 連續發問節流（避免洗頻）
 let _wcIdleTimer = null;                     // 每分鐘世界頻道自動閒聊
 let _wcRecentIdleLines = [];                 // 避免短時間重複抽到相同閒聊
+let _wcPrivateActiveId = null;               // 目前開啟私訊的 NPC
+let _wcPrivatePendingIds = Object.create(null); // 正在等待模型回覆的 NPC
 const WC_RECENT_CHAT_LIMIT = 60;
 
 function _wcSpawnNpc() {
@@ -62,11 +64,20 @@ function _wcSpawnNpc() {
         clanLeader: !!entry.clanLeader,
         thanked: false,
         taunted: false,
-        blocked: false
+        blocked: false,
+        privateHatred: 0,
+        privateEmotion: 0,
+        privateEmotionOutcome: '',
+        privateMessages: [],
+        privateImpactTexts: [],
+        privateImpactTimes: []
     };
     // 名冊上限：只留最近 40 位（更早的名字點了也找不到人，屬於「已離線」）
     let ids = Object.keys(_wcNpcs);
-    if (ids.length > 40) delete _wcNpcs[ids[0]];
+    if (ids.length > 40) {
+        let removeId = ids.find(key => key !== _wcPrivateActiveId) || ids[0];
+        delete _wcNpcs[removeId];
+    }
     return id;
 }
 function _wcAlignmentValue(v) {
@@ -89,7 +100,7 @@ function _wcStaticNameHtml(name, alignmentValue) {
 function _wcNameHtml(id) {
     let n = _wcNpcs[id];
     if (!n) return '<span class="wc-name">???</span>';
-    return `<span class="wc-player-name wc-name" data-wc-npc-id="${id}" style="${_wcNameStyle(n.alignmentValue)}" onclick="worldChannelNpcMenu('${id}', event)" title="點擊：嘲諷或感謝">${_wcEsc(n.name)}</span>`;
+    return `<span class="wc-player-name wc-name" data-wc-npc-id="${id}" style="${_wcNameStyle(n.alignmentValue)}" onclick="worldChannelNpcMenu('${id}', event)" title="點擊：嘲諷、感謝或私訊">${_wcEsc(n.name)}</span>`;
 }
 
 function _wcRemoveNpcMessages(id) {
@@ -224,15 +235,27 @@ function _wcBuildKnowledge() {
     let itemDrops = Object.create(null), mobDrops = Object.create(null), shopItems = new Set();
     try {
         if (typeof MAP_REGIONS !== 'undefined') MAP_REGIONS.forEach(r => (r.maps || []).forEach(m => { mapNames[m.v] = m.t; }));
+        let addMobMap = function(mobName, mapKey, mapName) {
+            if (!mobName) return;
+            let rows = mobMaps[mobName] = mobMaps[mobName] || [];
+            if (!rows.some(row => row.key === mapKey)) rows.push({ key: mapKey, name: mapName });
+        };
         for (let mapKey in DB.maps) {
             let mapName = mapNames[mapKey];
             if (!mapName || !Array.isArray(DB.maps[mapKey])) continue;
             let seen = new Set();
             DB.maps[mapKey].forEach(mobId => {
                 let mob = DB.mobs[mobId];
-                if (!mob || !mob.n || seen.has(mob.n)) return;
-                seen.add(mob.n);
-                (mobMaps[mob.n] = mobMaps[mob.n] || []).push({ key: mapKey, name: mapName });
+                if (!mob || !mob.n) return;
+                if (!seen.has(mob.n)) seen.add(mob.n);
+                let chainId = mobId, chainSeen = new Set();
+                while (chainId && !chainSeen.has(chainId)) {
+                    chainSeen.add(chainId);
+                    let form = DB.mobs[chainId];
+                    if (!form || !form.n) break;
+                    addMobMap(form.n, mapKey, mapName);
+                    chainId = form.transformTo;
+                }
             });
             mapMobs[mapName] = Array.from(seen);
         }
@@ -282,7 +305,7 @@ function _wcBuildKnowledge() {
             };
         });
     } catch (e) {}
-    _wcKnowledge = { itemNames: itemNames, mobNames: mobNames, mapEntries: mapEntries, itemDrops: itemDrops, mobDrops: mobDrops, shopItems: shopItems, craftBy: craftBy };
+    _wcKnowledge = { itemNames: itemNames, mobNames: mobNames, mapEntries: mapEntries, mobMaps: mobMaps, itemDrops: itemDrops, mobDrops: mobDrops, shopItems: shopItems, craftBy: craftBy };
     return _wcKnowledge;
 }
 function _wcCompactItemText(s) {
@@ -379,6 +402,14 @@ function _wcTrial50Source(itemId) {
 function _wcItemSourceAnswers(itemId) {
     let d = DB.items[itemId];
     if (!d) return WC_UNKNOWN_LINES;
+    // 🐉 v3.7.56 幼龍蛋特例：掉落走 js/05 硬編碼（四大龍各 10%·不在 MOB_DROPS）→ 資料表反查不到，必須硬寫；「頑皮龍怎麼獲得」也會被模糊搜尋帶到這裡，答案順便講孵化。
+    if (itemId === 'item_dragon_egg' || itemId === 'item_dragon_egg2') {
+        let _pet = d.eggPet || '幼龍';
+        return [
+            `${d.n}要打四大龍：安塔瑞斯、法利昂、巴拉卡斯、林德拜爾，擊敗時有機率拾獲。用掉就孵出${_pet}，可以存倉庫；身上帶著蛋在野外還有極低機率引來林德拜爾。`,
+            `想要${d.n}就去挑戰安塔瑞斯／法利昂／巴拉卡斯／林德拜爾，擊敗有機率掉。孵出來固定是${_pet}；帶在身上野外小心風龍找上門。`
+        ];
+    }
     let k = _wcBuildKnowledge();
     let rows = (k.itemDrops[itemId] || []).slice().sort((a, b) => (b.rate || 0) - (a.rate || 0));
     let owner = _wcTrialOwnerText(itemId);
@@ -444,10 +475,10 @@ function _wcBuildPetSources() {
     try {
         for (let base in PET_BOOK) { let evo = PET_BOOK[base] && PET_BOOK[base].evo; if (evo) push(evo, `由 ${base} 練到 Lv30 後用進化果實進化`); }
     } catch (e) {}
-    // ④ 兩條特例管道（無法從資料表推導·硬寫）：頑皮幼龍蛋隨機孵 淘氣龍/頑皮龍；勝利果實把任一「一般型態」直接進化成 黃金龍
+    // ④ 兩條特例管道（無法從資料表推導·硬寫）：幼龍蛋定向孵化（v3.7.56 四大龍掉蛋·頑皮蛋→頑皮龍、淘氣蛋→淘氣龍）；勝利果實把任一「一般型態」直接進化成 黃金龍
     try {
-        let eggRows = (k.itemDrops['item_dragon_egg'] || []).slice(0, 3).map(r => _wcDropPlace(r));
-        ['淘氣龍', '頑皮龍'].forEach(p => push(p, `使用「頑皮幼龍蛋」隨機孵化（兩種各半）${eggRows.length ? `，蛋打 ${eggRows.join('、')}` : ''}`));
+        push('頑皮龍', '使用「頑皮幼龍蛋」孵化，蛋是擊敗 安塔瑞斯／法利昂／巴拉卡斯／林德拜爾 時有機率拾獲');
+        push('淘氣龍', '使用「淘氣幼龍蛋」孵化，蛋是擊敗 安塔瑞斯／法利昂／巴拉卡斯／林德拜爾 時有機率拾獲');
     } catch (e) {}
     push('黃金龍', '任一「一般型態」寵物 Lv30 後改用勝利果實進化（與高等型態二選一）');
     _wcPetSourceIdx = idx;
@@ -497,6 +528,21 @@ function _wcMobDropAnswers(mobName) {
         `${mobName}會掉 ${parts.join('、')}${more}。${relicTxt}`,
         `打${mobName}可以拿到 ${parts.join('、')}${more}。${relicTxt}`,
         `${mobName}我印象中有 ${parts.join('、')}${more}，詳細的自己開統計的掉落物頁看。${relicTxt}`
+    ];
+}
+function _wcMobLocationAnswers(mobName) {
+    let rows = ((_wcBuildKnowledge().mobMaps || {})[mobName] || []).filter((row, index, all) =>
+        row && row.name && all.findIndex(other => other && other.name === row.name) === index);
+    if (!rows.length) return [
+        `${mobName}目前查不到固定出沒地圖，可能是特殊事件、召喚或階段型怪物。`,
+        `我查不到${mobName}的固定怪物池，先看統計的怪物資料或特殊區域規則。`
+    ];
+    let shown = rows.slice(0, 6).map(row => row.name);
+    let more = rows.length > shown.length ? `，另外還有 ${rows.length - shown.length} 張地圖` : '';
+    return [
+        `${mobName}會出現在 ${shown.join('、')}${more}。`,
+        `要找${mobName}就去 ${shown.join('、')}${more}。`,
+        `${mobName}的出沒地圖是 ${shown.join('、')}${more}。`
     ];
 }
 function _wcMapMobAnswers(map) {
@@ -604,6 +650,18 @@ function _wcGotoAnswers(q) {
     return null;
 }
 function _wcDynamicTopic(q) {
+    let compactQuestion = String(q || '').replace(/\s+/g, '');
+    if (/(巴仗|巴杖|巴風特魔杖)/.test(compactQuestion) && /(解封|解除封印)/.test(compactQuestion)) {
+        return {
+            key: 'baphomet-wand-unseal',
+            gen: function () {
+                return [
+                    '巴仗要解封就去象牙塔打鬼魂或紅鬼魂，取得靈魂之球後，對失去魔力的巴風特魔杖使用。',
+                    '去象牙塔6到8樓打鬼魂或紅鬼魂拿靈魂之球，再對失去魔力的巴風特魔杖使用就能解封。'
+                ];
+            }
+        };
+    }
     // ⚠️ v3.6.61 「任務怎麼」會把攻城/血盟類任務也拉進職業試煉 → 這些詞出現時不走試煉
     let trialAsked = /試煉|任務怎麼|任務怎樣|試煉品|試煉道具/.test(q) && !/攻城|血盟|城堡|收購/.test(q);
     if (trialAsked) return { key: 'trial-live', gen: function () { return _wcTrialAnswers(q); } };
@@ -614,20 +672,26 @@ function _wcDynamicTopic(q) {
     }
     // ⚠️ v3.6.61 補「學／買／做／弄／獲得」動詞：技能書「哪裡學」、藥水「哪裡買」原本全落空只會被嘲笑
     let sourceAsked = /[哪那]裡打|[哪那]邊打|在[哪那]打|[哪那]打|打[哪那]|誰掉|[哪那]掉|會掉|掉落|出處|來源|怎麼拿|怎麼取得|怎取得|如何取得|[哪那]裡出|刷什麼|去[哪那]刷|取得|[哪那]裡學|去[哪那]學|[哪那]學|怎麼學|[哪那]裡買|去[哪那]買|[哪那]買|怎麼買|[哪那]裡拿|去[哪那]拿|[哪那]拿|[哪那]裡找|去[哪那]找|怎麼做|[哪那]裡做|怎麼獲得|如何獲得|如何入手|入手|怎麼弄|[哪那]裡弄|去[哪那]弄/.test(q);
-    let item = _wcFindItem(q, sourceAsked);
+    let exactItem = _wcFindItem(q, false);
+    let mob = _wcFindMob(q);
+    let mobIntentText = mob ? String(q).replace(mob, '') : '';
+    let mobDropAsked = /掉|掉落|噴|物品|道具|裝備|寶物|掉寶|出寶|有什麼寶|戰利品|出什麼|出啥|出貨|出處|來源/.test(mobIntentText);
+    // 怪物名成立時不做兩字物品模糊搜尋，避免「死亡騎士哪裡打」被含死亡騎士字樣的裝備搶走。
+    let item = exactItem || (!mob ? _wcFindItem(q, sourceAsked) : null);
+    let sameMobItemName = !!(exactItem && mob && _wcCompactItemText(exactItem.name) === _wcCompactItemText(mob));
     // ⚠️ 「龍之鑽石」不是背包物品（會被物品「鑽石」substring 誤中）→ 交給 blackmarket 主題
-    if (item && sourceAsked && !/龍之鑽石|龍鑽/.test(q)) return { key: 'item-source', gen: function () { return _wcItemSourceAnswers(item.id); } };
+    if (item && sourceAsked && (!sameMobItemName || mobDropAsked) && !/龍之鑽石|龍鑽/.test(q)) return { key: 'item-source', gen: function () { return _wcItemSourceAnswers(item.id); } };
     // 🐾 v3.6.63 寵物取得：問句點名某隻寵物 → 講該隻的實際管道（蛋／誘捕／進化），別再回制式寵物說明。
     //    ⚠️ 必須排在 _wcFindMob 之前：多數寵物名同時是怪物名（誘捕來源），否則會被 mob-drop 搶走。
     let petName = _wcFindPet(q);
     if (petName && /怎麼拿|怎麼抓|哪裡抓|去哪抓|哪裡拿|去哪拿|怎麼獲得|如何獲得|怎麼取得|如何取得|怎麼弄|哪來的|怎麼來|抓得到|哪裡有|怎麼養|怎麼孵/.test(q)) {
         return { key: 'pet-source', gen: function () { return _wcPetSourceAnswers(petName); } };
     }
-    let mob = _wcFindMob(q);
-    if (mob && /掉什麼|會掉|掉落物|出什麼|噴什麼|有什麼寶/.test(q)) return { key: 'mob-drop', gen: function () { return _wcMobDropAnswers(mob); } };
+    if (mob && mobDropAsked) return { key: 'mob-drop', gen: function () { return _wcMobDropAnswers(mob); } };
     let map = _wcFindMap(q);
     if (map && /什麼怪|哪些怪|出怪|怪物|有什麼/.test(q)) return { key: 'map-mobs', gen: function () { return _wcMapMobAnswers(map); } };
     if (item && /有什麼用|幹嘛的|做什麼|用途|效果|能力|說明|好用嗎/.test(q)) return { key: 'item-info', gen: function () { return _wcItemInfoAnswers(item.id); } };
+    if (mob) return { key: 'mob-location', gen: function () { return _wcMobLocationAnswers(mob); } };
     return null;
 }
 
@@ -716,8 +780,8 @@ const WC_TOPICS = [
         key: 'affix', kw: ['詞綴', '祝福', '祝福嗎', '有祝福', '祝福裝', '遠古裝', '遠古詞', '屬性武器', '武器屬性', '屬性詞', '碧恩', '賦予屬性', '屬性強化', '上屬性', '洗屬性', '五階屬性', '屬性魔法', '附加魔法', '重抽魔法', '觸發技能'],
         gen: function () {
             return [
-                '現行掉落、製作、潘朵拉與血盟管道只會隨機出現「祝福的」詞綴，機率 1%；屬性與遠古詞綴要去象牙塔找碧恩處理。',
-                '別再照舊攻略 SL 三詞綴了，現在隨機來源只有 1% 祝福；武器屬性跟遠古能力是碧恩那條系統。',
+                '現行一般頭目掉落與製作裝備有 10% 機率出現「祝福的」詞綴；席琳頭目 20%，瘋狂席琳頭目 30%，其他管道維持原設定。',
+                '別再照舊攻略 SL 三詞綴了，一般頭目與製作是 10% 祝福，席琳頭目 20%、瘋狂席琳頭目 30%；屬性跟遠古能力要找碧恩。',
                 '祝福是取得裝備時的隨機驚喜，屬性和遠古不是同一個抽法。想洗那兩種就去象牙塔，別在掉落畫面跟自己過不去。',
                 '五階屬性武器還能拿同屬性卷軸找碧恩附加或重抽屬性魔法；遺物武器、本身就有非屬性卷觸發技能的武器不能附加。',
                 '古老的劍跟古老的巨劍雖然無法強化，但碧恩照樣能賦予屬性，而且免 +10/+11 門檻、可以直接衝到第五階。'
@@ -729,7 +793,7 @@ const WC_TOPICS = [
         gen: function () {
             return [
                 '傷害技能放在攻擊技能設定；火牢、冰雪颶風這種持續型是輔助／狀態技能，要在自動化的增益區勾選，不會出現在攻擊技能下拉。',
-                '傭兵會讀來源角色存檔的技能與自動化設定。先切回那隻角色勾好、存檔，再重新招募或更新快照。',
+                '傭兵會讀來源角色存檔的技能與自動化設定。先切回那隻角色勾好、存檔，換回隊長再進一次安全區就會自動刷新隊員資料。',
                 '技能沒放先檢查四件事：有沒有學、MP或HP夠不夠、自動化有沒有勾、技能是否被分在攻擊／治療／輔助的另一欄。'
             ];
         }
@@ -759,7 +823,8 @@ const WC_TOPICS = [
                 '召喚物走另一套，召喚控制戒指可以指定要召什麼，別用預設的。',
                 '傭兵攻擊技能如果 MP/HP 不夠或條件不符，現在會回普攻節奏，不會假裝施法成功又吃冷卻卡住。',
                 '王族魅力夠可以帶到 7 名傭兵，場上都會顯示外觀；傭兵吃來源角色的等級、裝備、自動技能與變身能力快照。',
-                '古魯丁村莊也開了傭兵公會，港口那邊就能招人，不用特地跑回海音或歐瑞。'
+                '古魯丁村莊也開了傭兵公會，港口那邊就能招人，不用特地跑回海音或歐瑞。',
+                '同一個角色同時只能被一位僱主招募，已經被別人招走的存檔在名單上會標「已受僱於某某」、沒有召喚鈕，要先叫現任僱主解散。'   // 🧑‍🤝‍🧑 v3.7.93 傭兵獨佔
             ];
         }
     },
@@ -977,7 +1042,7 @@ const WC_TOPICS = [
             return [
                 '角色管理在登入畫面：要先刪除角色才能創新或匯入，匯出進度也在那邊，記得定期備份。',
                 '版本更新後畫面怪怪的、圖沒換新，就按 Ctrl+Shift+R 硬重載，把快取的舊檔清掉。',
-                '分頁切到背景後，回到遊戲會逐 tick 真實補跑戰鬥；真正關閉網頁則在累積實戰樣本、離線滿 1 分鐘後結算，最多 12 小時，可取得裝備、卡片與曾實際擊敗過的隨機頭目獎勵，但不模擬 PVP 或活動事件。',
+                '分頁切到背景（切分頁／縮小視窗）遊戲照跑，回到前景還會把被節流掉的時間逐 tick 真實補跑回來；但真正關掉網頁就完全停住了，沒有離線收益這種東西，想掛就把分頁開著。',
                 '存檔會自動進行，也可以手動點儲存；角色突然不見先確認瀏覽器沒清除網站資料，有匯出檔就能救回來。',
                 '倉庫搜尋輸入兩個字以上就會做模糊搜尋，名字記不完整也找得到。',
                 '匯出會帶角色、倉庫跟龍之鑽石；匯入時照選項還原倉庫與寵物資料，隊伍狀態會整理避免跨角色出戰錯亂。',
@@ -1354,7 +1419,7 @@ function _wcBuildExtraChatLines() {
 const WC_EXTRA_CHAT_LINES = _wcBuildExtraChatLines();
 const WC_ALL_CHAT_LINES = WC_CHAT_LINES.concat(WC_EXTRA_CHAT_LINES);
 
-// 🔥 v3.6.74 玩家互嗆對話（250 組 × 2 句＝500 條全新台詞）。
+// 🔥 玩家互嗆對話（301 組 × 2 句＝602 條台詞）。
 //   取材自台版天堂／天堂M／天堂W／楓之谷的頻道文化：衝裝爆裝、搶王卡點、盟戰攻城、課長零課、
 //   掛機外掛工作室、嘴砲跑路、喊價殺價、職業互嘲。
 //   ⚠️ 刻意成對（[開嗆, 回嗆]）而非單句池：由 _wcPostTrashTalk 派兩位不同 NPC 一來一往，
@@ -1536,6 +1601,7 @@ const WC_TRASH_TALK_PAIRS = [
     ['你昨天說不課了，今天又在抽。', '人是會變的。'],
     ['課金排行有你的名字嗎，沒有就閉嘴。', '那種榜有什麼好上的。'],
     ['免費仔的意見我通常直接跳過。', '那你繼續跳，反正你也贏不了。'],
+    ['免費遊戲福利這麼少，還不准人抱怨喔。', '又沒人逼你玩，免費的是在哭喔。'],
     ['抽到神裝也是運氣，別講得像實力。', '實力包含運氣管理，懂？'],
     ['我看你儲值紀錄比戰績漂亮。', '兩個都比你漂亮。'],
     ['錢燒完了就會退坑，我看多了。', '那你等著看。'],
@@ -1714,6 +1780,75 @@ function _wcPickIdleChatLine() {
     }
     return _wcRememberChatLine(_wcPick(fresh.length ? fresh : pool));
 }
+function _wcLogOptionalNpcLine(id, npc, kind, question, fallback, className) {
+    fallback = String(fallback || '').trim();
+    let nameHtml = _wcNameHtml(id);
+    let emitted = false;
+    function emit(text) {
+        if (emitted) return;
+        emitted = true;
+        let finalText = String(text || '').trim() || fallback;
+        logWorld(`<span class="${className}">${nameHtml}：${_wcEsc(finalText)}</span>`);
+    }
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    let enabled = false;
+    try {
+        enabled = !!(language && typeof language.rewrite === 'function'
+            && typeof language.getStatus === 'function'
+            && language.getStatus().enabled
+            && npc.privateEmotionOutcome !== 'chase');   // 追殺鎖定使用帶正確攻略的本地嘲諷底稿，避免模型改寫事實
+    } catch (e) {}
+    if (!enabled) { emit(fallback); return; }
+    try {
+        Promise.resolve(language.rewrite({
+            kind: kind,
+            npcName: npc && npc.name ? npc.name : '',
+            persona: npc && npc.persona ? npc.persona : '',
+            question: question || '',
+            fallback: fallback
+        }, 9000)).then(function (rewritten) {
+            emit(rewritten);
+        }).catch(function () {
+            emit(fallback);
+        });
+    } catch (e) {
+        emit(fallback);
+    }
+}
+
+function syncNpcLanguageSetting() {
+    let checkbox = document.getElementById('set-npc-language-on');
+    let control = document.getElementById('npc-language-setting');
+    if (!checkbox) return;
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    let status = null;
+    try {
+        status = language && typeof language.getStatus === 'function'
+            ? language.getStatus()
+            : null;
+    } catch (e) {}
+    let available = !!(language && typeof language.setEnabled === 'function' && status && status.installed);
+    checkbox.disabled = !available;
+    checkbox.checked = !!(available && status.enabled);
+    if (control) {
+        control.classList.toggle('opacity-50', !available);
+        control.classList.toggle('cursor-not-allowed', !available);
+        control.classList.toggle('cursor-pointer', available);
+        control.title = !language
+            ? '僅限 Idle Lineage 安裝版'
+            : (!available ? '本機 NPC AI 模型未安裝' : (checkbox.checked ? 'NPC AI 對話已開啟' : 'NPC AI 對話已關閉'));
+    }
+}
+
+function setNpcLanguageEnabled(enabled) {
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    try {
+        if (language && typeof language.setEnabled === 'function')
+            language.setEnabled(enabled === true);
+    } catch (e) {}
+    syncNpcLanguageSetting();
+}
+
 function _wcCanIdleChat() {
     if (typeof document === 'undefined') return false;
     let game = document.getElementById('game-screen');
@@ -1730,7 +1865,7 @@ function _wcPostIdleChat() {
         setTimeout(function() {
             if (!_wcCanIdleChat()) return;
             let id = _wcSpawnNpc();
-            logWorld(`<span class="wc-answer wc-idle-chat">${_wcNameHtml(id)}：${_wcEsc(_wcPickIdleChatLine())}</span>`);
+            _wcLogOptionalNpcLine(id, _wcNpcs[id], 'chat', '', _wcPickIdleChatLine(), 'wc-answer wc-idle-chat');
         }, i * (650 + Math.floor(Math.random() * 450)));
     }
 }
@@ -1755,6 +1890,13 @@ const WC_UNKNOWN_LINES = [
     '這問題太模糊，至少給個物品或怪物全名。',
     '目前資料無法確認，亂講只會害你多掛一晚。'
 ];
+const WC_CASUAL_REPLY_SEEDS = [
+    '這話題我也能聊，說說看你怎麼想。',
+    '這不算遊戲問題啦，不過我可以陪你聊。',
+    '可以啊，掛機時本來就什麼都聊。',
+    '你突然換話題也行，我有在看。',
+    '這個有意思，我先講我的看法。'
+];
 // 人格語尾／開場（讓同一份答案有不同口氣）
 const WC_TONE = {
     helpful: { open: ['', '簡單講，', '我跟你說，', '我剛好解過，', '照現在版本，'], end: ['', ' 加油。', ' 有問題再問。', ' 先照這個打就對了。', ' 記得先接任務。'] },
@@ -1774,6 +1916,18 @@ function _wcMatchTopic(q) {
         if (hit > bestHit) { bestHit = hit; best = t; }
     });
     return best;
+}
+const WC_GAME_CONTEXT_WORDS = [
+    '天堂', '遊戲', '角色', '職業', '技能', '魔法', '武器', '防具', '裝備', '道具', '物品', '材料',
+    '怪物', '魔物', '頭目', '掉落', '掉寶', '地圖', '練功', '掛機', '等級', '經驗', '金幣', '龍鑽',
+    '血盟', '攻城', 'PVP', 'PK', '性向', '傭兵', '寵物', '召喚', '娃娃', '遺物', '變身', '黑市',
+    '收購', '製作', '強化', '解封', '巴仗', '巴杖', '魔杖', '靈魂之球'
+];
+function _wcLooksLikeGameQuestion(q) {
+    let text = String(q || '');
+    if (_wcMatchTopic(text)) return true;
+    let lower = text.toLowerCase();
+    return WC_GAME_CONTEXT_WORDS.some(word => lower.indexOf(String(word).toLowerCase()) >= 0);
 }
 
 // 世界頻道群嘲採片段組合判定：允許中間插字、英文大小寫與空白差異，但不讓單一「PK／垃圾」誤觸發。
@@ -2006,10 +2160,11 @@ function worldChannelAsk() {
     }
 
     let topic = _wcMatchTopic(q);
+    if (!topic && _wcLooksLikeGameQuestion(q))
+        topic = { key:'unknown-game', gen:function () { return WC_UNKNOWN_LINES; } };
     let n = 1 + Math.floor(Math.random() * 3);             // 每次隨機 1~3 人回覆
-    let answerCount = topic ? 1 : 0;                       // 可回答問題固定 1 人回答，其餘只閒聊或嗆聲
     let kinds = [];
-    for (let i = 0; i < answerCount; i++) kinds.push('answer');
+    kinds.push(topic ? 'answer' : 'casual');               // 遊戲題由題庫回答；非遊戲話題也固定有 1 人正常接話
     while (kinds.length < n) kinds.push(Math.random() < 0.58 ? 'chat' : 'mock');
     for (let i = kinds.length - 1; i > 0; i--) { let j = Math.floor(Math.random() * (i + 1)); [kinds[i], kinds[j]] = [kinds[j], kinds[i]]; }
     for (let i = 0; i < n; i++) {
@@ -2024,10 +2179,12 @@ function worldChannelAsk() {
                         let core = _wcPick(pool) || _wcPick(WC_UNKNOWN_LINES);
                         let tone = WC_TONE[npc.persona] || WC_TONE.helpful;
                         logWorld(`<span class="wc-answer">${_wcNameHtml(id)}：${_wcEsc(_wcPick(tone.open) + core + _wcPick(tone.end))}</span>`);
+                    } else if (kind === 'casual') {
+                        _wcLogOptionalNpcLine(id, npc, 'casual', q, _wcPick(WC_CASUAL_REPLY_SEEDS), 'wc-answer');
                     } else if (kind === 'chat') {
-                        logWorld(`<span class="wc-answer">${_wcNameHtml(id)}：${_wcEsc(_wcPickIdleChatLine())}</span>`);
+                        _wcLogOptionalNpcLine(id, npc, 'chat', q, _wcPickIdleChatLine(), 'wc-answer');
                     } else {
-                        logWorld(`<span class="wc-mock">${_wcNameHtml(id)}：${_wcEsc(_wcPick(WC_MOCK_LINES))}</span>`);
+                        _wcLogOptionalNpcLine(id, npc, 'mock', q, _wcPick(WC_MOCK_LINES), 'wc-mock');
                     }
                 } catch (e) {}
             }, delay);
@@ -2061,7 +2218,7 @@ function worldChannelNpcMenu(id, ev) {
         clanRow +
         `<button type="button" class="wandering-taunt-entry" onclick="worldChannelTaunt('${id}')">嘲諷</button>` +
         `<button type="button" onclick="worldChannelThank('${id}')">感謝</button>` +
-        `<button type="button" onclick="worldChannelCloseMenu()">算了</button>`;
+        `<button type="button" onclick="worldChannelPrivateChat('${id}')">私訊</button>`;
     document.body.appendChild(menu);
 
     let x = ev && Number.isFinite(ev.clientX) ? ev.clientX : Math.round(window.innerWidth / 2);
@@ -2088,6 +2245,579 @@ function worldChannelCloseMenu() {
         _wcMenuDocHandler = null;
     }
     _wcMenuOpenId = null;
+}
+
+function _wcContactFromNpc(npc) {
+    if (!npc || !npc.name) return null;
+    return {
+        n:String(npc.name).trim().slice(0, 24),
+        persona:WC_PERSONAS.includes(npc.persona) ? npc.persona : 'helpful',
+        cls:(typeof CLAN_CLASS_NAMES === 'object' && CLAN_CLASS_NAMES[npc.cls]) ? npc.cls : 'knight',
+        avatar:npc.avatar || '男戰士',
+        alignmentValue:_wcAlignmentValue(npc.alignmentValue),
+        levelOffset:Number.isFinite(Number(npc.levelOffset)) ? Number(npc.levelOffset) : 0,
+        clanId:npc.clanId || null,
+        clanName:npc.clanName || '',
+        clanLeader:!!npc.clanLeader,
+        blocked:!!npc.blocked,
+        privateHatred:Math.max(0, Math.min(100, Math.round(Number(npc.privateHatred) || 0))),
+        privateEmotion:Math.max(-10, Math.min(10, Math.round(Number(npc.privateEmotion) || 0))),
+        privateEmotionOutcome:npc.privateEmotionOutcome === 'chase' ? 'chase' : (npc.privateEmotionOutcome === 'bond' ? 'bond' : ''),
+        privateMessages:(Array.isArray(npc.privateMessages) ? npc.privateMessages : []).slice(-12).map(entry => ({
+            role:entry && entry.role === 'player' ? 'player' : (entry && entry.role === 'system' ? 'system' : 'npc'),
+            text:String(entry && entry.text || '').trim().slice(0, 240),
+            at:Math.max(0, Number(entry && entry.at) || 0)
+        })).filter(entry => entry.text),
+        privateImpactTexts:(Array.isArray(npc.privateImpactTexts) ? npc.privateImpactTexts : []).slice(-12),
+        privateImpactTimes:(Array.isArray(npc.privateImpactTimes) ? npc.privateImpactTimes : []).slice(-6),
+        lastChatAt:Date.now()
+    };
+}
+function socialRememberNpc(npc, persist) {
+    if (!npc || !npc.name || typeof player === 'undefined' || !player || !player.cls) return;
+    if (typeof pvpEnsureState === 'function') pvpEnsureState();
+    if (!Array.isArray(player.socialNpcContacts)) player.socialNpcContacts = [];
+    let contact = _wcContactFromNpc(npc);
+    if (!contact) return;
+    player.socialNpcContacts = player.socialNpcContacts
+        .filter(rec => rec && rec.n !== contact.n);
+    player.socialNpcContacts.unshift(contact);
+    player.socialNpcContacts = player.socialNpcContacts.slice(0, 20);
+    if (persist !== false && typeof saveGame === 'function') saveGame();
+    if (typeof renderPvpTab === 'function') renderPvpTab();
+}
+function socialGetRecentContacts() {
+    if (typeof pvpEnsureState === 'function') pvpEnsureState();
+    return (player && Array.isArray(player.socialNpcContacts) ? player.socialNpcContacts : []).slice(0, 20);
+}
+function _wcKnownNpcCandidates() {
+    let out = [], seen = Object.create(null);
+    let add = function(raw, recent) {
+        if (!raw) return;
+        let name = String(raw.n || raw.name || '').trim().slice(0, 24);
+        if (!name) return;
+        let prior = seen[name];
+        let row = Object.assign({}, raw, {
+            n:name,
+            avatar:raw.avatar || '男戰士',
+            alignmentValue:_wcAlignmentValue(raw.alignmentValue),
+            levelOffset:Number.isFinite(Number(raw.levelOffset)) ? Number(raw.levelOffset) : 0,
+            clanId:raw.clanId || null,
+            clanName:raw.clanName || '',
+            clanLeader:!!raw.clanLeader,
+            recent:!!recent,
+            lastChatAt:Math.max(0, Number(raw.lastChatAt) || 0)
+        });
+        if (!prior) {
+            seen[name] = row;
+            out.push(row);
+        } else {
+            let oldClan = { clanId:prior.clanId, clanName:prior.clanName, clanLeader:prior.clanLeader };
+            let oldPrivate = {
+                persona:prior.persona,
+                cls:prior.cls,
+                blocked:prior.blocked,
+                privateHatred:prior.privateHatred,
+                privateEmotion:prior.privateEmotion,
+                privateEmotionOutcome:prior.privateEmotionOutcome,
+                privateMessages:prior.privateMessages,
+                privateImpactTexts:prior.privateImpactTexts,
+                privateImpactTimes:prior.privateImpactTimes
+            };
+            Object.assign(prior, row, {
+                recent:prior.recent || row.recent,
+                lastChatAt:Math.max(prior.lastChatAt || 0, row.lastChatAt || 0)
+            });
+            if (!row.clanId && oldClan.clanId) Object.assign(prior, oldClan);
+            Object.keys(oldPrivate).forEach(key => {
+                if (row[key] == null && oldPrivate[key] != null) prior[key] = oldPrivate[key];
+            });
+        }
+    };
+    socialGetRecentContacts().forEach(rec => add(rec, true));
+    Object.keys(_wcNpcs).forEach(id => add(_wcNpcs[id], false));
+    try { if (typeof npcClanSocialRoster === 'function') npcClanSocialRoster(player).forEach(rec => add(rec, false)); } catch (e) {}
+    ['pvpRevengeList', 'trollPlayers', 'pvpKillWhispers'].forEach(key => {
+        (Array.isArray(player && player[key]) ? player[key] : []).forEach(rec => add(rec, false));
+    });
+    return out;
+}
+function socialSearchNpcCandidates(query) {
+    let needle = String(query || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (needle.length < 2) return [];
+    return _wcKnownNpcCandidates().filter(rec => rec.n.toLowerCase().replace(/\s+/g, '').includes(needle))
+        .sort((a, b) => {
+            let ae = a.n.toLowerCase() === needle ? 1 : 0;
+            let be = b.n.toLowerCase() === needle ? 1 : 0;
+            return be - ae || Number(b.recent) - Number(a.recent) || (b.lastChatAt || 0) - (a.lastChatAt || 0) || a.n.localeCompare(b.n, 'zh-Hant');
+        }).slice(0, 20);
+}
+function _wcHydrateKnownNpc(raw) {
+    if (!raw || !raw.n) return null;
+    let name = String(raw.n).slice(0, 24);
+    let existingId = Object.keys(_wcNpcs).find(id => _wcNpcs[id] && _wcNpcs[id].name === name);
+    if (existingId) return existingId;
+    let clanId = raw.clanId || null;
+    if (clanId && typeof npcClanGetById === 'function' && !npcClanGetById(clanId, player)) clanId = null;
+    let id = 'wc' + (++_wcNpcSeq);
+    let cls = raw.cls;
+    if (!(typeof CLAN_CLASS_NAMES === 'object' && CLAN_CLASS_NAMES[cls]) && typeof TROLL_CLASS_BY_AVATAR === 'object')
+        cls = String(TROLL_CLASS_BY_AVATAR[raw.avatar] || '').replace(/^troll_/, '');
+    _wcNpcs[id] = {
+        name:name,
+        persona:WC_PERSONAS.includes(raw.persona) ? raw.persona : _wcPick(WC_PERSONAS),
+        cls:(typeof CLAN_CLASS_NAMES === 'object' && CLAN_CLASS_NAMES[cls]) ? cls : 'knight',
+        avatar:raw.avatar || '男戰士',
+        levelOffset:Number.isFinite(Number(raw.levelOffset)) ? Number(raw.levelOffset) : 0,
+        alignmentValue:typeof pvpLockAlignment === 'function'
+            ? pvpLockAlignment(name, raw.alignmentValue, clanId)
+            : _wcAlignmentValue(raw.alignmentValue),
+        clanId:clanId,
+        clanName:clanId ? String(raw.clanName || '') : '',
+        clanLeader:!!(clanId && raw.clanLeader),
+        thanked:false,
+        taunted:false,
+        blocked:!!raw.blocked,
+        privateHatred:Math.max(0, Math.min(100, Math.round(Number(raw.privateHatred) || 0))),
+        privateEmotion:Math.max(-10, Math.min(10, Math.round(Number(raw.privateEmotion) || 0))),
+        privateEmotionOutcome:raw.privateEmotionOutcome === 'chase' ? 'chase' : (raw.privateEmotionOutcome === 'bond' ? 'bond' : ''),
+        privateMessages:(Array.isArray(raw.privateMessages) ? raw.privateMessages : []).slice(-12),
+        privateImpactTexts:(Array.isArray(raw.privateImpactTexts) ? raw.privateImpactTexts : []).slice(-12),
+        privateImpactTimes:(Array.isArray(raw.privateImpactTimes) ? raw.privateImpactTimes : []).slice(-6)
+    };
+    let ids = Object.keys(_wcNpcs);
+    if (ids.length > 40) {
+        let removeId = ids.find(key => key !== id && key !== _wcPrivateActiveId) || ids[0];
+        if (removeId !== id) delete _wcNpcs[removeId];
+    }
+    return id;
+}
+function socialOpenPrivateByName(encodedName) {
+    let name = String(encodedName || '');
+    try { name = decodeURIComponent(name); } catch (e) {}
+    let raw = _wcKnownNpcCandidates().find(rec => rec.n === name);
+    if (!raw) {
+        if (typeof logSys === 'function') logSys('<span class="text-slate-400">找不到這名玩家 NPC 的聯絡紀錄。</span>');
+        return false;
+    }
+    let id = _wcHydrateKnownNpc(raw);
+    if (!id) return false;
+    worldChannelPrivateChat(id);
+    return true;
+}
+
+const WC_PRIVATE_OPENERS = {
+    helpful: ['安安，有什麼事？', '密我幹嘛？有問題就問吧。', '我在，怎麼了？'],
+    veteran: ['說吧，我還在掛機。', '有事快說，我等等要去補水。', '嗯？找我什麼事？'],
+    sarcastic: ['居然特地密我，說來聽聽。', '怎樣，頻道講不夠還要私下講？', '先說好，太蠢的問題我會笑。'],
+    newbie: ['咦，你是在密我嗎？', '安安，我第一次被人私訊耶。', '我在喔，你想聊什麼？'],
+    trader: ['要買、要賣，還是要問價？', '密我可以，先說你要收什麼。', '有生意就談，沒生意也能聊。']
+};
+const WC_PRIVATE_REPLIES = {
+    helpful: {
+        friendly: ['好啦，這樣講就沒事了。', '你人還不錯，有遇到問題再問。', '行，和平一點比較好玩。'],
+        hostile: ['有必要一開口就這麼衝嗎？', '嘴這麼硬，希望你裝備也一樣硬。', '你再講，我就真的記住你。'],
+        neutral: ['嗯，我有看到。', '所以你想問什麼？', '這我還真不好說。']
+    },
+    veteran: {
+        friendly: ['懂得好好講話就行。', '可以，老玩家互相幫忙。', '行，有空一起打王。'],
+        hostile: ['以前這樣講話早就被堵村口了。', '先把等級練起來再來嘴。', '名字我記下了，你最好別出安全區。'],
+        neutral: ['這種事我以前就遇過。', '看情況，天堂沒有一定的。', '先練功，很多問題自然就懂了。']
+    },
+    sarcastic: {
+        friendly: ['突然這麼客氣，我有點不習慣。', '行啦，至少你還會講人話。', '今天心情好，就不酸你了。'],
+        hostile: ['這點嘴砲火力也敢私訊？', '講完了嗎？我差點看到睡著。', '繼續，我正愁追殺名單不夠長。'],
+        neutral: ['然後呢？重點在哪？', '這句有說跟沒說一樣。', '你可以再講清楚一點。']
+    },
+    newbie: {
+        friendly: ['謝謝，你人真好。', '好啊，下次看到我可以打招呼。', '嗯嗯，我知道了！'],
+        hostile: ['幹嘛突然這麼兇……', '我只是新手，不代表我好欺負。', '你這樣我真的會找盟友喔。'],
+        neutral: ['我也不太確定耶。', '等等，我先問一下盟友。', '真的嗎？我第一次聽到。']
+    },
+    trader: {
+        friendly: ['好談好談，下次算你便宜一點。', '客氣人就好做生意。', '可以，以後有貨先密你。'],
+        hostile: ['這種態度還想跟我交易？', '市場不缺你一個，慢走不送。', '再嗆，之後你的價我全部砍半。'],
+        neutral: ['先講數量跟價格。', '沒看到實物我不出價。', '行情每天變，現在不好說。']
+    }
+};
+const WC_PRIVATE_HOSTILE_WORDS = [
+    '垃圾', '廢物', '白目', '白癡', '智障', '嫩', '菜雞', '爛', '閉嘴', '滾',
+    '吵死', '欠殺', '欠砍', '找死', '有種', '沒用', '俗辣', '孬種', '腦殘', '可悲'
+];
+const WC_PRIVATE_SEVERE_WORDS = [
+    '來pk', '來pk啊', '殺你', '砍你', '追殺', '堵你', '見一次殺一次', '見一個殺一個',
+    '砍一個', '滅盟', '爛盟', '解散吧', '全盟都是垃圾'
+];
+const WC_PRIVATE_FRIENDLY_WORDS = [
+    '抱歉', '對不起', '不好意思', '誤會', '謝謝', '感謝', '別生氣', '和平', '停戰',
+    '和好', '不打了', '請教', '麻煩你', '辛苦了', '加油', '安安', '你好'
+];
+const WC_PRIVATE_POSITIVE_WORDS = WC_PRIVATE_FRIENDLY_WORDS.concat([
+    '喜歡', '開心', '高興', '厲害', '很強', '真強', '好棒', '很棒', '讚', '佩服', '有趣',
+    '好聊', '支持', '相信你', '祝福', '恭喜', '可愛', '帥', '漂亮', '朋友', '一起玩', '幫大忙',
+    '說得好', '你人真好', '不錯', '好耶', '愛你'
+]);
+const WC_PRIVATE_NEGATIVE_WORDS = WC_PRIVATE_HOSTILE_WORDS.concat(WC_PRIVATE_SEVERE_WORDS, [
+    '討厭', '噁心', '煩', '閉嘴', '少囉嗦', '別吵', '爛透', '真弱', '有夠弱', '丟臉',
+    '沒腦', '沒料', '滾開', '去死', '欠揍', '欠打', '看不起', '不爽', '廢話', '騙子',
+    '垃圾話', '你算老幾', '叫三小', '講三小'
+]);
+const WC_PRIVATE_CHASE_REPLIES = [
+    '繼續講，我正好記一下等等先砍你哪裡。',
+    '你慢慢打字，我已經在找你練功的地圖了。',
+    '嘴這麼硬，等等躺地上可別突然裝客氣。',
+    '放心，你每講一句，我就更確定該堵你。',
+    '你最好一直待在安全區，外面風大又容易躺。',
+    '講完記得補水，我不想一刀就把你送回村。',
+    '原來你只剩嘴能打，難怪裝備一直沒長進。',
+    '你這程度也敢挑釁，等等別怪我沒提醒。',
+    '繼續逞強啊，我很想看你能跑過幾張圖。',
+    '你先笑，等我遇到你再換我笑。'
+];
+const WC_PRIVATE_CHASE_PREFIXES = [
+    '先記著，', '看你這麼可憐就告訴你，', '免得你等等躺地上還搞不懂，',
+    '趁你還能好好站著，', '我邊找你邊說，'
+];
+const WC_PRIVATE_CHASE_SUFFIXES = [
+    '，懂了就出村讓我驗收。', '，不過知道了也救不了你。', '，等等被我遇到別裝沒看見。',
+    '，你最好把回卷先放好。', '，剩下的等我找到你再教。'
+];
+const WC_PRIVATE_BOND_GIFT_CHANCE = 0.10;
+
+function _wcPrivatePush(npc, role, text) {
+    if (!npc) return;
+    if (!Array.isArray(npc.privateMessages)) npc.privateMessages = [];
+    let clean = String(text || '').trim();
+    if (!clean) return;
+    npc.privateMessages.push({ role:role, text:clean, at:Date.now() });
+    while (npc.privateMessages.length > 12) npc.privateMessages.shift();
+}
+function _wcPrivateCountWords(text, words) {
+    let count = 0;
+    (words || []).forEach(word => { if (text.indexOf(word) >= 0) count++; });
+    return count;
+}
+function _wcPrivateEmotionTone(message) {
+    let normalized = String(message || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!normalized) return 'neutral';
+    let positive = _wcPrivateCountWords(normalized, WC_PRIVATE_POSITIVE_WORDS);
+    let negative = _wcPrivateCountWords(normalized, WC_PRIVATE_NEGATIVE_WORDS);
+    return positive > negative ? 'positive' : (negative > positive ? 'negative' : 'neutral');
+}
+function _wcPrivateGrantGift(npc) {
+    if (!npc || typeof pledgeBonusDrop !== 'function') return null;
+    let reward = pledgeBonusDrop({
+        n:npc.name,
+        lv:Math.max(1, Number(player && player.lv) || 1),
+        _pvpAlignment:_wcAlignmentValue(npc.alignmentValue),
+        _privateChatGift:true
+    }, 1);
+    if (!reward || !reward.item) return null;
+    let itemName = String(reward.fullName || ((DB.items[reward.item.id] || {}).n) || '物品');
+    _wcPrivatePush(npc, 'npc', `跟你聊得很開心，剛好有個用不到的「${itemName}」，送你吧。`);
+    return reward;
+}
+function _wcPrivateApplyEmotion(npc, message) {
+    let result = { tone:'neutral', delta:0, locked:false, outcome:'', gift:null };
+    if (!npc) return result;
+    npc.privateEmotion = Math.max(-10, Math.min(10, Math.round(Number(npc.privateEmotion) || 0)));
+    npc.privateEmotionOutcome = npc.privateEmotionOutcome === 'chase' ? 'chase' : (npc.privateEmotionOutcome === 'bond' ? 'bond' : '');
+    if (npc.privateEmotionOutcome) {
+        result.locked = true;
+        result.outcome = npc.privateEmotionOutcome;
+        return result;
+    }
+
+    result.tone = _wcPrivateEmotionTone(message);
+    if (result.tone === 'positive') result.delta = 1;
+    else if (result.tone === 'negative')
+        result.delta = _wcAlignmentValue(npc.alignmentValue) <= -1000 ? -3 : -1;
+    npc.privateEmotion = Math.max(-10, Math.min(10, npc.privateEmotion + result.delta));
+
+    if (npc.privateEmotion <= -10) {
+        npc.privateEmotion = -10;
+        npc.privateEmotionOutcome = 'chase';
+        result.locked = true;
+        result.outcome = 'chase';
+        _wcAddGrudge(npc, { silent:true, noExpire:true, deferSave:true });
+    } else if (npc.privateEmotion >= 10) {
+        npc.privateEmotion = 10;
+        npc.privateEmotionOutcome = 'bond';
+        result.locked = true;
+        result.outcome = 'bond';
+        let roll = (typeof lootRng === 'function') ? lootRng('wc-private-gift') : Math.random();
+        if (roll < WC_PRIVATE_BOND_GIFT_CHANCE) result.gift = _wcPrivateGrantGift(npc);
+    }
+    return result;
+}
+function _wcPrivateChaseTone(npc, core) {
+    if (!npc || npc.privateEmotionOutcome !== 'chase') return core;
+    if (!core) return _wcPick(WC_PRIVATE_CHASE_REPLIES);
+    return _wcPick(WC_PRIVATE_CHASE_PREFIXES) + core.replace(/[。！!]+$/, '') + _wcPick(WC_PRIVATE_CHASE_SUFFIXES);
+}
+function _wcPrivateRemoveWorldGrudge(npc) {
+    try {
+        if (npc && npc.privateEmotionOutcome === 'chase') return false;
+        if (!npc || !Array.isArray(player.trollPlayers)) return false;
+        let removed = false;
+        player.trollPlayers = player.trollPlayers.filter(entry => {
+            let match = entry && entry.n === npc.name && (entry.source === 'worldChannel' || entry.wcGrudge);
+            if (match) removed = true;
+            return !match;
+        });
+        if (!removed) return false;
+        if (typeof pvpReleaseAlignLock === 'function') pvpReleaseAlignLock(npc.name);
+        if (typeof saveGame === 'function') saveGame();
+        return true;
+    } catch (e) { return false; }
+}
+function _wcPrivateApplyImpact(npc, message) {
+    let normalized = String(message || '').trim().toLowerCase().replace(/\s+/g, '');
+    let result = { mood:'neutral', changed:false, grudgeAdded:false, grudgeReleased:false };
+    if (!npc || normalized.length < 2) return result;
+    if (!Array.isArray(npc.privateImpactTexts)) npc.privateImpactTexts = [];
+    if (!Array.isArray(npc.privateImpactTimes)) npc.privateImpactTimes = [];
+    if (npc.privateImpactTexts.indexOf(normalized) >= 0) return result;
+    npc.privateImpactTexts.push(normalized);
+    while (npc.privateImpactTexts.length > 12) npc.privateImpactTexts.shift();
+
+    let now = Date.now();
+    npc.privateImpactTimes = npc.privateImpactTimes.filter(at => now - Number(at || 0) < 60 * 1000);
+    if (npc.privateImpactTimes.length >= 6) return result;
+
+    let severe = _wcPrivateCountWords(normalized, WC_PRIVATE_SEVERE_WORDS);
+    let hostile = _wcPrivateCountWords(normalized, WC_PRIVATE_HOSTILE_WORDS);
+    let friendly = _wcPrivateCountWords(normalized, WC_PRIVATE_FRIENDLY_WORDS);
+    let delta = Math.max(-10, Math.min(16, severe * 8 + hostile * 4 - friendly * 5));
+    if (Math.abs(delta) < 3) return result;
+
+    npc.privateImpactTimes.push(now);
+    let before = Math.max(0, Math.min(100, Math.round(Number(npc.privateHatred) || 0)));
+    npc.privateHatred = Math.max(0, Math.min(100, before + delta));
+    result.changed = npc.privateHatred !== before;
+    result.mood = delta > 0 ? 'hostile' : 'friendly';
+
+    if (npc.clanId && typeof npcClanAdjustHatred === 'function') {
+        let clanDelta = delta > 0 ? (delta >= 12 ? 2 : 1) : -1;
+        npcClanAdjustHatred(npc.clanId, clanDelta);
+    }
+    if (before < 50 && npc.privateHatred >= 50 && npc.privateEmotionOutcome !== 'bond')
+        result.grudgeAdded = _wcAddGrudge(npc, { silent:true });
+    if (delta < 0 && npc.privateHatred === 0)
+        result.grudgeReleased = _wcPrivateRemoveWorldGrudge(npc);
+    return result;
+}
+function _wcPrivateContinuationTopic(npc, message) {
+    let clean = String(message || '').trim();
+    if (!/^(直接說|說啊|講啊|快說|請分享|分享一下|繼續|然後呢|詳細點|說清楚|別賣關子)[！!。.]?$/.test(clean))
+        return clean;
+    let messages = Array.isArray(npc && npc.privateMessages) ? npc.privateMessages : [];
+    for (let i = messages.length - 2; i >= 0; i--) {
+        let entry = messages[i];
+        if (!entry || entry.role !== 'player') continue;
+        let prior = String(entry.text || '').trim();
+        if (prior && prior !== clean) return prior;
+    }
+    return clean;
+}
+function _wcPrivateFallback(npc, message, mood) {
+    let topicMessage = _wcPrivateContinuationTopic(npc, message);
+    if (/(武器|裝備)/.test(topicMessage) && /(最強|最好|推薦|好用)/.test(topicMessage)) {
+        let direct = {
+            helpful:'沒有一把能全職業通吃，要看你的職業、屬性和打法。',
+            veteran:'先看職業跟流派，單講一把最強根本沒意義。',
+            sarcastic:'連職業都不講，是要我通靈哪把最強？',
+            newbie:'我只知道每個職業適合的武器不一樣，沒有固定一把最強。',
+            trader:'最強要看職業和配裝，不是價格最高就一定最適合。'
+        };
+        return _wcPrivateChaseTone(npc, direct[npc.persona] || direct.helpful);
+    }
+    try {
+        let topic = (typeof _wcMatchTopic === 'function') ? _wcMatchTopic(topicMessage) : null;
+        if (topic && typeof topic.gen === 'function') {
+            let answers = topic.gen(topicMessage) || [];
+            let core = _wcPick(answers);
+            if (core) {
+                let tone = WC_TONE[npc.persona] || WC_TONE.helpful;
+                return _wcPrivateChaseTone(npc, _wcPick(tone.open) + core + _wcPick(tone.end));
+            }
+        }
+    } catch (e) {}
+    if (npc.privateEmotionOutcome === 'chase') return _wcPrivateChaseTone(npc, '');
+    let personaReplies = WC_PRIVATE_REPLIES[npc.persona] || WC_PRIVATE_REPLIES.helpful;
+    let replyMood = npc.privateEmotionOutcome === 'bond' ? 'friendly' : mood;
+    return _wcPick(personaReplies[replyMood] || personaReplies.neutral);
+}
+function _wcPrivatePrompt(npc) {
+    let messages = Array.isArray(npc.privateMessages) ? npc.privateMessages : [];
+    let contextEnd = messages.length;
+    if (contextEnd && messages[contextEnd - 1] && messages[contextEnd - 1].role === 'player')
+        contextEnd--;
+    return messages.slice(Math.max(0, contextEnd - 6), contextEnd).filter(entry => entry && entry.role !== 'system').map(entry => {
+        let who = entry.role === 'player' ? '玩家' : 'NPC';
+        return `${who}：${String(entry.text || '').slice(0, 120)}`;
+    }).join('\n');
+}
+function _wcPrivateRender() {
+    let dialog = document.getElementById('world-channel-private-dialog');
+    let npc = _wcNpcs[_wcPrivateActiveId];
+    if (!dialog || !npc) return;
+    let clan = npc.clanName ? `［${npc.clanLeader ? '盟主・' : ''}${_wcEsc(npc.clanName)}］` : '無血盟';
+    let messages = Array.isArray(npc.privateMessages) ? npc.privateMessages : [];
+    let pending = !!_wcPrivatePendingIds[_wcPrivateActiveId];
+    let diplomacy = npc.clanLeader && npc.clanId
+        ? `<div class="flex gap-2 px-3 pb-3">
+            <button type="button" class="btn flex-1 py-2 text-sm font-bold bg-emerald-900 hover:bg-emerald-800 border-emerald-600 text-emerald-100" ${pending ? 'disabled' : ''} onclick="worldChannelPrivateDiplomacy('peace')">談和</button>
+            <button type="button" class="btn flex-1 py-2 text-sm font-bold bg-red-950 hover:bg-red-900 border-red-700 text-red-100" ${pending ? 'disabled' : ''} onclick="worldChannelPrivateDiplomacy('taunt')">嘲諷</button>
+        </div>`
+        : '';
+    dialog.innerHTML =
+        `<div class="wc-private-header">` +
+            `<div><div class="wc-private-title">私訊 ${_wcStaticNameHtml(npc.name, npc.alignmentValue)}</div><div class="wc-private-clan">${clan}</div></div>` +
+            `<button type="button" class="wc-private-close" title="關閉" aria-label="關閉">×</button>` +
+        `</div>` +
+        `<div class="wc-private-messages">` +
+            messages.map(entry => {
+                let role = entry.role === 'player' ? 'player' : (entry.role === 'system' ? 'system' : 'npc');
+                let label = role === 'player' ? '你' : (role === 'npc' ? _wcEsc(npc.name) : '');
+                return `<div class="wc-private-message wc-private-${role}">${label ? `<div class="wc-private-speaker">${label}</div>` : ''}<div>${_wcEsc(entry.text)}</div></div>`;
+            }).join('') +
+            (pending ? `<div class="wc-private-message wc-private-npc wc-private-pending"><div class="wc-private-speaker">${_wcEsc(npc.name)}</div><div>……</div></div>` : '') +
+        `</div>` +
+        diplomacy +
+        `<form class="wc-private-compose">` +
+            `<input type="text" maxlength="120" autocomplete="off" placeholder="輸入私訊……" ${pending ? 'disabled' : ''}>` +
+            `<button type="submit" ${pending ? 'disabled' : ''}>送出</button>` +
+        `</form>`;
+    dialog.querySelector('.wc-private-close').addEventListener('click', worldChannelPrivateClose);
+    dialog.querySelector('.wc-private-compose').addEventListener('submit', function(e) {
+        e.preventDefault();
+        let input = this.querySelector('input');
+        worldChannelPrivateSend(input && input.value);
+    });
+    let messageBox = dialog.querySelector('.wc-private-messages');
+    if (messageBox) messageBox.scrollTop = messageBox.scrollHeight;
+    let input = dialog.querySelector('.wc-private-compose input');
+    if (input && !input.disabled) input.focus();
+}
+function worldChannelPrivateChat(id) {
+    let npc = _wcNpcs[id];
+    worldChannelCloseMenu();
+    if (!npc) { logWorld('<span class="wc-sys">這個人已經下線了。</span>'); return; }
+    if (npc.blocked) { _wcBlockedNotice(); return; }
+    _wcPrivateActiveId = id;
+    if (!Array.isArray(npc.privateMessages) || !npc.privateMessages.length)
+        _wcPrivatePush(npc, 'npc', _wcPick(WC_PRIVATE_OPENERS[npc.persona] || WC_PRIVATE_OPENERS.helpful));
+    socialRememberNpc(npc);
+    let overlay = document.getElementById('world-channel-private-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'world-channel-private-overlay';
+        overlay.className = 'wc-private-overlay';
+        overlay.innerHTML = `<section id="world-channel-private-dialog" class="wc-private-dialog" role="dialog" aria-modal="true"></section>`;
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) worldChannelPrivateClose();
+        });
+        document.body.appendChild(overlay);
+    }
+    _wcPrivateRender();
+}
+function worldChannelPrivateClose() {
+    let npc = _wcNpcs[_wcPrivateActiveId];
+    if (npc) socialRememberNpc(npc);
+    let overlay = document.getElementById('world-channel-private-overlay');
+    if (overlay) overlay.remove();
+    _wcPrivateActiveId = null;
+}
+function worldChannelPrivateSend(rawMessage) {
+    let id = _wcPrivateActiveId;
+    let npc = _wcNpcs[id];
+    let message = String(rawMessage || '').trim();
+    if (!npc || !message || _wcPrivatePendingIds[id]) return;
+    if (npc.blocked) { worldChannelPrivateClose(); _wcBlockedNotice(); return; }
+
+    _wcPrivatePush(npc, 'player', message);
+    let privateHistory = _wcPrivatePrompt(npc);
+    let impact = _wcPrivateApplyImpact(npc, message);
+    let emotion = _wcPrivateApplyEmotion(npc, message);
+    socialRememberNpc(npc);   // 每句情緒變化立即保存；不在畫面顯示數值或端點
+
+    let fallback = _wcPrivateFallback(npc, message, impact.mood);
+    let privateTopicMessage = _wcPrivateContinuationTopic(npc, message);
+    let grounded = _wcLooksLikeGameQuestion(privateTopicMessage);
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    let enabled = false;
+    try {
+        enabled = !!(language && typeof language.rewrite === 'function'
+            && typeof language.getStatus === 'function'
+            && language.getStatus().enabled);
+    } catch (e) {}
+    if (!enabled) {
+        _wcPrivatePush(npc, 'npc', fallback);
+        socialRememberNpc(npc);
+        _wcPrivateRender();
+        return;
+    }
+
+    _wcPrivatePendingIds[id] = true;
+    _wcPrivateRender();
+    let attitude = npc.privateEmotionOutcome === 'chase'
+        ? '敵視'
+        : (npc.privateEmotionOutcome === 'bond' ? '友好' : (npc.privateHatred >= 50 ? '敵視' : (npc.privateHatred >= 20 ? '不滿' : '普通')));
+    let emotionPrompt = npc.privateEmotionOutcome === 'chase'
+        ? '；情緒=追殺鎖定，所有回覆都要充滿嘲諷與敵意'
+        : (npc.privateEmotionOutcome === 'bond' ? '；情緒=友好鎖定' : '');
+    let persona = `${npc.persona}；態度=${attitude}${emotionPrompt}${npc.clanName ? `；血盟=${npc.clanName}` : ''}`;
+    try {
+        Promise.resolve(language.rewrite({
+            kind: 'private',
+            npcName: npc.name,
+            persona: persona,
+            question: privateHistory,
+            currentMessage: message,
+            grounded: grounded,
+            fallback: fallback
+        }, 15000)).then(function(reply) {
+            _wcPrivatePush(npc, 'npc', String(reply || '').trim() || fallback);
+        }).catch(function() {
+            _wcPrivatePush(npc, 'npc', fallback);
+        }).finally(function() {
+            delete _wcPrivatePendingIds[id];
+            socialRememberNpc(npc);
+            if (_wcPrivateActiveId === id) _wcPrivateRender();
+        });
+    } catch (e) {
+        delete _wcPrivatePendingIds[id];
+        _wcPrivatePush(npc, 'npc', fallback);
+        socialRememberNpc(npc);
+        _wcPrivateRender();
+    }
+}
+function worldChannelPrivateDiplomacy(action) {
+    let id = _wcPrivateActiveId;
+    let npc = _wcNpcs[id];
+    if (!npc || !npc.clanLeader || !npc.clanId || _wcPrivatePendingIds[id]) return;
+    if (typeof npcClanPrivateDiplomacy !== 'function') {
+        _wcPrivatePush(npc, 'system', '目前無法與對方血盟交涉。');
+        _wcPrivateRender();
+        return;
+    }
+    _wcPrivatePush(npc, 'player', action === 'taunt' ? '你們血盟也不過如此，有本事就繼續來。' : '我們談談停戰吧，沒必要繼續把仇恨拉高。');
+    let result = npcClanPrivateDiplomacy(npc.clanId, action, player);
+    if (!result || !result.ok) {
+        _wcPrivatePush(npc, 'system', result && result.error ? result.error : '對方拒絕回應。');
+    } else {
+        _wcPrivatePush(npc, 'npc', result.reply || (action === 'taunt' ? '我記住了。' : '我會考慮。'));
+        if (action === 'taunt' || result.raised)
+            _wcPrivatePush(npc, 'system', '這次交涉讓對方血盟更加敵視我方。');
+        else if (result.accepted)
+            _wcPrivatePush(npc, 'system', '對方接受了談和態度，血盟仇恨有所降低。');
+        else
+            _wcPrivatePush(npc, 'system', '對方暫時不接受談和，但仇恨沒有繼續升高。');
+    }
+    socialRememberNpc(npc);
+    if (typeof renderClanTab === 'function') renderClanTab();
+    _wcPrivateRender();
 }
 
 const WC_TAUNT_OUT = ['你這種等級也敢教人？', '講得好像你很懂一樣。', '嘴巴閉上會比較有幫助。', '你回的這什麼廢話。', '沒料就不要出來丟臉。'];
@@ -2139,7 +2869,7 @@ function worldChannelThank(id) {
     logWorld(`<span class="wander-chat-in"><span class="wander-chat-speaker">[${nameHtml}]</span> ${_wcEsc(_wcPick(back))}</span>`);
     // 被感謝的世界頻道 NPC 若原本記仇 → 消氣；只移除本系統建立的追殺，避免誤刪同名拍賣/PVP NPC。
     try {
-        if (Array.isArray(player.trollPlayers)) {
+        if (npc.privateEmotionOutcome !== 'chase' && Array.isArray(player.trollPlayers)) {
             let removed = false;
             player.trollPlayers = player.trollPlayers.filter(t => {
                 let isWorldGrudge = t && t.n === npc.name && (t.source === 'worldChannel' || t.wcGrudge);
@@ -2159,7 +2889,17 @@ function _wcAddGrudge(npc, opts) {
     try {
         if (typeof player === 'undefined' || !player || !player.cls) return false;
         if (!Array.isArray(player.trollPlayers)) player.trollPlayers = [];
-        if (player.trollPlayers.some(t => t && t.n === npc.name)) return false;
+        let existing = player.trollPlayers.find(t => t && t.n === npc.name);
+        if (existing) {
+            if (opts.noExpire) {
+                existing.noExpire = true;
+                existing.until = Number.MAX_SAFE_INTEGER;
+                existing.source = existing.source || 'worldChannel';
+                existing.wcGrudge = true;
+                if (!opts.deferSave && typeof saveGame === 'function') saveGame();
+            }
+            return false;
+        }
         let male = Math.random() < 0.5;
         let avatarByCls = { royal: male ? '王子' : '公主', knight: male ? '男騎士' : '女騎士', mage: male ? '男法師' : '女法師',
             elf: male ? '男妖精' : '女妖精', dark: male ? '男黑暗妖精' : '女黑暗妖精', dragon: male ? '男龍騎士' : '女龍騎士',
@@ -2177,7 +2917,8 @@ function _wcAddGrudge(npc, opts) {
             clanId: npc.clanId || null,
             clanName: npc.clanName || '',
             clanLeader: !!npc.clanLeader,
-            until: Date.now() + 2 * 60 * 60 * 1000
+            noExpire: !!opts.noExpire,
+            until: opts.noExpire ? Number.MAX_SAFE_INTEGER : (Date.now() + 2 * 60 * 60 * 1000)
         });
         if (!opts.silent) logWorld(`<span class="text-rose-400 font-bold">[${_wcStaticNameHtml(npc.name, npc.alignmentValue)}] 惡狠狠地記住了你……</span>`);
         if (!opts.deferSave && typeof saveGame === 'function') saveGame();
@@ -2204,6 +2945,7 @@ function _wcAddGrudge(npc, opts) {
         }
         if (typeof initWorldLogLock === 'function') initWorldLogLock();
         if (!_wcIdleTimer) _wcIdleTimer = setInterval(_wcPostIdleChat, 60 * 1000);
+        if (typeof syncNpcLanguageSetting === 'function') syncNpcLanguageSetting();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
     else bind();

@@ -232,6 +232,7 @@ function renderTabs(force) {
     if(setCheck['icequeen_charm'] >= 3) activeSets.push('icequeen_charm');   // ❄️👸 冰之女王魅力套裝：3 件齊→欄位底色亮起
     if(setCheck['frost'] >= 3) activeSets.push('frost');   // ❄️ 寒冰套裝：3 件齊→欄位底色亮起
     if(setCheck['bluepirate'] >= 4) activeSets.push('bluepirate');   // 🏴‍☠️ 藍海賊套裝：4 件齊→欄位底色亮起
+    if(setCheck['priest'] >= 5) activeSets.push('priest');   // 🏺 v3.7.52 司祭苦行套裝：5 件齊→欄位底色亮起
 
     slots.forEach(s => {
         if (s.filler) {   // 🦴 v3.1.75 填充格：與 decorateClassicInventoryTab 尾端補的空格同款（無邊框互動·非 .list-item）
@@ -501,6 +502,7 @@ function onSummonToggle(sid) {
             renderStatusEffects();
         }
         if (typeof summonV2DismissAll === 'function' && ((player._summonV2Sk || 'sk_summon') === sid)) summonV2DismissAll();   // 🧙 v3.2.21 召喚類 v2（召喚術/造屍術/屬性精靈）：取消勾選當前生效的召喚→全數解散＋關閉自動重施
+        if (sid === 'sk_zombie' && typeof necroDismissOwner === 'function') necroDismissOwner(player);
     }
     updateSummonLock();
 }
@@ -589,6 +591,7 @@ function renderSkillSelects() {
     
     sortedSkills.forEach(sid => {
         let sk = DB.skills[sid];
+        let skillDisplayName = (sid === 'sk_zombie' && player.eq && player.eq.shield && player.eq.shield.id === 'relic_necro_book') ? '骷髏復生' : sk.n;
         let isAvail = true;
         let __omniAccess = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
         let __granted = __omniAccess || (player.grantedSkills && player.grantedSkills.includes(sid));
@@ -599,8 +602,8 @@ function renderSkillSelects() {
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
-        if(sk.type === 'atk' && !sk.healSlot) aHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;
-        if((sk.type === 'heal' && !sk.autoBuff && !['sk_antidote','sk_holy_light','sk_cancel'].includes(sid)) || (sk.type === 'atk' && sk.healSlot)) hHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;
+        if(sk.type === 'atk' && !sk.healSlot) aHtml += `<option value="${sid}" ${dis}>${skillDisplayName}</option>`;
+        if((sk.type === 'heal' && !sk.autoBuff && !['sk_antidote','sk_holy_light','sk_cancel'].includes(sid)) || (sk.type === 'atk' && sk.healSlot)) hHtml += `<option value="${sid}" ${dis}>${skillDisplayName}</option>`;
         let __isPurify = (sid === 'sk_antidote' || sid === 'sk_holy_light' || sid === 'sk_cancel');
         if(sk.type === 'buff' || sk.genesisAllMasteries || (sk.type === 'heal' && sk.autoBuff) || __isPurify) {
             let _oldAuto = document.getElementById(`auto-sk-${sid}`);
@@ -629,7 +632,7 @@ function renderSkillSelects() {
                     ? ` <button onclick="openSummonSelect()" class="text-cyan-300 underline" style="font-size:11px;" title="召喚控制戒指：挑選召喚物">［${__cur}▾］</button>`
                     : ` <span class="text-slate-500" style="font-size:11px;" title="裝備召喚控制戒指可挑選召喚物">［${__cur}］</span>`;
             }
-            let __row = `<label class="cursor-pointer flex items-center gap-2 ${(isAvail && !__locked && !__awakenLocked)?'':'opacity-50'}"${__ttl}><input type="checkbox" id="auto-sk-${sid}" ${checked} ${__dis}${sumAttr}${__awakenAttr}${__purAttr}${__autoBuffAttr}${__omniAwakenAttr}> <span class="${sk.genesisAllMasteries?'text-cyan-300 font-bold':__span}">${sk.n}</span>${__sumSel}</label>`;
+            let __row = `<label class="cursor-pointer flex items-center gap-2 ${(isAvail && !__locked && !__awakenLocked)?'':'opacity-50'}"${__ttl}><input type="checkbox" id="auto-sk-${sid}" ${checked} ${__dis}${sumAttr}${__awakenAttr}${__purAttr}${__autoBuffAttr}${__omniAwakenAttr}> <span class="${sk.genesisAllMasteries?'text-cyan-300 font-bold':__span}">${sk.genesisAllMasteries ? sk.n : skillDisplayName}</span>${__sumSel}</label>`;
             if (sk.genesisAllMasteries) omniBuffHtml += __row; else buffHtml += __row;
         }
         if(sk.type === 'convert') {
@@ -685,6 +688,9 @@ const WEAPON_TAGS = {
     // 🏺 v3.7.20 遺物第二十二批武器 tag：瞥視=雙手鈍器；漆黑之劍=反擊＋居合雙標籤（裝真盾→反擊、無盾→居合·黃金權杖先例）；巨劍/鐮刀=雙手劍（切割走 eff:cleave）
     relic_maze_demon_glare: ['雙手鈍器'], relic_warrior_blackblade: ['單手劍', '武士刀'],
     relic_elmore_greatsword: ['雙手劍'], relic_beheading_scythe: ['雙手劍'],
+    // 🏺 v3.7.52 遺物第二十三批武器 tag：邪惡利牙=雙刀（雙擊）；魔劍士之刀/死騎劍=反擊＋居合雙標籤（黃金權杖先例）；真‧屠龍劍=雙手劍（切割走 eff:cleave）
+    relic_serrated_fangs: ['雙刀'], relic_mageblade_knife: ['單手劍', '武士刀'],
+    relic_true_dragonslayer: ['雙手劍'], relic_flame_dk_sword: ['單手劍', '武士刀'],
     wpn_20: ['單手鈍器'], wpn_10: ['單手鈍器'], wpn_13: ['單手鈍器'], wpn_alien: ['單手鈍器'], wpn_1: ['單手鈍器'], wpn_2: ['單手鈍器'], wpn_ancient_axe: ['單手鈍器'], wpn_warrior_trial_axe: ['單手鈍器'], wpn_master_axe: ['單手鈍器'], wpn_demon_axehead: ['單手鈍器'], wpn_iron_axehead: ['單手鈍器'], wpn_giant_axehead: ['單手鈍器'],   // 🔧 古代神之斧／試煉斧頭／大匠的斧頭／魔物的斧頭／鐵斧頭／巨人的斧頭：單手鈍器（鈍擊）
     wpn_2hsword: ['雙手劍'], wpn_dragonslayer: ['雙手劍'], wpn_official_2h: ['雙手劍'],   // 🔧 雙手劍類型標註
     // 🔧 重擊特效武器標註為「雙手鈍器」
@@ -794,7 +800,7 @@ function weaponPurposeLabels(d) {
     if (d.mpRPerEn) out.push(`MP自然恢復每強化+${d.mpRPerEn}`);
     if (d.mdmgEnFrom7Max3) out.push('魔法傷害成長（+7起魔法傷害+1，之後每強化+1，最高+3）');
     if (d.equipHaste) out.push('裝備加速（常駐加速，與加速術／自我加速藥水不重疊）');
-    if (d.dragonStrike) out.push(`龍的一擊 ${d.dragonStrike}%（每次一般攻擊皆判定且不論命中；對全體造成1D力量+25固定物理傷害）`);
+    if (d.dragonStrike) out.push(`龍的一擊 ${d.dragonStrike}%（每次一般攻擊皆判定且不論命中；對全體造成3D力量+30固定物理傷害）`);
     if (d.procBurstPoison) {
         let p = d.procBurstPoison;
         out.push(`猛爆劇毒 ${p.rateBase == null ? 1 : p.rateBase}%＋每強化${p.ratePerEn == null ? 1 : p.ratePerEn}%（每秒100點真實傷害，持續5秒，最多1層）`);
@@ -845,6 +851,7 @@ function relicPurposeLabels(d) {
     if (d.hitstunReduce) out.push(`受擊硬直縮短${(d.hitstunReduce / 10).toFixed(1)}秒`);
     if (d.aggroHide) out.push('隱匿仇恨（較不容易成為敵人目標）');
     if (d.aggroWeight) out.push(`${d.aggroWeight > 0 ? '提高' : '降低'}仇恨（${d.aggroWeight > 0 ? '更' : '較不'}容易被攻擊）`);
+    if (d.aggroMin) out.push('被攻擊權重必定為 1（最低·無視職業與其他仇恨裝備）');   // 🫥 v3.7.88 隱身斗篷
 
     if (d.auraDmg) out.push(`傷害光環（每${((d.auraDmg.interval || 10) / 10).toFixed(1)}秒對全體敵人造成${d.auraDmg.dmg}點傷害）`);
     if (d.thorns) out.push(`受擊反傷（反彈${d.thorns}點傷害）`);
@@ -855,7 +862,10 @@ function relicPurposeLabels(d) {
     if (d.crushDr) out.push(`重擊防護（受到重擊傷害-${d.crushDr}%）`);
     if (d.physDrGated) out.push(`物理防護（一般攻擊傷害-${d.physDrGated}%，每3秒一次）`);
     if (d.fireNullify) out.push('火焰化解（每10秒可免疫一次火屬性傷害）');
-    if (d.wearerEle) out.push(`${eleName(d.wearerEle)}之化身（自身轉為${eleName(d.wearerEle)}屬性，承受傷害套用屬性剋制）`);
+    if (d.wearerEle === 'wind') out.push('風之化身（自身轉為風屬性；受到地屬性傷害增加、受到水屬性傷害減少）');
+    else if (d.wearerEle) out.push(`${eleName(d.wearerEle)}之化身（自身轉為${eleName(d.wearerEle)}屬性，承受傷害套用屬性剋制）`);
+    if (d.necroBook) out.push('骷髏復生（造屍術改為不消耗MP；敵人被擊敗時自動召喚1隻骷髏，全隊場上最多6隻；已達上限時完全恢復HP最低的骷髏）');
+    if (d.killTeamHealPct) out.push(`亡者餽贈（擊殺敵人時，全體玩家、傭兵、召喚物、寵物與護衛恢復${d.killTeamHealPct}%最大HP）`);
     if (d.stealth) out.push('常駐隱身（不主動吸引一般怪物）');
 
     if (d.fullHpMult) out.push(`滿血狙擊（對滿血敵人一般攻擊傷害×${d.fullHpMult}）`);
@@ -1144,6 +1154,7 @@ function buildItemDescHTML(item) {
             let _statusName = (DB.skills[d.procStatusSkill.skId] && DB.skills[d.procStatusSkill.skId].n) || '異常狀態';
             _eff.push(`異常攻擊 ${d.procStatusSkill.rate || 0}%（命中時造成${_statusName}）`);
         }
+        if (d.procStatus && d.procStatus.kind) _eff.push(`異常攻擊 ${d.procStatus.rate || 0}%（攻擊時使目標${(typeof STATUS_NAME !== 'undefined' && STATUS_NAME[d.procStatus.kind]) || '異常狀態'} ${d.procStatus.dur || 6} 秒）`);   // 🕸️ v3.7.75 深紅之弩：束縛
         if (d.procPoison)            _eff.push(`中毒 ${d.procPoison.rate || 0}%（命中時使目標中毒${d.procPoison.dur ? `，持續${d.procPoison.dur}秒` : ''}）`);
         else if (d.procPoisonRate)   _eff.push(`中毒 ${d.procPoisonRate}%（命中時使目標中毒）`);
         if (d.procInstakill) {
@@ -1215,7 +1226,11 @@ function buildItemDescHTML(item) {
     if(d.magicHit) statsArr.push(`魔法命中${formatBonus(d.magicHit)}`);
     if(d.extraDmg) statsArr.push(`額外傷害${formatBonus(d.extraDmg)}`);
     if(d.extraHit) statsArr.push(`額外命中${formatBonus(d.extraHit)}`);
-    if(d.dr) statsArr.push(`傷害減免${formatBonus(d.dr)}`);
+    if(d.dr) {
+        // 🐉 v3.7.69 安塔瑞斯四防具：傷害減免隨強化成長（+7 起每 +1 再 +1・最高 +3）→ 顯示「該實體當前實際值」，不是死的基礎值
+        let _drGrow = d.drEnFrom7Max3 ? Math.min(3, Math.max(0, (typeof capEn === 'function' ? capEn(item && item.en, d) : (item && item.en) || 0) - 6)) : 0;
+        statsArr.push(`傷害減免${formatBonus(d.dr + _drGrow)}` + (d.drEnFrom7Max3 ? `（強化 +7 起每 +1 再增加 1，最高 +${d.dr + 3}）` : ''));
+    }
     if(d.er) statsArr.push(`迴避(ER)${formatBonus(d.er)}`);
     if(d.weightCap) statsArr.push(`負重上限${formatBonus(d.weightCap)}`);
     if(d.potionBonus) statsArr.push(`藥水恢復量+${d.potionBonus}%`);
@@ -2291,11 +2306,71 @@ function updatePvpButtonTone() {
     btn.style.borderColor = border;
     btn.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(0,0,0,.22), 0 1px 2px rgba(0,0,0,.35)';
 }
+let _socialPanelMode = 'pvp';
+function setSocialPanelMode(mode) {
+    _socialPanelMode = mode === 'private' ? 'private' : 'pvp';
+    renderPvpTab();
+}
+function _socialNpcRow(rec) {
+    if (!rec || !rec.n) return '';
+    let align = typeof pvpClampAlignment === 'function' ? pvpClampAlignment(rec.alignmentValue) : Number(rec.alignmentValue) || 0;
+    let name = typeof pvpNameHtml === 'function'
+        ? pvpNameHtml(rec.n, align, 'font-bold')
+        : `<span class="font-bold">${_pvpTabEsc(rec.n)}</span>`;
+    let arg = encodeURIComponent(rec.n).replace(/'/g, '%27');
+    let clan = rec.clanName ? `${rec.clanLeader ? '盟主・' : ''}${_pvpTabEsc(rec.clanName)}` : '無血盟';
+    return `<div class="bg-slate-900/80 border border-slate-700 rounded p-3 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+            <div class="truncate">${name}${rec.clanLeader ? '<span class="ml-2 text-xs text-amber-300">盟主</span>' : ''}</div>
+            <div class="text-xs text-slate-500 mt-1 truncate">${_pvpTabEsc(rec.avatar || '男戰士')}・${clan}</div>
+        </div>
+        <button class="btn shrink-0 px-3 py-2 text-sm font-bold bg-cyan-950 hover:bg-cyan-900 border-cyan-700 text-cyan-100" onclick="socialOpenPrivateByName('${arg}')">私訊</button>
+    </div>`;
+}
+function _socialPrivatePanelHtml() {
+    let recent = typeof socialGetRecentContacts === 'function' ? socialGetRecentContacts() : [];
+    return `<div class="flex flex-col gap-3">
+        <div class="bg-slate-900/80 border border-slate-700 rounded p-3">
+            <div class="text-sm font-bold text-slate-200 mb-2">搜尋玩家 NPC</div>
+            <input id="social-npc-search" type="search" maxlength="24" autocomplete="off"
+                class="w-full bg-slate-950 border border-slate-600 rounded px-3 py-2 text-slate-100 outline-none focus:border-cyan-500"
+                placeholder="輸入至少 2 個字" oninput="renderSocialNpcSearch(this.value)">
+            <div id="social-npc-search-results" class="flex flex-col gap-2 mt-3"></div>
+        </div>
+        <div class="flex items-center justify-between">
+            <div class="font-bold text-cyan-200">最近私訊</div>
+            <div class="text-xs text-slate-500">${recent.length} / 20</div>
+        </div>
+        <div class="flex flex-col gap-2">
+            ${recent.map(_socialNpcRow).join('') || '<div class="text-slate-500 text-sm bg-slate-900/60 border border-slate-800 rounded p-4 text-center">目前沒有私訊紀錄。</div>'}
+        </div>
+    </div>`;
+}
+function renderSocialNpcSearch(query) {
+    let box = document.getElementById('social-npc-search-results');
+    if (!box) return;
+    let clean = String(query || '').trim();
+    if (clean.replace(/\s+/g, '').length < 2) {
+        box.innerHTML = '';
+        return;
+    }
+    let rows = typeof socialSearchNpcCandidates === 'function' ? socialSearchNpcCandidates(clean) : [];
+    box.innerHTML = rows.map(_socialNpcRow).join('') ||
+        '<div class="text-slate-500 text-sm border border-slate-800 rounded p-3 text-center">找不到符合的玩家 NPC。</div>';
+}
 function renderPvpTab() {
     let div = document.getElementById('tab-pvp');
     if (!div || !player || !player.cls) return;
     if (typeof pvpEnsureState === 'function') pvpEnsureState();
     updatePvpButtonTone();
+    let socialNav = `<div class="grid grid-cols-2 gap-2 mb-3">
+        <button class="btn py-2 font-bold ${_socialPanelMode === 'pvp' ? 'bg-red-950 border-red-600 text-red-100' : 'bg-slate-900 border-slate-700 text-slate-400'}" onclick="setSocialPanelMode('pvp')">PVP</button>
+        <button class="btn py-2 font-bold ${_socialPanelMode === 'private' ? 'bg-cyan-950 border-cyan-600 text-cyan-100' : 'bg-slate-900 border-slate-700 text-slate-400'}" onclick="setSocialPanelMode('private')">私訊</button>
+    </div>`;
+    if (_socialPanelMode === 'private') {
+        div.innerHTML = socialNav + _socialPrivatePanelHtml();
+        return;
+    }
     let align = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(player.alignmentValue) : (Number(player.alignmentValue) || 0);
     let color = (typeof pvpAlignmentColor === 'function') ? pvpAlignmentColor(align) : '#fff';
     let label = (typeof pvpAlignmentLabel === 'function') ? pvpAlignmentLabel(align) : '中立';
@@ -2328,7 +2403,7 @@ function renderPvpTab() {
             <button class="btn shrink-0 px-3 py-2 text-sm font-bold ${disabled ? 'opacity-50' : 'bg-red-900 hover:bg-red-800 border-red-600 text-red-100'}" ${disabled} onclick="openPvpRevengeTauntMenu(decodeURIComponent('${_nArg}'),event)">${chasing ? '追殺中' : '嗆他'}</button>
         </div>`;
     }).join('');
-    div.innerHTML = `
+    div.innerHTML = socialNav + `
         <div class="flex flex-col gap-3">
             <div class="bg-slate-900/80 border border-slate-700 rounded p-3">
                 <div class="flex items-center justify-between gap-3">
@@ -2515,6 +2590,7 @@ function switchTab(t, btn) {
     if(t === 'audit' && typeof renderAuditTab === 'function') renderAuditTab();
     if(t === 'pvp' && typeof renderPvpTab === 'function') renderPvpTab();
     if(t === 'clan' && typeof renderClanTab === 'function') renderClanTab();
+    if(t === 'automation' && typeof syncNpcLanguageSetting === 'function') syncNpcLanguageSetting();
 }
 
 // ===== 🤝 協力傭兵隊伍面板（Phase 1：顯示血/魔/經驗條＋每傭兵攻擊技能/治癒魔法設定）=====
@@ -2530,7 +2606,10 @@ function _allySkillOptions(ally, kind, cur) {
     let sorted = [...skills].filter(s => DB.skills[s] && !DB.skills[s].procOnly).sort((a, b) => (DB.skills[a].tier || 0) - (DB.skills[b].tier || 0));
     sorted.forEach(sid => {
         let sk = DB.skills[sid];
-        // ⚠️ ally.skills 皆為「該傭兵已學會」的技能→一律可選；不可用 skillReqLv/reqEle 判可用性（那會依『目前玩家』職業誤判，使跨職業傭兵如幻術士的攻擊技全被 disabled）
+        // ⚠️ ally.skills 皆為「該傭兵已學會」的技能→一律可選；不可用 skillReqLv 判可用性（那會依『目前玩家』職業誤判，使跨職業傭兵如幻術士的攻擊技全被 disabled）
+        // 🧝 v3.8.5 唯一例外＝妖精屬性閘：改讀 **ally.elfEle**（傭兵快照自帶）而非 player.elfEle 就不會誤判。
+        //    來源角色換屬性後那些魔法在他自己身上已是灰色不可用 → 擔任傭兵時直接不列（施放端 js/06 同步停放）。
+        if (typeof allySkillElementOk === 'function' && !allySkillElementOk(ally, sid)) return;
         let match = (kind === 'atk')
             ? (sk.type === 'atk' && !sk.healSlot)
             : (kind === 'convert')
@@ -2549,27 +2628,36 @@ function _allyAutoBuffChips(a) {
     let s = a._slot;
     let chips = list.map(it => {
         let on = (typeof _mercAutoOn === 'function') ? _mercAutoOn(a, it.sid) : false;
-        return `<label class="flex items-center gap-0.5 px-1 rounded border cursor-pointer" style="border-color:${on ? '#0891b2' : '#475569'};background:${on ? 'rgba(8,145,178,0.18)' : 'rgba(15,23,42,0.4)'};" title="自動維持 ${it.n}（${it.cat}）"><input type="checkbox" ${on ? 'checked' : ''} onchange="setAllyAutoBuff('${s}','${it.sid}',this.checked)" style="width:11px;height:11px;margin:0;"><span style="color:${on ? '#67e8f9' : '#94a3b8'};">${it.n}</span></label>`;
+        let name = (it.sid === 'sk_zombie' && a.eq && a.eq.shield && a.eq.shield.id === 'relic_necro_book') ? '骷髏復生' : it.n;
+        return `<label class="flex items-center gap-0.5 px-1 rounded border cursor-pointer" style="border-color:${on ? '#0891b2' : '#475569'};background:${on ? 'rgba(8,145,178,0.18)' : 'rgba(15,23,42,0.4)'};" title="自動維持 ${name}（${it.cat}）"><input type="checkbox" ${on ? 'checked' : ''} onchange="setAllyAutoBuff('${s}','${it.sid}',this.checked)" style="width:11px;height:11px;margin:0;"><span style="color:${on ? '#67e8f9' : '#94a3b8'};">${name}</span></label>`;
     }).join('');
     return `<div class="flex flex-col gap-0.5" style="margin-top:1px;"><span class="text-cyan-400 font-bold" style="font-size:10px;">自動維持（增益／召喚／回復／淨化）</span><div class="flex flex-wrap gap-1" style="font-size:10px;line-height:1.4;">${chips}</div></div>`;
 }
 
 function renderSquadPanel() {
+    // 🩹 v3.8.1 補跑期間不重建隊伍面板：傭兵/寵物/召喚物/城堡護衛 的 HP 變動都經由此函式（22 處呼叫·多為每 tick/每擊），
+    //    而它會整區重建 team 分頁 DOM——補跑上千 tick 時是主要拖慢來源（比照 renderMobs/flushTickRender 已有的 catchupActive 閘）。
+    //    補跑結束後由下一個 tick 的各實體 render 或 js/23 的 500ms interval 自動刷新（補跑中面板不可見·無感）。
+    if (typeof catchupActive === 'function' && catchupActive()) return;
     let panel = document.getElementById('squad-panel');
     if (!panel) return;
     if (!_autoCollapseInit) { _autoCollapseInit = true; }   // 🔧 v2.6.76 收合偏好停用：自動化設定已改分頁內嵌(v2.6.74)、傭兵隊伍面板取消收合恆展開（舊 fb5_*_collapsed 偏好不再套用·防「收合過就永遠展不開」）
     let allies = (player && player.allies) ? player.allies.filter(Boolean) : [];
     let _pets = (typeof petsOutList === 'function' && player && player.cls) ? petsOutList() : [];   // 🐾 v3.2.17 出戰寵物：顯示於隊伍清單下方
     let _summons = (typeof summonV2List === 'function' && player && player.cls) ? summonV2List().filter(s => s && !s._downed && (s.hp || 0) > 0) : [];
+    if (typeof necroSkeletonList === 'function' && player && player.cls) _summons = _summons.concat(necroSkeletonList().filter(s => s && !s._downed && (s.hp || 0) > 0));
     let _summonSk = (typeof summonV2ActiveSk === 'function') ? summonV2ActiveSk() : '';
     let _summonVisible = _summons.length > 0 || !!(player && player._summonV2On && _summonSk && typeof summonV2Knows === 'function' && summonV2Knows(_summonSk));
-    if (!allies.length && !_pets.length && !_summonVisible) { panel.style.display = 'none'; _squadSigTeam = ''; _squadSigSkill = ''; return; }
+    let _guards = (typeof guardV2List === 'function' && player && player.cls) ? guardV2List() : [];   // 🏰 城堡護衛（可招募的協同角色）
+    if (!allies.length && !_pets.length && !_summonVisible && !_guards.length) { panel.style.display = 'none'; _squadSigTeam = ''; _squadSigSkill = ''; return; }
     panel.style.display = '';
     let _sigAllies = allies.map(a => a._slot + ':' + (a._allyName || '') + ':' + (a._downed ? 'D' : '') + ':' + (a.lv || 1)).join('|');
     let sigTeam = _sigAllies
         + '||P:' + _pets.map(p => p.uid + ':' + p.lv + ':' + (p._downed ? 'D' : '') + ':' + Math.round(p.hp / Math.max(1, p.mhp) * 20) + ':' + Math.round(p.mp / Math.max(1, p.mmp) * 20) + ':' + Math.round((p.exp || 0) / Math.max(1, petExpReq(p.lv)) * 20) + ':' + (p.potPct || 0) + ':' + Math.ceil((p._reviveCd || 0) / 10)).join('|')
-        + '||S:' + ((typeof summonTeamSignature === 'function') ? summonTeamSignature() : '');   // team 分頁：名單/倒地/等級＋寵物/召喚血量(5%階)變動才重建
-    let sigSkill = _sigAllies;   // 🩹 v3.2.74 skill 分頁只看傭兵名單/等級→戰鬥中寵物/召喚掉血不重建·開啟的技能下拉不被關
+        + '||S:' + ((typeof summonTeamSignature === 'function') ? summonTeamSignature() : '')   // team 分頁：名單/倒地/等級＋寵物/召喚血量(5%階)變動才重建
+        + '||G:' + ((typeof guardTeamSignature === 'function') ? guardTeamSignature() : '');   // 🏰 城堡護衛血量/倒地/復活倒數變動才重建
+    let sigSkill = _sigAllies + '||E:' + allies.map(a => a.elfEle || '').join(',');   // 🩹 v3.2.74 skill 分頁只看傭兵名單/等級→戰鬥中寵物/召喚掉血不重建·開啟的技能下拉不被關
+    // 🧝 v3.8.5 追加 elfEle：來源妖精換屬性後 refreshAllyOnce 重建快照時名字/等級都沒變 → 簽章不動 → 技能下拉與自動維持勾選會停在舊屬性的清單（該隱藏的沒隱藏）
     let _squadRebuilt = false;
     if (sigTeam !== _squadSigTeam) {
         _squadSigTeam = sigTeam;
@@ -2599,7 +2687,8 @@ function renderSquadPanel() {
         }).join('')
             + ((typeof renderPetTeamHTML === 'function') ? renderPetTeamHTML() : '')
             + ((typeof renderSummonTeamHTML === 'function') ? renderSummonTeamHTML() : '')
-            + ((typeof renderMercSummonTeamHTML === 'function') ? renderMercSummonTeamHTML() : '');   // 隊伍排列：傭兵 → 寵物 → 玩家召喚物 → 🧱 v3.4.51 傭兵召喚物(血條比照玩家)
+            + ((typeof renderMercSummonTeamHTML === 'function') ? renderMercSummonTeamHTML() : '')
+            + ((typeof renderGuardTeamHTML === 'function') ? renderGuardTeamHTML() : '');   // 隊伍排列：傭兵 → 寵物 → 玩家召喚物 → 傭兵召喚物 → 🏰 城堡護衛
         _squadRebuilt = true;
     }
     if (sigSkill !== _squadSigSkill) {

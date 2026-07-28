@@ -21,10 +21,10 @@ assert.ok(pets.includes("document.getElementById('town-npc-map')"), 'native mini
 assert.ok(generator.includes('p.genesisMiniDragons = miniDragons.map'), 'generated save must embed all four dragons');
 assert.ok(poly.includes('genesisCreatorBreath'), 'Creator transformation must have a breathing glow');
 assert.ok(poly.includes('atkApm:180, wlk:3.2'), 'Creator form card must show 3 attacks/sec and 500% movement');
-assert.ok(index.includes('v3.7.37-genesis-173'), 'browser cache must be bumped');
-assert.ok(index.includes('js/08-items-equip.js?v=v3.7.37-genesis-173'), 'item/status cache must be bumped');
-assert.ok(index.includes('js/09-vfx-render.js?v=v3.7.37-genesis-173'), 'VFX cache must be bumped');
-assert.ok(index.includes('1.6.13-static-bootstrap'), 'Genesis loader cache must be bumped');
+assert.ok(index.includes('v3.8.34-genesis-174'), 'browser cache must be bumped');
+assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-174'), 'item/status cache must be bumped');
+assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-174'), 'VFX cache must be bumped');
+assert.ok(index.includes('1.6.14-static-bootstrap'), 'Genesis loader cache must be bumped');
 assert.ok(clan.includes("p.cls === 'omni'"), 'Omni class must qualify as a clan founder');
 assert.ok(clan.includes('if (!clanCanFound(player))'), 'clan creation and leadership gates must use Omni-aware eligibility');
 assert.ok(clan.includes('clanCanFound(r.player)'), 'Omni founder must remain a valid clan leader for siege');
@@ -52,4 +52,4 @@ assert.ok(!content.includes('Math.min(p.mhp||1,p.hp||1)'), 'map/runtime repair m
 assert.ok(content.includes('allMasteryIds().has(id)'), 'Omni Awakening must activate every Lv50 mastery, not one selection per class');
 assert.ok(tabs.includes('全能師技能') && tabs.includes('onGenesisOmniAwakeningToggle'), 'auto skill settings must expose a dedicated Omni Awakening checkbox section');
 
-console.log('Genesis v1.6.13 regression test passed: map restart preserves inherited pet HP/MP, selectable Omni Awakening, all 32 masteries.');
+console.log('Genesis v1.6.14 regression test passed: v3.8.34 sync, inherited pet HP/MP, selectable Omni Awakening, all 32 masteries.');

@@ -8,7 +8,7 @@ function whKey(p){ let _p = (p !== undefined) ? p : player; return WH_KEY + mode
 const WH_MAX = 5000;   // 倉庫格數上限（🔧 100 → 200 → 500 → 5000）
 const WH_NO_STORE = ['item_dk_insignia','item_mastery_proof',   // 🚫 v3.2.17 舊項圈 id 已隨項圈系統移除
     'item_pride_pass_11','item_pride_pass_21','item_pride_pass_31','item_pride_pass_41','item_pride_pass_51','item_pride_pass_61','item_pride_pass_71','item_pride_pass_81','item_pride_pass_91',
-    'item_dantes_letter','item_elf_whisper','item_ancient_book','item_sealed_intel','item_spy_report','item_chaos_key','item_royal_order','wpn_shaha_arrow','item_dragon_egg',   // 🗑️ v3.5.87 移除 item_card_book/item_equip_book：收集冊本體已無取得管道且 DB 定義移除（ensureCardBook/ensureEquipBook 仍會濾除舊存檔殘留）
+    'item_dantes_letter','item_elf_whisper','item_ancient_book','item_sealed_intel','item_spy_report','item_chaos_key','item_royal_order','wpn_shaha_arrow',   // 🗑️ v3.5.87 移除 item_card_book/item_equip_book：收集冊本體已無取得管道且 DB 定義移除（ensureCardBook/ensureEquipBook 仍會濾除舊存檔殘留）；🐉 v3.7.56 移除 item_dragon_egg：幼龍蛋開放存倉
     // 🔥 v3.0.78 試煉接取制：所有試煉道具禁止存入倉庫（既有倉庫存量仍可取出）
     'new_item_196','new_item_198','new_item_206','new_item_144','new_item_208','item_nightvision','item_ancientkey',
     'new_item_204','new_item_205','new_item_203','new_item_214','new_item_212','new_item_240',
@@ -17,7 +17,7 @@ const WH_NO_STORE = ['item_dk_insignia','item_mastery_proof',   // 🚫 v3.2.17 
     'item_ant_fruit','item_ant_branch','item_ant_bark','item_elmore_heart','item_time_orb','item_wyvern_blood',
     'new_item_207','new_item_226','new_item_225','item_cyclops_blood','new_item_219','new_item_234',
     'item_demon_search','item_demon_spy','item_yeti_heart','item_soulfire_ash',
-    'new_item_197','new_item_211','item_lost_soul','mat_flame_sword','mat_flame_eye','mat_flame_claw','mat_flame_heart'];   // 🚫 禁止存入倉庫（現行陣列內容）：死亡騎士之印記、精通之證、傲慢之塔傳送符(11~91F)、各村莊搜索狀/信件等劇情道具、沙哈之箭、頑皮幼龍蛋、🔥50級試煉任務道具＋全部試煉道具。
+    'new_item_197','new_item_211','item_lost_soul','mat_flame_sword','mat_flame_eye','mat_flame_claw','mat_flame_heart'];   // 🚫 禁止存入倉庫（現行陣列內容）：死亡騎士之印記、精通之證、傲慢之塔傳送符(11~91F)、各村莊搜索狀/信件等劇情道具、沙哈之箭、🔥50級試煉任務道具＋全部試煉道具。
     //    （🗑️ 已不在此列：四種項圈＝v3.2.17 隨項圈系統移除、🎴卡片/裝備收集冊＝v3.5.87 移除 DB 定義、潘朵拉抽獎卷＝v3.5.49 隨舊抽獎機移除）
 // 倉庫分類過濾（武器 / 防具 / 道具）：存入、取出共用同一個下拉清單
 let _whFilter = 'weapon';
@@ -357,7 +357,7 @@ if (typeof window !== 'undefined' && window.addEventListener) window.addEventLis
 //    同簽章永遠只有一格，任一方鎖定→合併後整疊鎖定（旗標傳遞統一走 _whStackAbsorb）。
 // ⚠️ 巨靈願望戒指(gw)每只的三個願望各自獨立，而 itemSig 不含 gw → 必須顯式排除，
 //    否則存入/取出會把兩只不同願望的戒指併成一疊、其中一份願望資料就此消失。
-function _whStackFind(arr, it){ return ((it.en||0)===0 && !it.gw) ? arr.find(x => (x.en||0)===0 && !x.gw && sameItemSig(x, it)) : null; }
+function _whStackFind(arr, it){ return (!it.gw) ? arr.find(x => !x.gw && sameItemSig(x, it)) : null; }
 function _whStackAbsorb(stack, src, n){ stack.cnt += n; if(src && src.lock){ stack.lock = true; stack.junk = false; } }   // 合併時保護狀態只會擴散、不會遺失
 // 🗑️ 自動販賣暫態旗標不屬於倉庫（那是每次背包工作階段的狀態）。存入與取出都清掉，否則
 //    帶著早已過期 junkSince 的物品一回到背包就會被下一次 10 秒掃描直接賣掉＝零寬限期。
@@ -744,21 +744,50 @@ const TRIAL50_ITEM = {
     item_fallen_key:   { cls:'dark',     ex:1 }
 };
 function trialQState(key) { return (player && player.trialQ && player.trialQ[key]) || 0; }
-// 試煉道具目前是否「可取得」：已接取對應試煉、未完成、且持有(含倉庫)未達需求數量
-function trialItemActive(id) {
-    if (!player) return false;
+function trialQStateFor(owner, key) { return (owner && owner.trialQ && owner.trialQ[key]) || 0; }
+// 隊員快照也需要用同一套試煉判定；assignedOnly=true 時只認隊長存檔內分配給該隊員的進度帳。
+function questCountForOwner(owner, id, pending, assignedOnly) {
+    if (!owner) return 0;
+    if (assignedOnly) return Math.max(0, Math.floor(Number(pending) || 0));
+    let inv = (owner.inv || []).filter(i => i && i.id === id && !i.lock).reduce((s, i) => s + (i.cnt || 0), 0);
+    let wh = 0;
+    try {
+        if (typeof whCountId === 'function' && typeof player !== 'undefined' && player
+            && !!owner.classicMode === !!player.classicMode && !!owner.traditionalMode === !!player.traditionalMode) wh = whCountId(id);
+    } catch (e) {}
+    return inv + wh + Math.max(0, Math.floor(Number(pending) || 0));
+}
+// 主玩家沿用「背包實際持有」口徑；隊員則只看隊長端分配進度，避免來源角色背包阻擋掉落。
+function trialStageItemHeldActiveFor(owner, id, pending, assignedOnly) {
+    if (!owner) return false;
+    let cfg = (typeof TRIAL_50_CFG !== 'undefined') && TRIAL_50_CFG[owner.cls];
+    let st = Math.floor(Number(owner.trialStage) || 0);
+    let stage = cfg && st >= 1 && st <= cfg.stages.length ? cfg.stages[st - 1] : null;
+    if (!stage || stage.id !== id) return false;
+    let held = assignedOnly ? 0 : (owner.inv || []).filter(i => i && i.id === id).reduce((s, i) => s + (i.cnt || 0), 0);
+    return held + Math.max(0, Math.floor(Number(pending) || 0)) < (stage.cnt || 1);
+}
+// 試煉道具目前是否「可取得」：主玩家看持有量；隊員看隊長端分配進度。
+function trialItemActiveFor(owner, id, pending, assignedOnly) {
+    if (!owner) return false;
     let ks = TRIAL_ITEM_Q[id];
-    if (ks) return ks.some(k => { let c = TRIAL_Q[k]; if (player.cls !== c.cls || trialQState(k) !== 1) return false; let r = c.reqs.find(p => p[0] === id); return questCountId(id) < r[1]; });
+    if (ks) return ks.some(k => {
+        let c = TRIAL_Q[k];
+        if (owner.cls !== c.cls || trialQStateFor(owner, k) !== 1) return false;
+        let r = c.reqs.find(p => p[0] === id);
+        return questCountForOwner(owner, id, pending, assignedOnly) < r[1];
+    });
     let t = TRIAL50_ITEM[id];
     if (t) {
-        if (player.cls !== t.cls) return false;
-        let cfg = (typeof TRIAL_50_CFG !== 'undefined') && TRIAL_50_CFG[player.cls]; if (!cfg) return false;
-        let st = player.trialStage || 0, n = t.need || 1;
-        if (t.ex) return st === cfg.stages.length + 1 && questCountId(id) < n;   // 最終兌換階段（未完成·未達量）
-        return st === t.stage && questCountId(id) < n;                            // 指定收集階段
+        if (owner.cls !== t.cls) return false;
+        let cfg = (typeof TRIAL_50_CFG !== 'undefined') && TRIAL_50_CFG[owner.cls]; if (!cfg) return false;
+        let st = owner.trialStage || 0, n = t.need || 1;
+        if (t.ex) return st === cfg.stages.length + 1 && questCountForOwner(owner, id, pending, assignedOnly) < n;   // 最終兌換階段（未完成·未達量）
+        return st === t.stage && questCountForOwner(owner, id, pending, assignedOnly) < n;                             // 指定收集階段
     }
     return true;   // 非管制道具
 }
+function trialItemActive(id) { return trialItemActiveFor(player, id, 0); }
 function trialForced100(id) { return !!(TRIAL_ITEM_Q[id] || TRIAL50_ITEM[id]); }   // 管制試煉道具通過閘門後 100% 掉落
 function _trialRerender(rr) { let _c = document.getElementById('interaction-content'); let f = rr && window[rr]; if (_c && typeof f === 'function') f(_c); else closeNpcInteraction(); }
 // 產生單一試煉區塊 HTML（rr＝重繪函式名）
@@ -784,6 +813,7 @@ function trialQHTML(key, rr) {
 function trialQAccept(key, rr) {
     let c = TRIAL_Q[key];
     if (!c || player.cls !== c.cls || (player.lv || 1) < c.lv || trialQState(key) !== 0) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會接取試煉。</span>'); return; }
     if (!player.trialQ || typeof player.trialQ !== 'object') player.trialQ = {};
     player.trialQ[key] = 1;
     logSys(`<span class="text-amber-300 font-bold">${c.npc}：試煉開始！</span>去收集 ${c.reqs.map(p => DB.items[p[0]].n + '×' + p[1]).join('、')}（擊殺指定怪物必定掉落）。`);
@@ -792,6 +822,7 @@ function trialQAccept(key, rr) {
 function trialQComplete(key, rr) {   // 🚫 v3.2.16 移除席琳完成：原第 3 參 sherine（耗結晶必附套裝詞綴）廢止
     let c = TRIAL_Q[key];
     if (!c || player.cls !== c.cls || trialQState(key) !== 1) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會交付試煉道具並領取獎勵。</span>'); return; }
     if (!c.reqs.every(p => questCountId(p[0]) >= p[1])) { logSys('試煉道具尚未備齊。' + (typeof lockHintHtml === 'function' ? lockHintHtml(c.reqs.map(p => p[0])) : '')); return; }   // 🔒 v3.5.87 差額若在鎖定件·明講
     c.reqs.forEach(p => questConsumeId(p[0], p[1]));
     let _sv = _tradLootCtx; _tradLootCtx = true;   // 🏛️ 傳統模式：試煉獎勵裝備隨機自帶強化值
@@ -1020,6 +1051,7 @@ function renderDigallatin(div) {
 function trial50Accept() {
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會接取試煉。</span>'); return; }
     if ((player.lv||1) < 50) { logSys('等級不足 50，無法接取試煉。'); return; }
     if ((player.trialStage||0) !== 0) return;
     player.trialStage = 1; saveGame();
@@ -1037,6 +1069,7 @@ function purgeCompletedElfWhisper() {
 function trial50TurnIn() {
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會交付試煉道具。</span>'); return; }
     let st = player.trialStage || 0, nStages = cfg.stages.length;
     if (st < 1 || st > nStages) return;
     let stage = cfg.stages[st-1];
@@ -1050,6 +1083,7 @@ function trial50TurnIn() {
 function trial50Complete() {   // 🔥 v3.0.78 最終兌換一次性·全拿；🚫 v3.2.16 移除席琳完成（原參數 sherine 廢止）
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
+    if (typeof currentRoleIsMercenary === 'function' && currentRoleIsMercenary()) { logSys('<span class="text-amber-300">此角色正在擔任傭兵，請由隊長在傭兵公會完成試煉並領取獎勵。</span>'); return; }
     let nStages = cfg.stages.length, st = player.trialStage || 0;
     if (st !== nStages + 1) return;   // 只有「魔族神殿已開·尚未完成最終兌換」可完成
     let need = cfg.exMatCnt || 1;

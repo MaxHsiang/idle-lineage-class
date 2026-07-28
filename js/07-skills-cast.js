@@ -171,7 +171,7 @@ function cubeTick() {
             if (t && t.curHp > 0 && !t._dead) {
                 let d = Math.max(1, Math.floor(summonElementDamage(c.dice, c.ele || 'none', t, player.d.magicDmg || 0, magicDamageCoef(player.d, magicAttrDefense(t, c.ele || 'none'), sk.tier)) * illuLvMult(player) * wpnEnFinalMult(player.eq && player.eq.wpn)));   // 🔮 立方：SP／屬性防禦公式 ×(1+專屬法術階級/10)
                 d = illusionMagicDmg(d, true);   // 🔮 幻覺2/5回MP＋5/5二次傷害（比照立方dmg）
-                t.curHp -= d; t.justHit = (c.ele && c.ele !== 'none') ? c.ele : 'magic'; mobWake(t);
+                t.curHp -= d; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, t, d); t.justHit = (c.ele && c.ele !== 'none') ? c.ele : 'magic'; mobWake(t);
                 logCombat(`<span class="font-bold" style="color:#fb923c;text-shadow:0 0 6px #ea580c;">【${sk.n}】</span>對 <span class="${getMobColor(t.lv)}">${t.n}</span> 造成 ${d} 點傷害。`, 'dot', 'player');   // 🟢 立方傷害＝DoT(綠)、玩家來源
                 if (t.curHp <= 0) { let i = mapState.mobs.findIndex(x => x && x.uid === t.uid); if (i !== -1) killMob(i); }
                 renderMobs();
@@ -182,7 +182,7 @@ function cubeTick() {
         if (!live.length) return;
         if (c.kind === 'dmg') {
             let txt = [];
-            live.forEach((m, i) => { let d = Math.max(1, Math.floor(summonElementDamage(c.dice, c.ele || 'none', m, player.d.magicDmg || 0, magicDamageCoef(player.d, magicAttrDefense(m, c.ele || 'none'), sk.tier)) * illuLvMult(player) * wpnEnFinalMult(player.eq && player.eq.wpn))); d = illusionMagicDmg(d, true, i === 0); m.curHp -= d; m.justHit = (c.ele && c.ele !== 'none') ? c.ele : 'magic'; mobWake(m); txt.push(d); });   // 🔮 全體立方每次發動只回一次MP，5件仍逐目標生效
+            live.forEach((m, i) => { let d = Math.max(1, Math.floor(summonElementDamage(c.dice, c.ele || 'none', m, player.d.magicDmg || 0, magicDamageCoef(player.d, magicAttrDefense(m, c.ele || 'none'), sk.tier)) * illuLvMult(player) * wpnEnFinalMult(player.eq && player.eq.wpn))); d = illusionMagicDmg(d, true, i === 0); m.curHp -= d; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, m, d); m.justHit = (c.ele && c.ele !== 'none') ? c.ele : 'magic'; mobWake(m); txt.push(d); });   // 🔮 全體立方每次發動只回一次MP，5件仍逐目標生效
             logCombat(`<span class="font-bold" style="color:#fb923c;text-shadow:0 0 6px #ea580c;">【${sk.n}】</span>對全體造成 ${txt.join('、')} 點傷害。`, 'dot', 'player');   // 🟢 立方傷害＝持續傷害(DoT)→綠色 dot 分類＋玩家來源(src 顯式'player'蓋過 cubeTick 所處的 _combatSrc='summon')
             live.forEach(m => { if (m.curHp <= 0) { let i = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (i !== -1) killMob(i); } });
             renderMobs();
@@ -270,6 +270,7 @@ function manualCast(skId) {
         if(KING_ROOMS[mapState.current]) { logSys('<span class="text-red-400">軍王之室的封印之力壓制了傳送術，無法生效。</span>'); return; }
         if(prideTeleportBlocked()) { logSys('<span class="text-red-400">' + (state.riftRun ? '時空裂痕中無法使用傳送術。' : (state.prideRanked ? '排名挑戰中無法使用傳送術。' : '在此樓層需持有對應的傲慢之塔支配符才能使用傳送術。')) + '</span>'); return; }
         if(state.oblivion) { logSys('<span class="text-red-400">遺忘之島的迷霧壓制了傳送術，無法生效。</span>'); return; }
+        if(state.antharas) { logSys('<span class="text-red-400">侵蝕的龍氣壓制了傳送術，無法生效。</span>'); return; }   // 🐉 v3.7.57 侵蝕的安塔瑞斯巢穴：禁傳送術
         // 🌀 v3.0.102 傳送術特效＋玩家 sprite 暫隱已移入 doTeleport / enterHiddenArea（涵蓋技能與瞬移卷軸所有路徑）
         if (HIDDEN_AREA_PARENT[mapState.current]) {   // 🏛️ 對應地圖手動施放傳送術→進入隱藏狩獵區域（MP 已扣、冷卻照走）
             enterHiddenArea(HIDDEN_AREA_PARENT[mapState.current]);
@@ -288,6 +289,7 @@ function manualCast(skId) {
     // 🔧 魔力奪取已改為轉換技能（type:'convert', drain:true），改由 castSkill 的 convert 分支處理：
     //    命中判定改用 abnormalMagicHit（與迷魅術一致，吃魔法命中/怪MR/等級差），吸取量＝怪物等級/2
     } else if(sk.mEff === 'charm') {
+        if (player.d && player.d.charmOnHit) { logSys('裝備斯克巴女皇的魅惑之吻時，迷魅術會改為命中後自動施展。'); return; }
         if(!t) { logSys('沒有目標。'); return; }
         if(t.boss) { logSys('無法魅惑 BOSS。'); return; }
         player.mp -= cost; cost = 0;
@@ -320,6 +322,45 @@ function rollDice(count, sides) { let s = 0; for(let i = 0; i < count; i++) s +=
 // 🔮 castSkill 包裝：魔力精通時，依本次施法實際消耗的 MP，回饋傭兵 10%（以 MP 差額判定，涵蓋所有施法分支；轉換類增MP不觸發）
 let _reqWpnWarnAt = -9999;   // 🛡️ v2.6.69 審計#15：reqWpn 不符提示節流（每 60 秒最多一次）
 let _costItemWarnAt = -9999;   // 🌀 costItem 施法材料不足提示節流（每 60 秒最多一次）
+function relicCharmOnHit(t) {
+    let p = player;
+    if (!p || !p.d || !p.d.charmOnHit || p.charmed || !t || t.curHp <= 0 || t._dead || t.boss || t.noCharm) return false;
+    if (!((hasMastery('m_summon') && (t.lv || 1) < p.lv) || abnormalMagicHit(t, 12))) return false;
+    let idx = mapState.mobs.findIndex(m => m && m.uid === t.uid);
+    if (idx === -1) return false;
+    p.buffs = p.buffs || {};
+    p.buffs.sk_charm = 3600;
+    p.charmed = {
+        skId:'sk_charm', n:'迷魅：' + t.n, dmgDice: t.dmg && t.dmg[1] ? t.dmg : [1,4],
+        interval: Math.max(10, Math.floor((t.atkSpd || 2) * 10)), ele:'none', kind:'melee',
+        hitBonus:(t.hit||0), proc:null, cd:10, endTick: state.ticks + 36000
+    };
+    logCombat(`<span class="font-bold" style="color:#f0abfc;text-shadow:0 0 6px #d946ef;">【魅惑術】</span><span class="${getMobColor(t.lv)}">${t.n}</span> 成為你的僕人。`, 'magic');
+    if (typeof playSpellFx === 'function') { try { playSpellFx('迷魅術', t); } catch (e) {} }
+    mapState.mobs[idx] = null;
+    renderMobs();
+    return true;
+}
+function relicFlywingDouble(t) {
+    if (!t || t.curHp <= 0 || t._dead || (player.mp || 0) < 12) return false;
+    player.mp -= 12;
+    let prior = player._forceComboRate;
+    player._forceComboRate = 100;
+    let swings = 0;
+    try {
+        for (let i = 0; i < 2; i++) {
+            if (!t || t._dead || t.curHp <= 0 || player.dead) break;
+            playerAttack();
+            swings++;
+        }
+    } finally {
+        if (prior == null) delete player._forceComboRate; else player._forceComboRate = prior;
+    }
+    if (swings > 0) logCombat('<span class="font-bold" style="color:#c4b5fd;text-shadow:0 0 6px #8b5cf6;">【飛翼雙連】</span>殘翼交錯，連續斬出兩次一般攻擊！', 'player-special');
+    player.cds.atkSk = getAutoCastInterval(player, false, player.cds.atkSk);
+    calcStats(); updateUI();
+    return swings > 0;
+}
 function castSkill(skId) {
     let r;
     if (!(player && hasMastery('i_mana'))) { r = castSkillInner(skId); }
@@ -410,6 +451,8 @@ function castSkillInner(skId) {
     if (sk.darkCrit) {
         let _t = getTarget(); if (!_t || _t.curHp <= 0) return false;
         if (player.cds.atkSk > 0) return false;   // ⚔️ v3.1.77 稽核中#11：比照其他攻擊技吃攻擊技冷卻（原分支位於冷卻閘之前＝唯一不受冷卻的 atk 技）
+        let _darkCritWpn = player.eq.wpn ? DB.items[player.eq.wpn.id] : null;
+        if (_darkCritWpn && _darkCritWpn.darkCritMorph === 'flywing_double') return relicFlywingDouble(_t);
         if ((player.mp || 0) <= 0) return false;   // 🩸 v3.1.77 稽核中#11：MP=0 時倍率為 0 → 燒半血只打 1 點且不觸發 castLock 可反覆自殘·必須有 MP 才施放
         if (player.hp <= player.mhp * 0.5) return false;   // HP 不足以負擔代價
         let mult = (player.mmp > 0 ? player.mp / player.mmp : 0) * 10;   // 100%MP→×10、50%→×5
@@ -421,7 +464,7 @@ function castSkillInner(skId) {
         let raw = (base.dmg || 1) + mobHardSkin(_t);                     // 無視硬皮：加回硬皮扣減量
         let dmg = Math.max(1, Math.floor(raw * mult));   // MP 佔比倍率（必定爆擊已含於 base.dmg）
         if (_t.race === '血盟') dmg *= 2;                                 // 對血盟敵人 x2
-        _t.curHp -= dmg; _t.justHit = getWpnEle(player.eq.wpn, wpn); mobWake(_t);
+        _t.curHp -= dmg; _t.justHit = getWpnEle(player.eq.wpn, wpn); if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, _t, dmg); mobWake(_t);
         if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(_t, dmg, (wpn && (wpn.isBow || wpn.ranged)) ? 'ranged' : 'melee', null);   // 🌑 v3.4.14 血壁空間：會心一擊＝技能直擊反射（玩家傭兵一致）
         if (player.dead) return true;   // ☠️ v3.5.87 反射可反殺施放者：死後中止收尾（不結算擊殺經驗/掉落·比照 js/04 playerAttack）
         logCombat(`<span class="font-bold" style="color:#f0abfc;text-shadow:0 0 8px #d946ef;">【會心一擊】</span>對 <span class="${getMobColor(_t.lv)}">${_t.n}</span> 造成 ${dmg} 點致命傷害！`, 'player-crit');
@@ -531,6 +574,7 @@ function castSkillInner(skId) {
                 let _after = (typeof _supHp === 'function') ? _supHp(c) : (c === player ? player.hp : (c.curHp != null ? c.curHp : c.hp));
                 _total += Math.max(0, _after - _before); _hit++;
             });
+            if (typeof threatHeal === 'function') threatHeal(player, _total);   // 🎯 v3.7.97 仇恨制：玩家全體治癒＝實際回復×0.5 記給玩家（overheal 不算）
             logCombat(`施放 ${sk.n}，立即治癒全隊 ${_hit} 名成員，共恢復 ${_total} 點 HP。${sk.msg || ''}`, 'heal');
         } else {
             let heal = rollHealingSpell(sk, player.d, player, _hTgt);
@@ -539,6 +583,7 @@ function castSkillInner(skId) {
             if (typeof _supHeal === 'function') _supHeal(_hTgt, heal); else if (_hTgt === player) player.hp = Math.min(player.mhp, player.hp + heal); else if (_hTgt.curHp != null) _hTgt.curHp = Math.min(_hTgt.mhp, (_hTgt.curHp || 0) + heal); else _hTgt.hp = Math.min(_hTgt.mhp, (_hTgt.hp || 0) + heal);
             let _after = (typeof _supHp === 'function') ? _supHp(_hTgt) : (_hTgt === player ? player.hp : (_hTgt.curHp != null ? _hTgt.curHp : _hTgt.hp));
             let _actual = Math.max(0, _after - _before);
+            if (typeof threatHeal === 'function') threatHeal(player, _actual);   // 🎯 v3.7.97 仇恨制：玩家單體治癒＝實際回復×0.5 記給玩家
             logCombat(`施放 ${sk.n}，恢復了${_hTgt === player ? '' : (' ' + ((typeof _supName === 'function') ? _supName(_hTgt) : ('協力·' + _hTgt._allyName)))} ${_actual} 點 HP。${sk.msg || ''}`, 'heal');
         }
         return true;
@@ -569,7 +614,7 @@ function castSkillInner(skId) {
                 if (_hb > 0) { dmg += _hb; applied = true; if (_slRand && !_slHitSet.includes(ht)) _slHitSet.push(ht); }   // 🐉 弱點曝光：每一擊命中都吃 +10/層
                 dmg = Math.floor(dmg * weakExposeDmgMult(ht));   // 🏅 鎖刃精通：每層弱點曝光最終傷害+10%
                 if (sk.hpCost && player._setDragonblood5) dmg = Math.max(1, Math.floor(dmg * 1.2));   // 🐉 龍血5/5：HP消耗技傷害+20%（屠宰者＝物理HP消耗技·與魔法路徑 js/07 一致）
-                ht.curHp -= dmg; ht.justHit = getWpnEle(player.eq.wpn, wpn); total += dmg; mobWake(ht);
+                ht.curHp -= dmg; ht.justHit = getWpnEle(player.eq.wpn, wpn); if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, ht, dmg); total += dmg; mobWake(ht);
                 if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(ht, dmg, 'melee', null);   // 🌑 v3.4.14 血壁空間：屠宰者每擊＝近距離技能直擊反射（玩家傭兵一致）
                 if (player.dead) { if (consume && applied) t.weakExpose = 0; if (_slRand) _slHitSet.forEach(m => { if (!hasMastery('k_weakness')) m.weakExpose = 0; }); return true; }   // ☠️ v3.5.87 反射反殺：死後中止後續斬擊與擊殺結算　⚡ 早退前補做弱點曝光消耗
                 log.push(dmg + (res.heavy ? '(重)' : '') + (_slRand ? `→${ht.n}` : ''));
@@ -590,7 +635,7 @@ function castSkillInner(skId) {
             player.mp -= cost; player.cds.atkSk = getAutoCastInterval(player, false, player.cds.atkSk);
             if (sk.hpCost) player.hp = Math.max(1, player.hp - effHpCost(sk));
             let base = 50 + Math.max(0, (player.lv || 1) - 30);
-            targets.forEach(m => { if (player.dead) return; if (!m || m.curHp <= 0 || m._dead) return; let dmg = Math.max(1, Math.floor(base * fragileMult(m))); m.curHp -= dmg; m.justHit = 'magic'; m._spellHurt = true; mobWake(m); if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(m, dmg, 'magic', null); });   // 🎬 v3.0.14 _spellHurt：法術傷害→hurt 動畫(含頭目)；🌑 v3.3.33 血壁空間魔法反射
+            targets.forEach(m => { if (player.dead) return; if (!m || m.curHp <= 0 || m._dead) return; let dmg = Math.max(1, Math.floor(base * fragileMult(m))); m.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, m, dmg); m.justHit = 'magic'; m._spellHurt = true; mobWake(m); if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(m, dmg, 'magic', null); });   // 🎬 v3.0.14 _spellHurt：法術傷害→hurt 動畫(含頭目)；🌑 v3.3.33 血壁空間魔法反射
             if (player.dead) return true;   // ☠️ v3.5.87 反射反殺：死後不結算擊殺
             logCombat(`施放 <span style="font-weight:700;color:#7dd3fc">${sk.n}</span>，咆哮震懾全場，對所有敵人造成約 ${base} 點固定傷害。`, 'skill');
             targets.forEach(m => { if (m && m.curHp <= 0 && !m._dead) { let i = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (i !== -1) killMob(i); } });
@@ -653,7 +698,7 @@ function castSkillInner(skId) {
                 dmg = Math.max(1, Math.floor(magicBaseDamage(dmg, player.d, 0, true) * magicDamageCoef(player.d, magicAttrDefense(t, 'none'), sk.tier) * ((player.eq.wpn && (DB.items[player.eq.wpn.id] || {}).spellIgnoreMr) ? 1 : mrMult(Math.max(0, effMr)))));   // 🏺 v3.6.44 血祭儀式短刀：無視魔抗
             }
             dmg = Math.max(1, Math.floor(dmg * fragileMult(t) * illuLvMult(player) * wpnEnFinalMult(player.eq.wpn) * elementCounterMult(sk.weaponDmg ? getWpnEle(player.eq.wpn, player.eq.wpn ? DB.items[player.eq.wpn.id] : null) : 'none', t.e)));   // 🔮 幻術士等級加成 ×(1+等級/50)；🔧 武器強化 +11~+20 最終倍率；⚔️ 屬性剋制(僅武器傷害技吃武器屬性)
-            t.curHp -= dmg; t.justHit = sk.weaponDmg ? getWpnEle(player.eq.wpn, player.eq.wpn ? DB.items[player.eq.wpn.id] : null) : 'magic'; if (!sk.weaponDmg) t._spellHurt = true; mobWake(t);   // 🎬 v3.0.14 純魔法技→hurt(含頭目)
+            t.curHp -= dmg; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, t, dmg); t.justHit = sk.weaponDmg ? getWpnEle(player.eq.wpn, player.eq.wpn ? DB.items[player.eq.wpn.id] : null) : 'magic'; if (!sk.weaponDmg) t._spellHurt = true; mobWake(t);   // 🎬 v3.0.14 純魔法技→hurt(含頭目)
             if (typeof reflectWallOnDamage === 'function' && t._reflectWall) { let _rwW = player.eq.wpn && DB.items[player.eq.wpn.id]; reflectWallOnDamage(t, dmg, sk.weaponDmg ? ((_rwW && (_rwW.isBow || _rwW.ranged)) ? 'ranged' : 'melee') : 'magic', null); }   // 🌑 v3.3.33 血壁空間：玩家技能傷害反射
             if (player.dead) return true;   // ☠️ v3.5.87 反射反殺：死後中止收尾（不結算擊殺）
             if (sk.mpDmgPct && t.st && t.st.mrhalf > 0) t.st.mrhalf = 0;   // 🔧 心靈破壞（魔法）：受一次魔法傷害後解除魔抗減半（與其他魔法路徑一致）
@@ -707,6 +752,7 @@ function castSkillInner(skId) {
                 // 遠距離物理技能命中滿血被動怪物，賦予 3 秒延遲（整段只觸發一次）
                 if(!delayDone && t.curHp === t.hp && t.beh === '被動' && res.ranged) { t._delayTicks = 30; delayDone = true; }
                 t.curHp -= res.dmg;
+                if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, t, res.dmg);
                 t.justHit = getWpnEle(player.eq.wpn, wpn);
                 if (typeof reflectWallOnDamage === 'function') reflectWallOnDamage(t, res.dmg, res.ranged ? 'ranged' : 'melee', null);   // 🌑 v3.4.14 血壁空間：物理技能每擊反射（衝擊之暈/三重矢·玩家傭兵一致）
                 if (player.dead) { player._skillHitBonus = 0; return true; }   // ☠️ v3.5.87 反射反殺：死後中止後續箭/擊與收尾（⚠️ 記得歸零范德命中加成）
@@ -793,7 +839,7 @@ function castSkillInner(skId) {
                     d = Math.max(1, Math.floor(d * elementCounterMult(sk.ele, t.e)));   // ⚔️ 屬性剋制：魔法剋怪 ×1.4、被剋 ×0.6（無屬性→×1）
                     if (idx === 0) d = Math.max(1, Math.floor(d * consumeWetMult(t, sk.ele)));   // 🏺 海洋水晶球：潮濕目標受風屬性魔法傷害 ×2 並解除（只在首段骰結算·避免多段各×2）
                     d = Math.floor(d * mageDmgMult);   // 保留流程相容性；目前不再追加舊法師專屬倍率
-                    d = Math.max(1, Math.floor(d * rlFuryMult()));   // 🔮 紅獅5/5(×1.2)＋😡狂怒5/5：攻擊技能最終傷害
+                    d = Math.max(1, Math.floor(d * rlFuryMult()));   // 🔮 紅獅5/5(×1.1)＋😡狂怒5/5：攻擊技能最終傷害
                     // 🔧 魔導精通同屬性傷害×2 已移除(2026-07 用戶要求)
                     d = Math.max(1, Math.floor(d * fragileMult(t) * illuLvMult(player)));    // 🔮 脆弱（白鳥5）；🔮 幻術士等級加成 ×(1+等級/50)（幻想/混亂）
                     d = Math.max(1, Math.floor(d * wpnEnFinalMult(player.eq.wpn)));   // 🔧 武器強化 +11~+20：最終傷害倍率（也影響玩家施放的傷害魔法；物理技能走 getPhysicalDmg 已含、不在此處）
@@ -806,6 +852,7 @@ function castSkillInner(skId) {
                     totalDmg = illusionMagicDmg(totalDmg, false);   // 🔮 攻擊技能下拉選單可選的一般傷害法術，不觸發幻覺2/5與5/5
                     totalDmg = Math.max(1, Math.floor(totalDmg * equipSkillDmgMult(sk, skId) * (_autoCastNow ? (_equipWpnField('autoCastDmgMult') || 1) : 1)));   // 🏺 遺物 特定技能傷害倍率（冰錐/光箭/究極光裂術 ×1.5）；🐍 枯竭魔杖：auto 施放傷害 ×autoCastDmgMult(1.5)
                     t.curHp -= totalDmg;
+                    if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, t, totalDmg);
                     _burstDmg += totalDmg;   // 🔧 魔爆累計
                     t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic';
                     t._spellHurt = true;   // 🎬 v3.0.14 法術傷害→hurt 動畫(含頭目·renderMobs 頭目閘放行)
@@ -870,7 +917,7 @@ function castSkillInner(skId) {
                             logCombat(`<span class="font-bold" style="color:#f0abfc;text-shadow:0 0 6px #c026d3;">【魔爆】</span>魔力過載爆炸，波及全場！`, 'player-special');
                             _live.forEach((m, i) => {
                                 let _d = Math.max(1, Math.floor(_ex * fragileMult(m)));
-                                _d = illusionMagicDmg(_d, true, i === 0); m.curHp -= _d; if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(m, _d, 'magic'); m.justHit = 'magic'; mobWake(m);   // 🔮 魔爆每次發動只回一次MP，5件仍逐目標生效；🌅 巨大骷髏視為魔法
+                                _d = illusionMagicDmg(_d, true, i === 0); m.curHp -= _d; if (typeof moonShatterOnDamage === 'function') moonShatterOnDamage(player, m, _d); if (typeof terrorVisageOnDamage === 'function') terrorVisageOnDamage(m, _d, 'magic'); m.justHit = 'magic'; mobWake(m);   // 🔮 魔爆每次發動只回一次MP，5件仍逐目標生效；🌅 巨大骷髏視為魔法
                                 logCombat(`魔爆波及 <span class="${getMobColor(m.lv)}">${m.n}</span>，造成 ${_d} 點無屬性傷害。`, 'player');
                                 if (m.curHp <= 0) { let ri = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (ri !== -1) killMob(ri); }
                             });
@@ -1023,6 +1070,7 @@ function autoActions() {
             if(!(typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess()) && sk.awaken && player.mastery !== 'k_awaken' && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => (player.buffs[a]||0) > 0)) return;   // 🐉 覺醒互斥：已有一種覺醒生效時不自動施放其他覺醒（避免互相清除而反覆耗HP/MP）；覺醒精通可同時三種
             if(sk.cube && mapState.current.startsWith('town_')) return;   // 🔮 立方：安全區(村莊)不自動施放，進入狩獵區(非 town_)才展開
             if(sk.stormInterval && mapState.current.startsWith('town_')) return;   // 🌨️🔥 火牢/冰雪颶風等持續傷害增益(STORM_BUFF_SKILLS)：安全區(村莊)無敵人→不自動施放(免空耗 MP/洗版)，與立方/轉換魔法一致
+            if(sid === 'sk_zombie' && typeof necroBookEquipped === 'function' && necroBookEquipped(player)) return;   // 🏺 v3.8.12 死靈之書：造屍術改為擊殺觸發的骷髏復生，不施法、不消耗 MP
             if(sk.summon && typeof _petInWild === 'function' && !_petInWild()) return;   // 🧟 v3.2.21 召喚類增益：安全區/無怪區不自動施放（v2 施放會被擋→免反覆嘗試洗版·比照立方/颶風）
             if(sk.costItem && mapState.current.startsWith('town_')) return;   // 🌀 消耗道具型增益：安全區無戰鬥損耗，不自動施放以免白耗材料（手動施放不受限）
             // 👑 力盔/敏盔版同效果已生效：跳過自動施放對應的法師/王族魔法版（recomputeStats@4037 會把同名 buff 歸零；若仍自動施放會每 tick 被歸零後反覆重施＝無限洗版）
@@ -1108,13 +1156,19 @@ function autoCastSpells() {
     }
 }
 
-// 詞綴抽取（新制）：掉落/製作/潘朵拉/血盟 等管道只會隨機產生「祝福的」(bless) 1%；不再有單/雙/三詞綴或屬性/遠古的隨機掉落。
-// 🔧 詞綴抽取：怪物掉落 / 製作 / 潘朵拉 / 血盟怪掉落 等管道「只可能獲得 祝福的」詞綴（1%）。
+// 詞綴抽取（新制）：只會隨機產生「祝福的」(bless)；頭目掉落與製作基礎 10%，其他來源基礎 1%。
 //    屬性詞綴與遠古系詞綴不再由這些管道隨機產生（改由象牙塔『碧恩』的賦予祝福卷軸取得）。
-//    🔮 席琳的世界擊殺掉落仍套用 ×3（祝福機率 3%）。
-function rollAffixesNew() {
-    let m = _sherineLootCtx ? (_sherineLootCtx.mad ? 5 : 3) : 1;   // 🔮 席琳的世界 祝福機率 ×3（瘋狂×5）
-    return { attr: false, bless: (lootRng('affixb') < 0.01 * m), anc: false };   // 🎲 committed RNG（防 SL 重抽祝福詞綴）
+//    🔮 席琳一般怪仍套用 ×3（瘋狂 ×5）；席琳頭目固定 20%，瘋狂席琳頭目固定 30%。
+function rollAffixesNew(baseChance=0.01) {
+    baseChance = Number(baseChance);
+    if (!Number.isFinite(baseChance)) baseChance = 0.01;
+    baseChance = Math.max(0, Math.min(1, baseChance));
+    let chance = baseChance;
+    if (_sherineLootCtx) {
+        let isBossLoot = typeof _lootMobInfo !== 'undefined' && !!(_lootMobInfo && _lootMobInfo.boss);
+        chance = isBossLoot ? (_sherineLootCtx.mad ? 0.30 : 0.20) : baseChance * (_sherineLootCtx.mad ? 5 : 3);
+    }
+    return { attr: false, bless: (lootRng('affixb') < Math.min(1, chance)), anc: false };   // 🎲 committed RNG（防 SL 重抽祝福詞綴）
 }
 // 🗑️ v3.5.87 移除 rollAffixesOld()：與 rollAffixesNew 早已 byte-identical（新舊詞綴制 v3.1 期合一），
 //    唯一呼叫點 js/08 gainItem 已改恆走 rollAffixesNew；affixOld 參數槽保留（位置相容）但不再分派。
@@ -1135,4 +1189,30 @@ if (typeof castSkillInner === 'function' && !castSkillInner._bloodWrapped) {
         return r;
     };
     castSkillInner._bloodWrapped = true;
+}
+// 🏺 v3.7.52 專精劍術的魔劍士之刀：包裝 castSkillInner——消耗 MP 施放「傷害法術」(type:'atk') 成功後 10 秒，
+//    依法術階級提升近傷/近命（js/02 消費）且一般攻擊變成該法術屬性（js/08 getWpnEle 覆蓋·js/03 到期重算）。
+if (typeof castSkillInner === 'function' && !castSkillInner._spellbladeWrapped) {
+    let _origCastSkillInner2 = castSkillInner;
+    castSkillInner = function (skId) {
+        let _mpB2 = player ? player.mp : 0;
+        let r = _origCastSkillInner2.apply(this, arguments);
+        try {
+            let _spent2 = _mpB2 - player.mp;
+            if (r && _spent2 > 0 && !player.dead) {
+                let _w2 = player.eq.wpn && DB.items[player.eq.wpn.id];
+                let _sk2 = DB.skills[skId];
+                if (_w2 && _w2.spellbladeBuff && _sk2 && _sk2.type === 'atk') {
+                    let _sbEle2 = spellbladeSkillElement(_sk2.ele) || null;
+                    let _sbWas = (player._spellbladeUntil || 0) > state.ticks && player._spellbladeTier === (_sk2.tier || 1) && player._spellbladeEle === _sbEle2;
+                    player._spellbladeUntil = state.ticks + spellbladeDurationTicks();
+                    player._spellbladeTier = _sk2.tier || 1;
+                    player._spellbladeEle = _sbEle2;
+                    if (!_sbWas) calcStats();   // 階級/屬性有變才重算（同法術連發只刷新時限）
+                }
+            }
+        } catch (e) {}
+        return r;
+    };
+    castSkillInner._spellbladeWrapped = true;
 }

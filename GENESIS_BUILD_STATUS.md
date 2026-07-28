@@ -2,9 +2,9 @@
 
 Repository write access verified.
 
-Upstream baseline: `shines871/idle-lineage-class@f9ba39f6` (`v3.7.37`)
+Upstream baseline: `shines871/idle-lineage-class@137faacc5` (`v3.8.34`)
 
-Build target: Genesis Omni edition `v1.6.13-dev`.
+Build target: Genesis Omni edition `v1.6.14-dev`.
 
 - 創世完美通行證：入場、頭目重生與吉爾塔斯傷勢保存皆不消耗道具，可無限使用。
 - 迷你四龍：改用四龍頭目的根目錄動畫素材，固定 58px，保留攻擊、施法與死亡動畫。
