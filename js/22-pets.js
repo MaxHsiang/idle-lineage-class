@@ -1605,7 +1605,7 @@ function _petAnimApply() {
             else if (!p._downed) _petWanderStep(p, host, hostRect);   // 倒地/死亡殘影不再移動（v3.2.19 修：原本倒地仍會閒晃漂移）
             let dir = (p._dir != null) ? p._dir : 6;
             let gfxForm = p.formGfx || (PET_BOOK[p.form] && PET_BOOK[p.form].formGfx) || p.form;   // 👑 v3.2.25 動態別名：顯示名≠圖檔資料夾
-            let _bossAnim = !!(p.genesisMiniDragon || (PET_BOOK[p.form] && PET_BOOK[p.form].genesisMiniDragon));
+            let _bossAnim = !!(p.genesisMiniDragon || p.genesisUltimateDeathKnight || (PET_BOOK[p.form] && PET_BOOK[p.form].genesisMiniDragon));
             let _animKey = gfxForm + (_bossAnim ? '#boss' : '#' + dir);
             let a = _pet8Cache[_animKey];
             if (a === undefined) { if(_bossAnim)_petBossProbe(gfxForm);else _pet8Probe(gfxForm,dir); }
@@ -1620,6 +1620,11 @@ function _petAnimApply() {
                 let _mi=el.querySelector('.pet-body'),_ms=el.querySelector('.pet-shadow');
                 if(_mi){_mi.style.width='auto';_mi.style.height='58px';_mi.style.objectFit='contain';}
                 if(_ms){_ms.style.width='auto';_ms.style.height='58px';_ms.style.objectFit='contain';}
+            }
+            if (p.genesisUltimateDeathKnight) {
+                let _di=el.querySelector('.pet-body'),_ds=el.querySelector('.pet-shadow');
+                if(_di){_di.style.width='auto';_di.style.height='80px';_di.style.objectFit='contain';}
+                if(_ds){_ds.style.width='auto';_ds.style.height='80px';_ds.style.objectFit='contain';}
             }
             el.style.left = (p._px * 100) + '%';
             el.style.top = (p._py * 100) + '%';

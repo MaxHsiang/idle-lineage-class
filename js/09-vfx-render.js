@@ -151,7 +151,7 @@ function _preloadDeathFx(name, n) {
 // 🌙 v3.6.03 掛網記憶體：分頁隱藏(document.hidden)也視同靜音——背景分頁 CSS 動畫不推進(animationend 不觸發)、
 //    WAAPI onfinish 暫停、保險 setTimeout 被 Chrome 節流到每分鐘 1 次 → 特效元素「只進不出」越積越多。
 //    隱藏時本來就看不見，跳過生成對特效表現零影響；配合檔尾 visibilitychange→_vfxClearAll() 立即釋放已存在的。
-function _vfxMute() { return !!(window.__vfxOff || (typeof document !== 'undefined' && document.hidden) || (typeof state !== 'undefined' && state.ff)); }
+function _vfxMute() { return !!(window.__vfxOff || (typeof mapState !== 'undefined' && mapState.current === 'genesis_ultimate') || (typeof document !== 'undefined' && document.hidden) || (typeof state !== 'undefined' && state.ff)); }
 function playSpellFx(skn, mob, caster) {
     try {
         if (_vfxMute() || !mob) return;
@@ -1052,7 +1052,7 @@ const _BOSS_ENTRANCE_ELE = {
 let _bossEntranceLast = {};
 function vfxBossEntrance(mob, opts) {
     try {
-        if (!mob || window.__vfxOff || document.hidden) return;   // 🌙 v3.6.03 分頁隱藏不播出場特效（閃光/暗角/名條多元素·背景中無法回收）
+        if (!mob || _vfxMute()) return;   // 🌌 終極之地與背景分頁都不播放出場特效
         if (typeof state !== 'undefined' && state.ff && !state.ffSmall) return;   // 🩹 v3.4.97 比照 vfxKill(v3.4.49)：前景微卡頓的小補跑(≤2秒)放行——變身/出怪常落在補跑批次·原 _vfxMute 一律靜音＝「變身名條有時不出現」主因；長背景補跑維持靜音（2 秒同名去重防爆量）
         let cfg = BOSS_ENTRANCE_FX[mob.n];
         if (!cfg) {
@@ -1121,7 +1121,7 @@ function vfxBossEntrance(mob, opts) {
 let _bossRageLast = {};
 function vfxBossRage(mob) {
     try {
-        if (!mob || window.__vfxOff) return;
+        if (!mob || _vfxMute()) return;
         if (typeof state !== 'undefined' && state.ff && !state.ffSmall) return;   // 🩹 v3.4.97 同 vfxBossEntrance：狂暴也是傷害觸發·小補跑放行
         let cfg = BOSS_ENTRANCE_FX[mob.n];
         if (!cfg || !(Number(mob.rageHpPct) > 0)) return;

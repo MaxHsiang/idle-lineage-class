@@ -43,7 +43,8 @@ const MAP_CATEGORIES = {
         {v:'law_king_room',t:'法令軍王之室',c:'#f87171',needKey:'item_king_key'},
         {v:'necro_king_room',t:'冥法軍王之室',c:'#f87171',needKey:'item_king_key'},
         {v:'assassin_king_room',t:'暗殺軍王之室',c:'#f87171',needKey:'item_king_key'},
-        {v:'antaras_lair',t:'安塔瑞斯棲息地',c:'#fb923c'}, {v:'fafurion_lair',t:'法利昂洞穴',c:'#60a5fa'}, {v:'valakas_lair',t:'巴拉卡斯巢穴',c:'#f87171'}
+        {v:'antaras_lair',t:'安塔瑞斯棲息地',c:'#fb923c'}, {v:'fafurion_lair',t:'法利昂洞穴',c:'#60a5fa'}, {v:'valakas_lair',t:'巴拉卡斯巢穴',c:'#f87171'},
+        {v:'genesis_ultimate',t:'終極之地',c:'#c084fc'}
     ],
     // 🗼 傲慢之塔：1樓為入口安全區；其餘一開始皆灰色，2~10樓需擊敗潔尼斯、11樓以上需持有對應傳送符/支配符/移動卷軸
     tower: [
@@ -155,6 +156,9 @@ const MAP_REGIONS = [
         {v:'town_rift', t:'時空裂痕入口'}, {v:'thebes_desert', t:'底比斯 沙漠'}, {v:'thebes_pyramid', t:'底比斯 金字塔內部'}, {v:'thebes_temple', t:'底比斯 歐西里斯祭壇'},
         {v:'tikal_area', t:'提卡爾神廟地區'}, {v:'tikal_deep', t:'提卡爾神廟地區深處'}, {v:'tikal_altar', t:'提卡爾 庫庫爾坎祭壇'},
         {v:'sunrise_castle', t:'日出之國城墎'}, {v:'sunrise_east', t:'日出之國東之地'}, {v:'sunrise_west', t:'日出之國西之地'}, {v:'sunrise_north', t:'日出之國北之地'}
+    ]},
+    { key: 'genesis', label: '創世領域', maps: [
+        {v:'genesis_ultimate', t:'終極之地'}
     ]},
     { key: 'sherine', label: '席琳神殿', maps: [
         {v:'town_sherine', t:'席琳神殿'}

@@ -12,6 +12,10 @@ const clan = fs.readFileSync(path.join(root, 'js', '25-clan-system.js'), 'utf8')
 const vfx = fs.readFileSync(path.join(root, 'js', '09-vfx-render.js'), 'utf8');
 const tabs = fs.readFileSync(path.join(root, 'js', '10-ui-tabs.js'), 'utf8');
 const items = fs.readFileSync(path.join(root, 'js', '08-items-equip.js'), 'utf8');
+const maps = fs.readFileSync(path.join(root, 'js', '11-world-map.js'), 'utf8');
+const backgrounds = fs.readFileSync(path.join(root, 'js', '13-shop-save.js'), 'utf8');
+const drops = fs.readFileSync(path.join(root, 'js', '05-kill-progression.js'), 'utf8');
+const summons = fs.readFileSync(path.join(root, 'js', '23-summons.js'), 'utf8');
 
 assert.ok(content.includes('player.genesisMiniDragons'), 'runtime must create character-owned mini dragons');
 assert.ok(content.includes('owner===lastRuntimeOwner'), 'switching characters must bypass the repair throttle');
@@ -21,10 +25,10 @@ assert.ok(pets.includes("document.getElementById('town-npc-map')"), 'native mini
 assert.ok(generator.includes('p.genesisMiniDragons = miniDragons.map'), 'generated save must embed all four dragons');
 assert.ok(poly.includes('genesisCreatorBreath'), 'Creator transformation must have a breathing glow');
 assert.ok(poly.includes('atkApm:180, wlk:3.2'), 'Creator form card must show 3 attacks/sec and 500% movement');
-assert.ok(index.includes('v3.8.34-genesis-174'), 'browser cache must be bumped');
-assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-174'), 'item/status cache must be bumped');
-assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-174'), 'VFX cache must be bumped');
-assert.ok(index.includes('1.6.14-static-bootstrap'), 'Genesis loader cache must be bumped');
+assert.ok(index.includes('v3.8.34-genesis-175'), 'browser cache must be bumped');
+assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-175'), 'item/status cache must be bumped');
+assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-175'), 'VFX cache must be bumped');
+assert.ok(index.includes('1.6.15-static-bootstrap'), 'Genesis loader cache must be bumped');
 assert.ok(clan.includes("p.cls === 'omni'"), 'Omni class must qualify as a clan founder');
 assert.ok(clan.includes('if (!clanCanFound(player))'), 'clan creation and leadership gates must use Omni-aware eligibility');
 assert.ok(clan.includes('clanCanFound(r.player)'), 'Omni founder must remain a valid clan leader for siege');
@@ -51,5 +55,14 @@ assert.ok(content.includes('effectiveMhp') && content.includes('petSyncInherited
 assert.ok(!content.includes('Math.min(p.mhp||1,p.hp||1)'), 'map/runtime repair must not truncate Genesis pet HP to its pre-inheritance base max');
 assert.ok(content.includes('allMasteryIds().has(id)'), 'Omni Awakening must activate every Lv50 mastery, not one selection per class');
 assert.ok(tabs.includes('全能師技能') && tabs.includes('onGenesisOmniAwakeningToggle'), 'auto skill settings must expose a dedicated Omni Awakening checkbox section');
+assert.ok(content.includes('installUltimateLand') && content.includes('DB.maps[ULTIMATE_MAP_ID]'), 'Ultimate Land must dynamically include all real bosses');
+assert.ok(maps.includes("{v:'genesis_ultimate',t:'終極之地'") && maps.includes("label: '創世領域'"), 'Ultimate Land must appear in the map selector');
+assert.ok(backgrounds.includes("genesis_ultimate: 'assets/area/龍之谷.jpg'"), 'Ultimate Land must use the built-in Dragon Valley background');
+assert.ok(drops.includes("mapState.current === 'genesis_ultimate'") && drops.includes('_dropBase *= 10'), 'Ultimate Land must grant 10x drops');
+assert.ok(vfx.includes("mapState.current === 'genesis_ultimate'"), 'Ultimate Land must suppress local combat and loot VFX');
+assert.ok(content.includes("n:'全能召喚'"), 'Omni Summoning skill definition must exist');
+assert.ok(summons.includes("form:'終極死亡騎士'") && summons.includes('for (let i = 0; i < 2; i++)'), 'Omni Summoning must create two Ultimate Death Knights');
+assert.ok(summons.includes('ownerFinalStats50') && summons.includes('d[k] * 0.5'), 'each Ultimate Death Knight must inherit 50% of the final player sheet');
+assert.ok(pets.includes('p.genesisUltimateDeathKnight') && pets.includes("height='80px'"), 'Ultimate Death Knight must use boss animation at two-thirds scale');
 
-console.log('Genesis v1.6.14 regression test passed: v3.8.34 sync, inherited pet HP/MP, selectable Omni Awakening, all 32 masteries.');
+console.log('Genesis v1.6.15 regression test passed: Ultimate Land, two inherited Ultimate Death Knights, v3.8.34 sync and Genesis systems.');

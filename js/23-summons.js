@@ -409,13 +409,36 @@ function _spiritDerive(s) {
 }
 // 依實體所屬技能分派衍生數值（攻速/防禦；召喚術另含傷害）
 function _sumDeriveAny(s, owner) {
+    if (s && s.genesisUltimateDeathKnight) return _genesisUltimateDeathKnightDerive(s, owner);
     if (s && s._necroSkeleton) return _necroSkeletonDerive(s, owner);
     if (s.skId === 'sk_zombie') return _zmbDerive(s, owner);
     if (s.skId === 'sk_elf_summon' || s.skId === 'sk_elf_summon2') return _spiritDerive(s);
     return _sumDerive(s, owner);   // 🧙 v3.2.24 單價恆定＝基準/cap·與在場隻數無關（_squadSize 已停用）
 }
-const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_elf_summon', 'sk_elf_summon2'];
-const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '殭屍隨從', sk_elf_summon: '精靈', sk_elf_summon2: '精靈' };
+function _genesisUltimateDeathKnightDerive(s, owner) {
+    owner = owner || player;
+    const d = (owner && owner.d) || {};
+    const inherited = {};
+    Object.keys(d).forEach(function (k) {
+        if (typeof d[k] === 'number' && Number.isFinite(d[k])) inherited[k] = d[k] * 0.5;
+    });
+    if (s) s.ownerFinalStats50 = inherited;
+    return {
+        flat: Math.max(1, Math.floor((inherited.meleeDmg || inherited.dmg || 1))),
+        dice: Math.max(1, Math.floor((inherited.meleeBonus || inherited.dmgBonus || 1))),
+        aspd: Math.max(1, Math.round(((d.atkInterval || 0.33) * 10))),
+        dmgMult: 1,
+        hit: Math.max(1, Math.floor(inherited.meleeHit || inherited.hit || (owner.lv || 1))),
+        ac: Math.floor(inherited.ac != null ? inherited.ac : ((d.ac || 0) * 0.5)),
+        dr: Math.max(0, Math.floor(inherited.dr || inherited.dmgReduce || 0)),
+        mr: Math.max(0, Math.floor(inherited.mr || 0)),
+        magicDmg: Math.max(0, Math.floor(inherited.magicDmg || 0)),
+        magicHit: Math.max(0, Math.floor(inherited.magicHit || 0)),
+        allStats50: inherited
+    };
+}
+const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_elf_summon', 'sk_elf_summon2', 'sk_genesis_omni_summon'];
+const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '殭屍隨從', sk_elf_summon: '精靈', sk_elf_summon2: '精靈', sk_genesis_omni_summon: '全能召喚' };
 function summonV2ActiveSk() { return (player && player._summonV2Sk) || 'sk_summon'; }
 
 // ---------- 二、施放／解散／自動重施 ----------
@@ -466,6 +489,21 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
         const e = _sumTierOf(form);
         for (let i = 0; i < cnt; i++) ents.push({ uid: uid(), skId: skId, form: form, lv: e.mob.lv, hp: e.mob.hp, mhp: e.mob.hp, _atkCd: 5 + i * 3 });
         castMsg = `你召喚了 <span class="text-purple-300">${form}</span> ×${cnt}。`;
+    } else if (skId === 'sk_genesis_omni_summon') {
+        if (!(player.cls === 'omni' || player.genesisOmni === true)) {
+            if (!silent) logSys('<span class="text-red-400">只有全能師能施展全能召喚。</span>');
+            return false;
+        }
+        const inheritedHp = Math.max(1, Math.floor((player.mhp || 1) * 0.5));
+        for (let i = 0; i < 2; i++) {
+            const entity = {
+                uid:uid(), skId:skId, form:'終極死亡騎士', formGfx:'死亡騎士', lv:player.lv || 1,
+                hp:inheritedHp, mhp:inheritedHp, _atkCd:5 + i * 3, genesisUltimateDeathKnight:true, spriteScale:2/3
+            };
+            _genesisUltimateDeathKnightDerive(entity, player);
+            ents.push(entity);
+        }
+        castMsg = '你施展 <span class="text-cyan-300 font-bold">全能召喚</span>，2隻終極死亡騎士同時降臨。';
     } else if (skId === 'sk_zombie') {   // 🧟 造屍術：單一殭屍·階級依玩家等級/職業
         const t = _zmbTierForPlayer();
         if (!t) { if (!silent) logSys('<span class="text-red-400">等級不足，無法施展造屍術。</span>'); return false; }
@@ -535,6 +573,13 @@ function summonV2Tick() {
         renderSummonPanel(true);
     }
     const alive = (player.summonsV2 || []).filter(s => !s._downed);
+    alive.forEach(function (s) {
+        if (!s.genesisUltimateDeathKnight) return;
+        const oldMax = Math.max(1, s.mhp || 1), ratio = Math.max(0, Math.min(1, (s.hp || 0) / oldMax));
+        const nextMax = Math.max(1, Math.floor((player.mhp || 1) * 0.5));
+        s.lv = player.lv || 1; s.mhp = nextMax; s.hp = Math.max(1, Math.round(nextMax * ratio));
+        _genesisUltimateDeathKnightDerive(s, player);
+    });
     // 自動重施：開關開啟＋已習得＋在狩獵區＋(全滅或到期)→每 2 秒嘗試一次（castSkill 內部把關 MP/沉默）
     if (player._summonV2On && !alive.length && summonV2Knows(skId) && !(skId === 'sk_zombie' && necroBookPassiveEnabled(player))
         && (typeof _petInWild !== 'function' || _petInWild())

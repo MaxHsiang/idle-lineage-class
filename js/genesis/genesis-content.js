@@ -3,8 +3,11 @@
 
   const PASS_ID = 'item_genesis_perfect_pass';
   const AWAKEN_ID = 'sk_genesis_omni_awakening';
+  const OMNI_SUMMON_ID = 'sk_genesis_omni_summon';
   const PET_WPN_ID = 'petwpn_genesis_dragon_fang';
   const PET_ARM_ID = 'petarm_genesis_dragon_armor';
+  const ULTIMATE_MAP_ID = 'genesis_ultimate';
+  const ULTIMATE_PREFIX = 'genesis_ultimate_';
   let lastRuntimeRepair = 0;
   let lastRuntimeOwner = '';
   const DRAGONS = [
@@ -22,6 +25,65 @@
     }));
   }
   window.hasGenesisPerfectPass = hasPerfectPass;
+
+  function scaleUltimateNested(value, key) {
+    if (Array.isArray(value)) {
+      if (key === 'dmg' || key === 'damage' || key === 'dice') {
+        return value.map(function (n) { return typeof n === 'number' ? n * 100 : scaleUltimateNested(n, ''); });
+      }
+      return value.map(function (x) { return scaleUltimateNested(x, ''); });
+    }
+    if (!value || typeof value !== 'object') return value;
+    const out = {};
+    Object.keys(value).forEach(function (k) {
+      const v = value[k];
+      if (typeof v === 'number' && ['db','matk','dmgFixed','damageBonus','skillDamageBonus','dot','burnDmg','poisonDmg'].includes(k)) out[k] = v * 100;
+      else out[k] = scaleUltimateNested(v, k);
+    });
+    return out;
+  }
+
+  function installUltimateLand() {
+    if (!window.DB || !DB.mobs || !DB.maps) return false;
+    const allBosses = Object.keys(DB.mobs).filter(function (id) {
+      const m = DB.mobs[id];
+      return m && m.boss === true && m.race !== '建築' && !m.siegeEnemy && !m.pledgeEnemy &&
+        !m.trollPlayer && id.indexOf(ULTIMATE_PREFIX) !== 0;
+    });
+    if (!allBosses.length) return false;
+
+    const included = new Set(allBosses);
+    allBosses.forEach(function followTransform(id) {
+      const next = DB.mobs[id] && DB.mobs[id].transformTo;
+      if (next && DB.mobs[next] && !included.has(next)) {
+        included.add(next);
+        followTransform(next);
+      }
+    });
+    included.forEach(function (id) {
+      const base = DB.mobs[id];
+      const mob = scaleUltimateNested(base, '');
+      mob.hp = Math.max(1, Number(base.hp || 1) * 100);
+      mob.dmg = Array.isArray(base.dmg) ? base.dmg.map(function (n) { return Number(n || 0) * 100; }) : base.dmg;
+      ['db','hit','mr','dr','er','regenHp','regenMp'].forEach(function (k) {
+        if (typeof base[k] === 'number') mob[k] = base[k] * 100;
+      });
+      if (typeof base.ac === 'number') mob.ac = -Math.max(100, Math.abs(base.ac) * 100);
+      if (mob.transformTo && included.has(mob.transformTo)) mob.transformTo = ULTIMATE_PREFIX + mob.transformTo;
+      mob.boss = true;
+      mob.genesisUltimate = true;
+      mob._genesisUltimateSource = id;
+      DB.mobs[ULTIMATE_PREFIX + id] = mob;
+    });
+
+    const transformedTargets = new Set(allBosses.map(function (id) { return DB.mobs[id] && DB.mobs[id].transformTo; }).filter(Boolean));
+    const roots = allBosses.filter(function (id) { return !transformedTargets.has(id); });
+    DB.maps[ULTIMATE_MAP_ID] = (roots.length ? roots : allBosses).map(function (id) { return ULTIMATE_PREFIX + id; });
+    window.isGenesisUltimateLand = function () {
+      return !!(window.mapState && mapState.current === ULTIMATE_MAP_ID);
+    };
+    return true;
+  }
 
   function installDefinitions() {
     if (!window.DB || !DB.items || !DB.skills) return false;
@@ -45,6 +107,11 @@
       img:'assets/icons/genesis/omni-awakening.png',
       d:'同時啟用所有職業的全部50級覺醒／專精，不需要在每個職業中擇一。'
     };
+    DB.skills[OMNI_SUMMON_ID] = {
+      n:'全能召喚', type:'buff', tier:1, mp:20, dur:3600, summon:true, reqGenesis:1, genesisSkill:true,
+      img:'assets/anim/死亡騎士/idle_0.png',
+      d:'同時召喚2隻「終極死亡騎士」。外型為死亡騎士原尺寸的2/3，每隻持續即時繼承主角穿戴全部裝備後最終能力值的50%。'
+    };
     try {
       DRAGONS.forEach(function (x) {
         PET_BOOK[x.form] = {
@@ -57,6 +124,7 @@
         };
       });
     } catch (e) {}
+    installUltimateLand();
     return true;
   }
 
@@ -253,5 +321,5 @@
     installDefinitions();installOmniAwakening();ensureInventory();completeCollections();ensureMiniDragons();return true;
   }
 
-  G.content = {install,runtimeRepair,installDefinitions,installOmniAwakening,ensureInventory,completeCollections,ensureMiniDragons,hasPerfectPass,dragons:DRAGONS};
+  G.content = {install,runtimeRepair,installDefinitions,installUltimateLand,installOmniAwakening,ensureInventory,completeCollections,ensureMiniDragons,hasPerfectPass,dragons:DRAGONS};
 })(window.Genesis = window.Genesis || {});
