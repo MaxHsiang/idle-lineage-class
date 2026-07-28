@@ -44,7 +44,7 @@
       return;
     }
     const script = document.createElement('script');
-    script.src = files[index] + '?v=1.6.18-dev';
+    script.src = files[index] + '?v=1.6.19-dev';
     script.onload = function () { loadSequentially(index + 1); };
     script.onerror = function () { showFatal(files[index]); };
     document.body.appendChild(script);

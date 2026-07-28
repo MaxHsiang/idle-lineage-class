@@ -6,7 +6,7 @@
 //   ・攻速＝該怪攻擊動畫幀數決定（幀數/8fps＋0.7s 收招·轉檔時實測 baked）；傷害依階級解鎖等級與 HP 設計（血少傷高）；命中隨玩家等級
 //   ・隊伍面板顯示每隻血量＋重新施放鈕；時間到或全滅自動重施；戰場八方向 sprite 走 js/22 寵物圖層
 //   🧟 v3.2.21 擴充：玩家的 造屍術(sk_zombie)／召喚屬性精靈(sk_elf_summon)／召喚強力屬性精靈(sk_elf_summon2) 也走本模組
-//     ・三系互斥（SUMMON_BUFF_IDS）→ 共用 player.summonsV2 實體清單＋隊伍面板＋js/22 渲染＋js/04 受害者池（權重 召喚術/造屍術＝4·屬性精靈＝3·見 js/04 summonAggroWeight）
+//     ・各召喚技能依 skId 分組共存，共用 player.summonsV2 實體清單＋隊伍面板＋js/22 渲染＋js/04 受害者池
 //     ・造屍術：玩家等級分階（法師 24/32/40/44/48/52 → Lv10~20 殭屍·HP100~800；妖精 48+ 固定 Lv10/HP100）·傷害比照召喚術模型
 //     ・屬性精靈：v3.2.26 四屬性獨立表（骰/縮放逐屬性·攻速 16~18 ticks）走 spiritAttackOnce·精靈精通→精靈王升級（_elfSpiritKingOverride·js/07）——HP 實體＋戰場動態
 //   ⚠️ 迷魅／傭兵的召喚 維持舊管線（setupSummon/summonTick）不動——只有「玩家」的上述技能走本模組
@@ -445,6 +445,14 @@ function _genesisUltimateDeathKnightDerive(s, owner) {
 const SUMMON_V2_SKILLS = ['sk_summon', 'sk_zombie', 'sk_elf_summon', 'sk_elf_summon2'];
 const SUMMON_V2_TITLES = { sk_summon: '召喚物', sk_zombie: '殭屍隨從', sk_elf_summon: '精靈', sk_elf_summon2: '精靈' };
 function summonV2ActiveSk() { return (player && player._summonV2Sk) || 'sk_summon'; }
+function summonV2Flags() {
+    if (!player) return {};
+    player._summonV2OnBySkill = player._summonV2OnBySkill || {};
+    if (player._summonV2On && player._summonV2Sk && player._summonV2OnBySkill[player._summonV2Sk] == null) player._summonV2OnBySkill[player._summonV2Sk] = true;
+    return player._summonV2OnBySkill;
+}
+function summonV2SkillOn(skId) { return !!summonV2Flags()[skId]; }
+function summonV2AnyOn() { return SUMMON_V2_SKILLS.some(summonV2SkillOn); }
 
 // ---------- 二、施放／解散／自動重施 ----------
 // 執行期實體：player.summonsV2 = [{ uid, form, lv, hp, mhp, _atkCd, _animAct, _px.. }]（不入存檔；讀檔後 buff 仍在→自動重施）
@@ -530,53 +538,68 @@ function summonV2CastFor(skId, silent) {   // castSkill 分流入口（sk_summon
     if (player.eq && Object.keys(player.eq).some(k => player.eq[k] && player.eq[k].id === 'rng_genesis_control')) {
         ents.forEach(e => { if (!e.genesisUltimateDeathKnight) e.hp = e.mhp = Math.max(1, Math.floor((e.mhp || e.hp || 1) * 1.20)); });
     }
-    // 同時只能有一種召喚：清除其他召喚 buff＋舊管線殘留（比照 setupSummon 的清除迴圈）
-    (player.skills || []).forEach(s => { const d = DB.skills[s]; if (d && d.summon) player.buffs[s] = 0; });
-    if (player.summon && player.summon.skId !== 'sk_charm') player.summon = null;
+    // 只替換同一技能的舊實體；不同召喚技能與迷魅術全部保留並共存。
     player.buffs[skId] = (DB.skills[skId].dur || 3600);
-    player.summonsV2 = ents;
+    player.summonsV2 = (player.summonsV2 || []).filter(s => s && s.skId !== skId).concat(ents);
     player._summonV2Sk = skId;
-    player._summonV2On = true;   // 自動重施開關（取消勾選/手動解散時關閉）
+    player._summonV2On = true;   // 舊欄位保留相容
+    summonV2Flags()[skId] = true;
     logCombat(castMsg, 'magic', 'summon');
     renderSummonPanel(true);
     return true;
 }
 function summonV2Cast(silent) { return summonV2CastFor('sk_summon', silent); }   // 相容舊呼叫點
+function summonV2Dismiss(skId, quiet) {
+    if (!player || !skId) return;
+    const had = (player.summonsV2 || []).some(s => s && s.skId === skId);
+    if (had && !quiet) logCombat(`${SUMMON_V2_TITLES[skId] || '召喚物'}解散了。`, 'magic', 'summon');
+    player.summonsV2 = (player.summonsV2 || []).filter(s => s && s.skId !== skId);
+    summonV2Flags()[skId] = false;
+    player.buffs[skId] = 0;
+    player._summonV2On = summonV2AnyOn();
+    renderSummonPanel(true);
+}
 function summonV2DismissAll(quiet) {
     if (player.summonsV2 && player.summonsV2.length && !quiet) logCombat('召喚物解散了。', 'magic', 'summon');
     player.summonsV2 = [];
     player._summonV2On = false;
-    player.buffs[summonV2ActiveSk()] = 0;
+    SUMMON_V2_SKILLS.forEach(skId => { summonV2Flags()[skId] = false; player.buffs[skId] = 0; });
     renderSummonPanel(true);
 }
-function summonV2Recast() {   // 隊伍面板「重新施放」鈕：走正規 castSkill（檢查 MP/沉默）
-    const skId = summonV2ActiveSk();
+function summonV2Recast(skId) {   // 隊伍面板「重新施放」鈕：走正規 castSkill（檢查 MP/沉默）
+    skId = skId || summonV2ActiveSk();
     if (!summonV2Knows(skId)) return;
     if (typeof castSkill === 'function') castSkill(skId);
+}
+function summonV2RecastAll() {
+    SUMMON_V2_SKILLS.filter(summonV2SkillOn).forEach(skId => { if (summonV2Knows(skId) && typeof castSkill === 'function') castSkill(skId); });
 }
 
 // ---------- 三、tick（js/03 召喚階段呼叫）----------
 function summonV2Tick() {
     if (typeof player === 'undefined' || !player || !player.cls) return;
     necroSkeletonTick();
-    const skId = summonV2ActiveSk();
     let list = player.summonsV2 || [];
     // 死靈之書使造屍術改為擊殺觸發的骷髏復生：清掉換裝前殘留的人形殭屍，且不走耗 MP 自動重施。
     if (necroBookPassiveEnabled(player) && list.some(s => s && s.skId === 'sk_zombie')) {
-        player.summonsV2 = [];
-        player._summonV2On = false;
+        player.summonsV2 = list.filter(s => s && s.skId !== 'sk_zombie');
+        summonV2Flags().sk_zombie = false;
+        player._summonV2On = summonV2AnyOn();
         player.buffs.sk_zombie = 0;
         list = player.summonsV2;
         renderSummonPanel(true);
     }
     // 玩家死亡：召喚物全數消散（比照舊制 killPlayer 清 player.summon）
     if (player.dead) { if (list.length) { player.summonsV2 = []; renderSummonPanel(true); } return; }
-    // 到期：全滅處理交由下方自動重施
-    if ((player.buffs[skId] || 0) <= 0 && list.length) {
-        logCombat(`<span class="text-purple-300">${SUMMON_V2_TITLES[skId] || '召喚物'}</span> 的契約到期消失了。`, 'magic', 'summon');
-        player.summonsV2 = [];
-        renderSummonPanel(true);
-    }
+    // 每一種召喚契約獨立到期，只移除該技能所屬實體。
+    SUMMON_V2_SKILLS.forEach(skId => {
+        const hasGroup = (player.summonsV2 || []).some(s => s && s.skId === skId);
+        if ((player.buffs[skId] || 0) <= 0 && hasGroup) {
+            logCombat(`<span class="text-purple-300">${SUMMON_V2_TITLES[skId] || '召喚物'}</span> 的契約到期消失了。`, 'magic', 'summon');
+            player.summonsV2 = (player.summonsV2 || []).filter(s => s && s.skId !== skId);
+            renderSummonPanel(true);
+        }
+    });
     const alive = (player.summonsV2 || []).filter(s => !s._downed);
     alive.forEach(function (s) {
         if (!s.genesisUltimateDeathKnight) return;
@@ -585,14 +608,17 @@ function summonV2Tick() {
         s.lv = player.lv || 1; s.mhp = nextMax; s.hp = Math.max(1, Math.round(nextMax * ratio));
         _genesisUltimateDeathKnightDerive(s, player);
     });
-    // 自動重施：開關開啟＋已習得＋在狩獵區＋(全滅或到期)→每 2 秒嘗試一次（castSkill 內部把關 MP/沉默）
-    if (player._summonV2On && !alive.length && summonV2Knows(skId) && !(skId === 'sk_zombie' && necroBookPassiveEnabled(player))
-        && (typeof _petInWild !== 'function' || _petInWild())
-        && state.ticks >= (player._summonV2RecastCd || 0)) {
-        player._summonV2RecastCd = state.ticks + 20;
-        if (typeof castSkill === 'function') castSkill(skId);
-        return;
-    }
+    // 各技能獨立自動重施：某一組全滅／到期不會干擾其他仍在場的召喚群。
+    player._summonV2RecastCdBySkill = player._summonV2RecastCdBySkill || {};
+    SUMMON_V2_SKILLS.forEach(skId => {
+        const groupAlive = alive.some(s => s && s.skId === skId);
+        if (summonV2SkillOn(skId) && !groupAlive && summonV2Knows(skId) && !(skId === 'sk_zombie' && necroBookPassiveEnabled(player))
+            && (typeof _petInWild !== 'function' || _petInWild())
+            && state.ticks >= (player._summonV2RecastCdBySkill[skId] || 0)) {
+            player._summonV2RecastCdBySkill[skId] = state.ticks + 20;
+            if (typeof castSkill === 'function') castSkill(skId);
+        }
+    });
     if (!alive.length) return;
     if (typeof _petInWild === 'function' && !_petInWild()) return;   // 安全區：不行動（不會有怪）
     for (const s of alive) {
@@ -753,10 +779,10 @@ function summonTeamSignature() {
     try {
         const list = summonV2List().filter(s => s && !s._downed && (s.hp || 0) > 0);
         const necro = necroSkeletonList().filter(s => s && !s._downed && (s.hp || 0) > 0);
-        const skId = summonV2ActiveSk();
-        const remain = Math.max(0, Math.ceil((player && player.buffs && player.buffs[skId]) || 0));
+        const activeIds = SUMMON_V2_SKILLS.filter(summonV2SkillOn);
+        const remain = Math.max(0, ...activeIds.map(skId => Math.ceil((player && player.buffs && player.buffs[skId]) || 0)));
         return list.map(s => [s.uid, s.form, s.lv || 1, Math.round((s.hp || 0) / Math.max(1, s.mhp || 1) * 20)].join(':')).join('|')
-            + '#' + skId + '#' + (player && player._summonV2On ? 1 : 0) + '#' + remain   // v3.2.42 稽核修：倒數逐秒刷新（原 /10 分桶＝顯示最多滯後 10 秒）
+            + '#' + activeIds.join(',') + '#' + remain
             + '#N:' + necro.map(s => [s.uid, s._necroOwnerKey, s.lv || 1, Math.round((s.hp || 0) / Math.max(1, s.mhp || 1) * 20)].join(':')).join('|')
             + '#M:' + ((typeof mercSummonList === 'function') ? mercSummonList().map(s => [s.uid, s.form, Math.round((s.hp || 0) / Math.max(1, s.mhp || 1) * 20)].join(':')).join('|') : '');   // 🧱 v3.4.51 傭兵召喚物血量(5%階)入簽章→掉血/死亡/重施 500ms 內刷新 team 分頁
     } catch (e) { return ''; }
@@ -767,10 +793,10 @@ function renderSummonTeamHTML() {
         const regular = summonV2List().filter(s => s && !s._downed && (s.hp || 0) > 0);
         const necro = necroSkeletonList().filter(s => s && !s._downed && (s.hp || 0) > 0);
         const list = regular.concat(necro);
-        const skId = summonV2ActiveSk();
-        const show = list.length > 0 || !!(player && player._summonV2On && skId && summonV2Knows(skId));
+        const activeIds = SUMMON_V2_SKILLS.filter(summonV2SkillOn);
+        const show = list.length > 0 || activeIds.some(summonV2Knows);
         if (!show) return '';
-        const remain = Math.max(0, Math.ceil((player && player.buffs && player.buffs[skId]) || 0));
+        const remain = Math.max(0, ...activeIds.map(skId => Math.ceil((player && player.buffs && player.buffs[skId]) || 0)));
         const time = Math.floor(remain / 60) + ':' + String(remain % 60).padStart(2, '0');
         const rows = list.map(s => {
             const hpPct = Math.max(0, Math.min(100, Math.floor((s.hp || 0) / Math.max(1, s.mhp || 1) * 100)));
@@ -784,13 +810,13 @@ function renderSummonTeamHTML() {
                 </div>
             </div>`;
         }).join('');
-        let title = regular.length ? (SUMMON_V2_TITLES[skId] || '召喚物') : '骷髏隨從';
+        let title = regular.length ? '共存召喚群' : '骷髏隨從';
         return `<div class="flex items-center justify-between gap-2 pt-1 border-t border-purple-900/70">
                 <span class="text-purple-300 font-bold text-xs">${title}${list.length ? `（${list.length}）` : ''}</span>
                 <span class="text-slate-400 text-xs">${remain > 0 ? time : ''}</span>
             </div>
             ${rows || '<div class="bg-slate-800/80 border border-purple-900 rounded px-2 py-1 text-xs text-slate-400">等待重新召喚</div>'}
-            ${regular.length ? '<button onclick="summonV2Recast()" class="btn w-full text-xs font-bold" style="padding:3px 0;background:linear-gradient(135deg,#4c1d95,#6d28d9);border:1px solid #7c3aed;color:#ddd6fe;border-radius:4px;">重新施放</button>' : ''}`;
+            ${regular.length ? '<button onclick="summonV2RecastAll()" class="btn w-full text-xs font-bold" style="padding:3px 0;background:linear-gradient(135deg,#4c1d95,#6d28d9);border:1px solid #7c3aed;color:#ddd6fe;border-radius:4px;">全部重新施放</button>' : ''}`;
     } catch (e) { return ''; }
 }
 // 🧱 v3.4.51 傭兵召喚物 HP 卡（比照玩家召喚物呈現·接在其後）：v3.4.50 起傭兵召喚物無 sprite 但有血量·此為唯一血量可視化。
@@ -874,5 +900,5 @@ function chooseSummon(name) {
     try { saveGame(); } catch (e) {}
     // 已有「召喚術」召喚物在場且選擇改變 → 立即重施一次（消耗 MP）
     // v3.2.40 稽核修：明確施放 sk_summon——原 summonV2Recast() 施的是當前技能，造屍術/屬性精靈在場時會誤重施它白花 MP
-    if (player._summonV2On && summonV2ActiveSk() === 'sk_summon' && summonV2List().some(s => !s._downed && s.form !== (name || summonV2ActiveForm())) && typeof castSkill === 'function') castSkill('sk_summon');
+    if (summonV2SkillOn('sk_summon') && summonV2List().some(s => s.skId === 'sk_summon' && !s._downed && s.form !== (name || summonV2ActiveForm())) && typeof castSkill === 'function') castSkill('sk_summon');
 }

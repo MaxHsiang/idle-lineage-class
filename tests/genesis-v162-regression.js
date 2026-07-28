@@ -28,10 +28,10 @@ assert.ok(pets.includes("document.getElementById('town-npc-map')"), 'native mini
 assert.ok(generator.includes('p.genesisMiniDragons = miniDragons.map'), 'generated save must embed all four dragons');
 assert.ok(poly.includes('genesisCreatorBreath'), 'Creator transformation must have a breathing glow');
 assert.ok(poly.includes('atkApm:180, wlk:3.2'), 'Creator form card must show 3 attacks/sec and 500% movement');
-assert.ok(index.includes('v3.8.34-genesis-178'), 'browser cache must be bumped');
-assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-178'), 'item/status cache must be bumped');
-assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-178'), 'VFX cache must be bumped');
-assert.ok(index.includes('1.6.18-static-bootstrap'), 'Genesis loader cache must be bumped');
+assert.ok(index.includes('v3.8.34-genesis-179'), 'browser cache must be bumped');
+assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-179'), 'item/status cache must be bumped');
+assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-179'), 'VFX cache must be bumped');
+assert.ok(index.includes('1.6.19-static-bootstrap'), 'Genesis loader cache must be bumped');
 assert.ok(clan.includes("p.cls === 'omni'"), 'Omni class must qualify as a clan founder');
 assert.ok(clan.includes('if (!clanCanFound(player))'), 'clan creation and leadership gates must use Omni-aware eligibility');
 assert.ok(clan.includes('clanCanFound(r.player)'), 'Omni founder must remain a valid clan leader for siege');
@@ -75,6 +75,10 @@ assert.ok(content.includes("['fire','water','wind','earth']"), 'Omni element hel
 assert.ok(summons.includes("fire: '流星雨'") && summons.includes("water: '冰雪颶風'") && summons.includes("wind: '雷霆風暴'") && summons.includes("earth: '震裂術'"), 'four elemental spirits must use the requested magic spells');
 assert.ok(summons.includes('validElements.forEach') && summons.includes("terrorVisageOnDamage(m, dmg, 'magic')"), 'Omni elemental summon must create all four spirits and deal magic damage');
 assert.ok(stats.includes('d.resFire += 50; d.resWater += 50; d.resEarth += 50; d.resWind += 50;'), 'single-element resistance must cover all elements for Omni');
-assert.ok(skillCast.includes("sid === 'sk_elf_summon'") && skillCast.includes('auto-sk-sk_elf_summon2'), 'auto select must prefer the stronger spirit summon instead of recasting both');
+assert.ok(summons.includes('_summonV2OnBySkill') && summons.includes("filter(s => s && s.skId !== skId).concat(ents)"), 'each summon skill must keep an independent active group');
+assert.ok(summons.includes('SUMMON_V2_SKILLS.forEach(skId =>') && summons.includes('_summonV2RecastCdBySkill'), 'summon expiry and automatic recast must run independently per skill');
+assert.ok(tabs.includes('!omniCoexist && checkedBuff') && tabs.includes('summonV2Dismiss(sid)'), 'Omni summon checkboxes must coexist and dismiss only their own group');
+assert.ok(tabs.includes("!__omniAccess && (sid === 'sk_antidote' || sid === 'sk_holy_light')"), 'Magic Cancellation must not lock Antidote or Holy Light for Omni');
+assert.ok(skillCast.includes('genesisHasAllElements(owner)) return;'), 'Omni movement buffs must not cancel one another');
 
-console.log('Genesis v1.6.18 regression test passed: Omni owns all elements and the four spirits cast dedicated magic.');
+console.log('Genesis v1.6.19 regression test passed: all Omni summons and support skills coexist independently.');

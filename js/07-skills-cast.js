@@ -408,6 +408,7 @@ function _fireballMorphId(skId) {
 }
 function applyMoveDashBuffMutex(owner, sid) {
     if (!owner || !owner.buffs || (sid !== 'sk_holy_dash' && sid !== 'sk_elf_winddash')) return;
+    if (typeof genesisHasAllElements === 'function' && genesisHasAllElements(owner)) return;
     owner.buffs[sid === 'sk_holy_dash' ? 'sk_elf_winddash' : 'sk_holy_dash'] = 0;
 }
 
@@ -1064,7 +1065,6 @@ function autoActions() {
         if(sk.type === 'buff') {
             if(sk.haste && (player.buffs.haste > 0 || player._equipHaste)) return;  // 已有加速來源（含裝備常駐），不重複施放
             if(typeof TEAM_AURA_SKILLS !== 'undefined' && TEAM_AURA_SKILLS.includes(sid) && _teamAuraHas(sid, player)) return;   // 團隊光環已有其他隊員維持時不重複施放／扣魔
-            if(sid === 'sk_elf_summon') { let _strongSpirit = document.getElementById('auto-sk-sk_elf_summon2'); if (_strongSpirit && _strongSpirit.checked && player.skills.includes('sk_elf_summon2')) return; }   // 全選時強力屬性精靈優先，避免兩種召喚互相清除後反覆施放
             // 💨 v3.0.94 強力加速術優先：加速術/強力加速術同時勾選→只施放強力加速術（加速術讓位；原本加速術先施放後 buffs.haste>0 會永遠擋住強力加速術→其 buff 鍵不存在、狀態圖示也不顯示）
             if(sid === 'sk_haste_spell') { let _g = document.getElementById('auto-sk-sk_greater_haste'); if (_g && _g.checked && player.skills.includes('sk_greater_haste')) return; }
             if(sid === 'sk_sunlight' && KING_ROOMS[mapState.current]) return;   // 🔧 軍王之室／底比斯祭壇：日光術無效，跳過自動施放（否則每 tick 被擋下並狂洗系統日誌）

@@ -21,7 +21,7 @@ global.player = { cls:'omni', genesisOmni:true, lv:1, skills:['sk_genesis_omni_a
 global.MASTERY_DATA = { knight:{list:{k_counter:{},k_cleave:{}}}, mage:{list:{m_strike:{},m_echo:{}}} };
 global.hasMastery = () => false;
 global.entityHasMastery = () => false;
-global.Genesis = { config:{version:'v1.6.18-dev'}, classSystem:{isGenesisPlayer:()=>true} };
+global.Genesis = { config:{version:'v1.6.19-dev'}, classSystem:{isGenesisPlayer:()=>true} };
 let roster = [];
 global.petRoster = () => roster;
 global.petNewInstance = (form,lv) => ({uid:'pet-'+form,form,lv,mhp:100,mmp:50,hp:100,mp:50});

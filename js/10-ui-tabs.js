@@ -460,7 +460,7 @@ function decorateClassicInventoryTab(div){
     div.appendChild(shell);
 }
 
-// ===== 召喚類技能互斥：迷魅 / 召喚 / 造屍 / 召喚屬性精靈 / 召喚強力屬性精靈 同時只能開啟一個 =====
+// ===== 召喚類技能：全能師可全部共存；原職業維持原版互斥 =====
 const SUMMON_BUFF_IDS = ['sk_zombie', 'sk_summon', 'sk_elf_summon', 'sk_elf_summon2'];
 function summonBuffChecked() {
     for (let id of SUMMON_BUFF_IDS) { let c = document.getElementById('auto-sk-' + id); if (c && c.checked) return id; }
@@ -468,12 +468,12 @@ function summonBuffChecked() {
 }
 function updateSummonLock() {
     let checkedBuff = summonBuffChecked();
-    // 4 個召喚增益勾選框：已勾選一個→其餘三個鎖定（迷魅可與召喚並存，不互鎖）
+    let omniCoexist = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
     SUMMON_BUFF_IDS.forEach(id => {
         let c = document.getElementById('auto-sk-' + id);
         if (!c) return;
         let unavail = c.dataset.unavail === '1';
-        let lock = checkedBuff ? (checkedBuff !== id) : false;
+        let lock = !omniCoexist && checkedBuff ? (checkedBuff !== id) : false;
         c.disabled = unavail || lock;
         let lbl = c.closest('label');
         if (lbl) lbl.classList.toggle('opacity-50', unavail || lock);
@@ -489,7 +489,8 @@ function updateSummonLock() {
 }
 function onSummonToggle(sid) {
     let c = document.getElementById('auto-sk-' + sid);
-    if (c && c.checked) {
+    let omniCoexist = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
+    if (c && c.checked && !omniCoexist) {
         // 4 召喚互斥：只能勾一個，取消其他三個（不影響迷魅，可並存）
         SUMMON_BUFF_IDS.forEach(id => { if (id !== sid) { let o = document.getElementById('auto-sk-' + id); if (o) o.checked = false; } });
     } else {
@@ -501,7 +502,7 @@ function onSummonToggle(sid) {
             calcStats();
             renderStatusEffects();
         }
-        if (typeof summonV2DismissAll === 'function' && ((player._summonV2Sk || 'sk_summon') === sid)) summonV2DismissAll();   // 🧙 v3.2.21 召喚類 v2（召喚術/造屍術/屬性精靈）：取消勾選當前生效的召喚→全數解散＋關閉自動重施
+        if (typeof summonV2Dismiss === 'function') summonV2Dismiss(sid);   // 只解散取消勾選的召喚群，其他技能繼續共存
         if (sid === 'sk_zombie' && typeof necroDismissOwner === 'function') necroDismissOwner(player);
     }
     updateSummonLock();
@@ -534,7 +535,8 @@ function endAutoBuffNow(sid) {
 function onAutoBuffToggle(sid) {
     let c = document.getElementById('auto-sk-' + sid);
     if (!c) return;
-    if (c.checked && (sid === 'sk_holy_dash' || sid === 'sk_elf_winddash')) {
+    let omniCoexist = typeof playerHasOmniSkillAccess === 'function' && playerHasOmniSkillAccess();
+    if (c.checked && !omniCoexist && (sid === 'sk_holy_dash' || sid === 'sk_elf_winddash')) {
         let other = sid === 'sk_holy_dash' ? 'sk_elf_winddash' : 'sk_holy_dash';
         let o = document.getElementById('auto-sk-' + other);
         if (o) o.checked = false;
@@ -612,7 +614,7 @@ function renderSkillSelects() {
             let sumAttr = sk.summon ? ` onchange="onSummonToggle('${sid}')" data-summon="1" data-unavail="${isAvail?'0':'1'}"` : '';
             // 魔法相消術涵蓋解毒術與聖潔之光：勾選相消時鎖定這兩者
             let __cancelOn = player.skills.includes('sk_cancel') && document.getElementById('auto-sk-sk_cancel')?.checked;
-            let __locked = (sid === 'sk_antidote' || sid === 'sk_holy_light') && __cancelOn;
+            let __locked = !__omniAccess && (sid === 'sk_antidote' || sid === 'sk_holy_light') && __cancelOn;
             // 🐉 覺醒互斥（無覺醒精通）：已勾選一種覺醒時，鎖定另外兩種「未勾選」的覺醒；已勾選那一個維持可點以便取消
             let __awakenLocked = !__omniAccess && sk.awaken && player.mastery !== 'k_awaken' && !document.getElementById('auto-sk-'+sid)?.checked && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => document.getElementById('auto-sk-'+a)?.checked);
             let __awakenAttr = sk.awaken ? ` onchange="onAwakenToggle('${sid}')"` : '';
@@ -2647,7 +2649,7 @@ function renderSquadPanel() {
     let _summons = (typeof summonV2List === 'function' && player && player.cls) ? summonV2List().filter(s => s && !s._downed && (s.hp || 0) > 0) : [];
     if (typeof necroSkeletonList === 'function' && player && player.cls) _summons = _summons.concat(necroSkeletonList().filter(s => s && !s._downed && (s.hp || 0) > 0));
     let _summonSk = (typeof summonV2ActiveSk === 'function') ? summonV2ActiveSk() : '';
-    let _summonVisible = _summons.length > 0 || !!(player && player._summonV2On && _summonSk && typeof summonV2Knows === 'function' && summonV2Knows(_summonSk));
+    let _summonVisible = _summons.length > 0 || !!(player && ((typeof summonV2AnyOn === 'function' && summonV2AnyOn()) || player._summonV2On) && _summonSk && typeof summonV2Knows === 'function' && summonV2Knows(_summonSk));
     let _guards = (typeof guardV2List === 'function' && player && player.cls) ? guardV2List() : [];   // 🏰 城堡護衛（可招募的協同角色）
     if (!allies.length && !_pets.length && !_summonVisible && !_guards.length) { panel.style.display = 'none'; _squadSigTeam = ''; _squadSigSkill = ''; return; }
     panel.style.display = '';
