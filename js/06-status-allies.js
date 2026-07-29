@@ -3592,8 +3592,7 @@ function mercExpClaimPending(_retry) {
         let before = player.lv || 1;
         if (total > 0) {
             player.exp = (player.exp || 0) + total;
-            while ((player.lv || 1) < 100 && player.exp >= getExpReq(player.lv)) { player.exp -= getExpReq(player.lv); player.lv++; if (player.lv >= 50) player.bonus = (player.bonus || 0) + 1; }   // 比照 checkLvUp 升級曲線
-            if ((player.lv || 1) >= 100) player.exp = 0;   // 滿等不留溢出經驗
+            while (player.exp >= getExpReq(player.lv)) { player.exp -= getExpReq(player.lv); player.lv++; if (player.lv >= 50) player.bonus = (player.bonus || 0) + 1; }   // 比照無上限 checkLvUp 升級曲線
         }
         if (alignmentDelta) player.alignmentValue = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment((Number(player.alignmentValue) || 0) + alignmentDelta) : Math.max(-32767, Math.min(32767, Math.round((Number(player.alignmentValue) || 0) + alignmentDelta)));
         Object.keys(questLoot).forEach(id => gainItem(id, questLoot[id], true, true, false, true));

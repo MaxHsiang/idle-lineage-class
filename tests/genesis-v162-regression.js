@@ -29,9 +29,9 @@ assert.ok(generator.includes('p.genesisMiniDragons = miniDragons.map'), 'generat
 assert.ok(poly.includes('genesisCreatorBreath'), 'Creator transformation must have a breathing glow');
 assert.ok(poly.includes('atkApm:180, wlk:3.2'), 'Creator form card must show 3 attacks/sec and 500% movement');
 assert.ok(index.includes('v3.8.34-genesis-179'), 'browser cache must be bumped');
-assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-179'), 'item/status cache must be bumped');
+assert.ok(index.includes('js/08-items-equip.js?v=v3.8.34-genesis-182'), 'item/status cache must be bumped');
 assert.ok(index.includes('js/09-vfx-render.js?v=v3.8.34-genesis-179'), 'VFX cache must be bumped');
-assert.ok(index.includes('1.6.20-static-bootstrap'), 'Genesis loader cache must be bumped');
+assert.ok(index.includes('1.6.21-unbounded-full-page2'), 'Genesis loader cache must be bumped');
 assert.ok(clan.includes("p.cls === 'omni'"), 'Omni class must qualify as a clan founder');
 assert.ok(clan.includes('if (!clanCanFound(player))'), 'clan creation and leadership gates must use Omni-aware eligibility');
 assert.ok(clan.includes('clanCanFound(r.player)'), 'Omni founder must remain a valid clan leader for siege');

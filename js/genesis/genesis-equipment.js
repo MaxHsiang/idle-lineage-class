@@ -4,6 +4,8 @@
   const slots = Object.freeze([
     'wpn','helm','ear1','ear2','gloves','amulet','shield','armor','ring1',
     'tshirt','cloak','ring2','ring3','belt','boots','ring4','doll','shin','special',
+    'eye','gen_oracle','gen_soul','gen_mantle','gen_rune_l','gen_rune_r','gen_hourglass',
+    'gen_nexus','gen_kneeguard','gen_familiar','gen_seal',
     'rem_eye','rem_blood','rem_scale','rem_bone','rem_fang','rem_heart','rem_flesh','rem_claw'
   ]);
 

@@ -1562,9 +1562,14 @@ function lookupStep(val, table, def) {
     }
     return def;
 }
+function extendStatBonus(value, baseAt100, pointsPerStep, stepValue) {
+    let over = Math.max(0, Math.floor(Number(value) || 0) - 100);
+    return baseAt100 + Math.floor(over / Math.max(1, pointsPerStep)) * stepValue;
+}
 
 // ---------- 力量 STR：近距離傷害 / 近距離命中 / 近距離爆擊率 ----------
 function getStrMeleeDmg(str) {
+    if (str > 100) return extendStatBonus(str, 57, 2, 1);
     return lookupStep(str, [
         [7,1],[9,2],[11,3],[13,4],[15,5],[17,6],[19,7],[21,8],[23,9],[24,10],
         [25,11],[27,12],[29,13],[31,14],[33,15],[34,16],[35,17],[37,18],[39,19],
@@ -1575,6 +1580,7 @@ function getStrMeleeDmg(str) {
     ], 57); // …77~78=+44；79~80=+45；81~82=+46…（81~100 依 60→80 段曲線鏡射拓展·90 跳階+2）…97~98=+56；99~100=+57
 }
 function getStrMeleeHit(str) {
+    if (str > 100) return extendStatBonus(str, 75, 1, 1);
     return lookupStep(str, [
         [7,4],[8,5],[10,6],[11,7],[13,8],[14,9],[16,10],[17,11],[19,12],[20,13],
         [22,14],[23,15],[24,16],[25,17],[26,18],[28,19],[29,20],[31,21],[32,22],
@@ -1598,11 +1604,12 @@ function getStrMeleeCrit(str) {
     if (str <= 89) return 10;  // 85~89 = 10%
     if (str <= 94) return 12;  // 90~94 = 12%（鏡射 70 跳階+2）
     if (str <= 99) return 13;  // 95~99 = 13%
-    return 14;                 // 100 = 14%
+    return extendStatBonus(str, 14, 5, 1);
 }
 
 // ---------- 敏捷 DEX：遠距離傷害 / 遠距離命中 / 遠距離爆擊率 / AC / ER ----------
 function getDexRangedDmg(dex) {
+    if (dex > 100) return extendStatBonus(dex, 47, 2, 1);
     return lookupStep(dex, [
         [8,2],[11,3],[14,4],[17,5],[20,6],[23,7],[24,8],[26,9],[29,10],[32,11],
         [34,12],[35,13],[38,14],[41,15],[44,16],[47,20],[50,21],[53,22],[56,23],[59,24],
@@ -1612,6 +1619,7 @@ function getDexRangedDmg(dex) {
     ], 47); // …78~79=+35；80=+36；81~82=+37…（81~100 依 60→80 段曲線鏡射拓展）…98~99=+46；100=+47
 }
 function getDexRangedHit(dex) {
+    if (dex > 100) return extendStatBonus(dex, 93, 1, 1);
     // 敏捷7=-3 起，逐項對照
     return lookupStep(dex, [
         [7,-3],[8,-2],[9,-1],[10,0],[11,1],[12,2],[13,3],[14,4],[15,5],[16,6],
@@ -1639,9 +1647,10 @@ function getDexRangedCrit(dex) {
     if (dex <= 89) return 9;   // 85~89 = 9%
     if (dex <= 94) return 10;  // 90~94 = 10%
     if (dex <= 99) return 11;  // 95~99 = 11%
-    return 12;                 // 100 = 12%
+    return extendStatBonus(dex, 12, 5, 1);
 }
 function getDexAC(dex) {
+    if (dex > 100) return extendStatBonus(dex, -32, 3, -1);
     // 回傳 AC 變化量（負值代表防禦提升）
     return lookupStep(dex, [
         [8,-2],[11,-3],[14,-4],[17,-5],[20,-6],[23,-7],[26,-8],[29,-9],[32,-10],[35,-11],
@@ -1651,11 +1660,12 @@ function getDexAC(dex) {
     ], -32); // …74~77=-25；78~80=-26；81~83=-27；84~86=-28；87~90=-29；91~93=-30；94~97=-31；98~100=-32
 }
 function getDexER(dex) {
-    return Math.floor(Math.min(dex, 60) / 2); // ER = floor(敏捷/2)；敏捷超過60以60計，上限+30
+    return Math.floor(Math.max(0, Number(dex) || 0) / 2);
 }
 
 // ---------- 智力 INT：魔法傷害 / 魔法命中 / 魔法爆擊率 / 額外魔法點數 / MP消耗減少 ----------
 function getIntMagicDmg(int) {
+    if (int > 100) return extendStatBonus(int, 35, 3, 1);
     return lookupStep(int, [
         [14,0],[19,1],[24,2],[29,4],[34,5],[39,7],[44,8],[49,12],[54,13],[59,14],
         [60,15],[63,16],[66,17],[69,18],[72,20],[75,21],[77,22],[79,23],
@@ -1663,6 +1673,7 @@ function getIntMagicDmg(int) {
     ], 35); // …78~79=+23；80=+25；81~83=+26…（81~100 依 60→80 段曲線鏡射拓展·90/100 跳階+2）…98~99=+33；100=+35
 }
 function getIntMagicHit(int) {
+    if (int > 100) return extendStatBonus(int, 32, 3, 1);
     return lookupStep(int, [
         [8,-4],[11,-3],[14,-2],[17,-1],[22,0],[24,1],[25,2],[28,3],[31,4],[34,5],
         [37,7],[40,8],[43,9],[44,10],[46,13],[49,14],[52,15],[55,16],[58,17],
@@ -1685,9 +1696,10 @@ function getIntMagicCrit(int) {
     if (int <= 89) return 12;  // 85~89 = 12%
     if (int <= 94) return 13;  // 90~94 = 13%
     if (int <= 99) return 14;  // 95~99 = 14%
-    return 15;                 // 100 = 15%
+    return extendStatBonus(int, 15, 5, 1);
 }
 function getIntExtraMp(int) {
+    if (int > 100) return extendStatBonus(int, 35, 3, 1);
     return lookupStep(int, [
         [11,2],[15,3],[19,4],[23,5],[27,6],[31,7],[35,8],[39,9],[43,10],[47,11],
         [51,12],[55,13],[59,14],
@@ -1697,6 +1709,7 @@ function getIntExtraMp(int) {
 }
 function getIntMpReduce(int) {
     // MP消耗減少 %
+    if (int > 100) return extendStatBonus(int, 30, 5, 1);
     return lookupStep(int, [
         [8,5],[10,6],[11,7],[13,8],[14,9],[16,10],[17,11],[19,12],[20,13],[22,14],
         [23,15],[25,16],[26,17],[28,18],[29,19],[31,20],[32,21],[34,22],[35,23],[37,24],
@@ -1709,16 +1722,17 @@ function getConGrowth(con, cls) {
     // 體質8 = 0；CON 21 前維持完整成長，之後逐段遞減。
     // 最終 CON 仍會由 calcStats 追溯套用全部既有等級；這裡只降低高體質每點的 HP 成長效率。
     let per = (cls === 'knight' || cls === 'dragon' || cls === 'warrior') ? 1.5 : ((cls === 'dark' || cls === 'illusion') ? 0.5 : (cls === 'royal' ? 0.75 : 0.8));
-    let pts = Math.max(0, Math.min(100, con) - 8);
+    let pts = Math.max(0, (Number(con) || 0) - 8);
     let effective = Math.min(pts, 13);                                      // CON 9~21：100%
     if (pts > 13) effective += Math.min(pts - 13, 19) * 0.50;               // CON 22~40：50%
     if (pts > 32) effective += Math.min(pts - 32, 20) * 0.25;               // CON 41~60：25%
     if (pts > 52) effective += Math.min(pts - 52, 20) * 0.125;              // CON 61~80：12.5%
-    if (pts > 72) effective += Math.min(pts - 72, 20) * 0.0625;             // CON 81~100：6.25%
+    if (pts > 72) effective += (pts - 72) * 0.0625;                         // CON 81 起持續成長：6.25%
     return effective * per;
 }
 function getConHpRegenMax(con) {
     if (con < 11) return 0;
+    if (con > 100) return extendStatBonus(con, 55, 3, 1);
     return lookupStep(con, [
         [11,5],[13,6],[15,7],[17,8],[19,9],[21,10],[23,11],[24,12],[25,13],[27,14],
         [29,15],[31,16],[33,17],[34,18],[35,19],[37,20],[39,21],[41,22],[43,23],[44,24],
@@ -1753,7 +1767,7 @@ function getConPotionPct(con) {
     if (con <= 90) return 15;  // 86~90 = +15%
     if (con <= 94) return 16;  // 91~94 = +16%
     if (con <= 99) return 17;  // 95~99 = +17%
-    return 18;                 // 100 = +18%
+    return extendStatBonus(con, 18, 5, 1);
 }
 
 // ---------- 精神 WIS：MP成長 / MP自然恢復量 / MR / 藍色藥水加成 ----------
@@ -1762,6 +1776,7 @@ function getWisGrowth(wis) {
     return Math.max(0, wis - 9) * 0.5;
 }
 function getWisMpRegen(wis) {
+    if (wis > 100) return extendStatBonus(wis, 34, 3, 1);
     return lookupStep(wis, [
         [9,1],[14,2],[19,3],[24,4],[29,6],[34,7],[39,9],[44,10],[49,14],[54,15],[59,17],
         [64,20],[69,21],[72,23],[75,24],[77,25],[79,26],
@@ -1776,9 +1791,10 @@ function wisMpRegenIntervalTicks(wis) {
 function getWisMR(wis) {
     // 精神7~10 = 0；11 = +4；之後每精神+1 MR+4；精神超過60以60計（上限 +200）
     if (wis <= 10) return 0;
-    return (Math.min(wis, 60) - 10) * 4;
+    return (wis - 10) * 4;
 }
 function getWisBlueBonus(wis) {
+    if (wis > 100) return extendStatBonus(wis, 49, 3, 1);
     // 藍色藥水：提升MP自然恢復量
     return lookupStep(wis, [
         [11,1],[13,2],[15,3],[17,4],[19,5],[21,6],[23,7],[24,8],[25,9],[27,10],
@@ -2149,7 +2165,7 @@ function blessEnhanceGain(en) {
 function sanitizeState() {
     if (typeof player !== 'object' || !player) return;
     let fin = (v, dft) => (typeof v === 'number' && isFinite(v)) ? v : dft;   // NaN/Infinity/非數 → 預設值
-    player.lv   = Math.max(1, Math.min(100, Math.floor(fin(player.lv, 1)) || 1));   // 等級 [1,100]
+    player.lv   = Math.max(1, Math.floor(fin(player.lv, 1)) || 1);                    // 等級無上限
     player.exp  = Math.max(0, fin(player.exp, 0));                                   // 經驗非負有限
     player.gold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, fin(player.gold, 0)));   // 金幣：僅擋負值/NaN/Infinity，不擋高額合法金幣
     let clampEn = it => { let dd = it && DB.items[it.id]; if (dd && (dd.type === 'wpn' || dd.type === 'arm' || dd.type === 'acc')) it.en = Math.min(Math.max(-1, Number(it.en) || 0), enhanceCap(dd)); };   // 只夾裝備類（素材/消耗品不碰）；🏰 下限 -1（詛咒卷軸紅變，見 executeCurseDeEnhance）

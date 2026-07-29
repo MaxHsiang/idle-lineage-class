@@ -275,8 +275,11 @@ function _expReqClassicV2(lv) {   // v3.4.58 以前的經典表；僅供 expMigV
     return EXP_REQ_CLASSIC_V2[lv] || Infinity;
 }
 function getExpReq(lv) {
-    if (lv >= 100) return Infinity;
-    return EXP_REQ_CLASSIC[lv] || Infinity;
+    lv = Math.max(1, Math.floor(Number(lv) || 1));
+    if (lv < 70) return EXP_REQ_CLASSIC[lv] || Infinity;
+    // Lv70 起沿用既有二次成長曲線，不再於 Lv100 截止。
+    // 需求值僅受 JavaScript 安全整數保護，角色等級本身沒有上限。
+    return Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.floor((lv * lv + 1) * EXP_REQ_LV69_KILLS)));
 }
 // 舊制需求（v2.6.40 分段放大制·僅供 js/13 expMigV=2 一次性遷移換算，勿用於遊戲邏輯）
 function _expReqOldV1(lv) {
@@ -294,7 +297,7 @@ function _expReqOldV1(lv) {
     if (lv >= 49)  return 36065092;
     return EXP_T[lv];
 }
-function getExpGainMult(lv) { return lv >= 100 ? 0 : 1; }   // ⚠️v2.6.40 取消高等經驗遞減（恆全額）；滿等(100)仍不獲得。遞減效果改由 getExpReq 提高需求承擔。
+function getExpGainMult(lv) { return 1; }   // 角色等級無上限：任何等級皆可繼續取得完整經驗。
 
 const DB = {
         items: {

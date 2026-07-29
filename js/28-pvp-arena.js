@@ -106,7 +106,7 @@
             n: String(p.name || '無名'),
             cls: String(p.cls || ''),
             avatar: String(p.avatar || ''),
-            lv: Math.max(1, Math.min(100, Math.floor(Number(p.lv) || 1))),
+            lv: Math.max(1, Math.floor(Number(p.lv) || 1)),
             classic: !!p.classicMode,
             clan: (typeof clanNameForPlayer === 'function' ? (clanNameForPlayer(p) || '') : ''),
             align: (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(p.alignmentValue) : 0,
@@ -122,7 +122,7 @@
         if (!card || typeof card !== 'object' || !card.p || typeof card.p !== 'object') return null;
         let p = card.p;
         if (!p.cls || typeof p.cls !== 'string') return null;
-        p.lv = Math.max(1, Math.min(100, Math.floor(Number(p.lv) || 1)));
+        p.lv = Math.max(1, Math.floor(Number(p.lv) || 1));
         card.lv = p.lv;
         // 六維：夾在 1~100（遊戲內上限）
         let clampStats = function (o) {
@@ -130,7 +130,7 @@
             ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(function (k) {
                 if (o[k] == null) return;
                 let v = Math.floor(Number(o[k]) || 0);
-                o[k] = Math.max(0, Math.min(100, v));
+                o[k] = Math.max(0, v);
             });
         };
         clampStats(p.base); clampStats(p.alloc); clampStats(p.panacea);

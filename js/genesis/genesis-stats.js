@@ -32,7 +32,6 @@
       d.genesisRangedDr=(d.genesisRangedDr||0)+(x.genesisRangedDr||0);
       d.genesisMagicDr=(d.genesisMagicDr||0)+(x.genesisMagicDr||0);
     });
-    d.mpReduce=Math.min(95,d.mpReduce);
     const pageOneFull=!!(G.items&&G.items.loadout&&G.items.loadout.slice(0,19).every(function(row){return player.eq[row[0]]&&player.eq[row[0]].id===row[1];}));
     const pageTwoFull=!!(G.items&&G.items.loadout&&G.items.loadout.slice(19).every(function(row){return player.eq[row[0]]&&player.eq[row[0]].id===row[1];}));
     player._genesisPageOneSet=pageOneFull;

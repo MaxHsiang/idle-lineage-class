@@ -140,6 +140,78 @@
       img:A+'origin-badge.png',
       d:'六項能力值各+5、最大HP/MP各+300、全系命中與傷害各+15、HP/MP恢復各+10；完整創世套裝件數額外+1。'
     }),
+    eye_genesis_allseeing: make({
+      n:'創世全視神瞳', type:'acc', slot:'eye', eye:true, safe:5,
+      int:10,wis:10,cha:10,magicHit:50,mdmg:40,mmp:600,mpR:25,
+      resFire:20,resWater:20,resEarth:20,resWind:20,genesisMagicCrit:10,
+      img:A+'allseeing-eye.png',
+      d:'第二頁創世神瞳。INT/WIS/CHA各+10、魔法命中+50、魔法傷害+40、最大MP+600、MP恢復+25、全屬性抗性+20、魔法爆擊率+10%。'
+    }),
+    sp2_genesis_oracle: make({
+      n:'創世神諭晶核', type:'acc', slot:'gen_oracle', safe:5,
+      str:6,dex:6,con:6,int:6,wis:6,cha:6,mmp:600,extraMp:20,mpR:25,mr:40,
+      img:A+'oracle-crystal.png',
+      d:'第二頁創世神諭。六項能力值各+6、最大MP+600、額外魔法點數+20、MP恢復+25、MR+40。'
+    }),
+    sp2_genesis_soul: make({
+      n:'創世天魂聖墜', type:'acc', slot:'gen_soul', safe:5,
+      str:8,dex:8,int:8,mhp:500,mmp:500,genesisAllDmg:20,genesisAllHit:25,genesisAllCrit:5,
+      img:A+'celestial-soul.png',
+      d:'第二頁創世天魂。STR/DEX/INT各+8、最大HP/MP各+500、全系傷害+20、全系命中+25、全系爆擊率+5%。'
+    }),
+    sp2_genesis_mantle: make({
+      n:'創世星穹神裳', type:'acc', slot:'gen_mantle', safe:5,
+      con:10,wis:10,ac:25,dr:30,mr:60,mhp:800,mmp:500,
+      resFire:20,resWater:20,resEarth:20,resWind:20,
+      img:A+'creation-mantle.png',
+      d:'第二頁創世神裳。CON/WIS各+10、AC-25、傷害減免+30、MR+60、最大HP+800、最大MP+500、全屬性抗性+20。'
+    }),
+    sp2_genesis_rune_l: make({
+      n:'創世永恆神紋', type:'acc', slot:'gen_rune_l', safe:5,
+      str:8,dex:8,meleeDmg:30,rangedDmg:30,meleeHit:35,rangedHit:35,
+      genesisAllCrit:5,genesisAllCritDmg:20,
+      img:A+'eternity-rune.png',
+      d:'第二頁創世神紋。STR/DEX各+8、近戰與遠程傷害各+30、命中各+35、全系爆擊率+5%、爆擊傷害+20%。'
+    }),
+    sp2_genesis_rune_r: make({
+      n:'創世無限神紋', type:'acc', slot:'gen_rune_r', safe:5,
+      int:10,wis:8,mdmg:35,magicHit:40,genesisMagicCrit:10,genesisMagicCritDmg:25,genesisMpReduce:10,
+      img:A+'infinity-rune.png',
+      d:'第二頁創世神紋。INT+10、WIS+8、魔法傷害+35、魔法命中+40、魔法爆擊率+10%、爆擊傷害+25%、MP消耗降低10%。'
+    }),
+    sp2_genesis_hourglass: make({
+      n:'創世時序神砂', type:'acc', slot:'gen_hourglass', safe:5,
+      dex:10,wis:10,atkSpdPct:15,moveSpeedPct:20,er:30,hpR:15,mpR:20,
+      img:A+'cosmic-hourglass.png',
+      d:'第二頁創世時序。DEX/WIS各+10、攻擊速度+15%、移動速度+20%、ER+30、HP恢復+15、MP恢復+20。'
+    }),
+    sp2_genesis_nexus: make({
+      n:'創世萬界樞印', type:'acc', slot:'gen_nexus', safe:5,
+      str:8,dex:8,con:8,int:8,wis:8,cha:8,mhp:700,mmp:700,
+      genesisAllDmg:20,genesisAllHit:20,genesisAllCrit:5,
+      img:A+'nexus-emblem.png',
+      d:'第二頁創世樞印。六項能力值各+8、最大HP/MP各+700、全系傷害與命中各+20、全系爆擊率+5%。'
+    }),
+    sp2_genesis_kneeguard: make({
+      n:'創世星甲護膝', type:'acc', slot:'gen_kneeguard', safe:5,
+      dex:8,con:8,ac:20,dr:20,er:40,mhp:600,stunResist:30,freezeResist:30,
+      img:A+'astral-kneeguard.png',
+      d:'第二頁創世護膝。DEX/CON各+8、AC-20、傷害減免+20、ER+40、最大HP+600、暈眩與冰凍抗性各+30。'
+    }),
+    sp2_genesis_familiar: make({
+      n:'創世星靈守護者', type:'acc', slot:'gen_familiar', safe:5,
+      str:6,dex:6,con:6,int:6,wis:6,cha:6,hpR:25,mpR:25,
+      genesisAllDmg:15,genesisAllHit:15,
+      img:A+'guardian-familiar.png',
+      d:'第二頁創世守護者。六項能力值各+6、HP/MP恢復各+25、全系傷害與命中各+15。'
+    }),
+    sp2_genesis_seal: make({
+      n:'創世起源神印', type:'acc', slot:'gen_seal', safe:5,
+      str:10,dex:10,con:10,int:10,wis:10,cha:10,mhp:1000,mmp:1000,dr:25,mr:50,
+      genesisAllDmg:25,genesisAllHit:25,genesisAllCrit:5,genesisAllCritDmg:20,
+      img:A+'genesis-seal.png',
+      d:'第二頁創世最終神印。六項能力值各+10、最大HP/MP各+1000、傷害減免+25、MR+50、全系傷害與命中各+25、爆擊率+5%、爆擊傷害+20%。'
+    }),
     rem_genesis_eye: make({
       n:'創世全視神眼', type:'acc', slot:'rem_eye', remains:true, safe:5,
       int:10,wis:10,magicHit:40,mdmg:30,mmp:500,mpR:20,genesisMagicCrit:10,
@@ -191,6 +263,37 @@
     })
   };
 
+  const ziweiPageTwoTheme = [
+    ['rem_genesis_eye','紫微','北斗主星','core-ziwei.png'],
+    ['eye_genesis_allseeing','大將軍武曲','北斗主星','core-wuqu.png'],
+    ['sp2_genesis_oracle','破軍','北斗主星','core-pojun.png'],
+    ['sp2_genesis_soul','天機','北斗主星','core-tianji.png'],
+    ['rem_genesis_bone','貪狼','北斗主星','core-tanlang.png'],
+    ['rem_genesis_blood','巨門','北斗主星','core-jumen.png'],
+    ['sp2_genesis_mantle','天府','南斗主星','core-tianfu.png'],
+    ['rem_genesis_claw','天相','南斗主星','core-tianxiang.png'],
+    ['rem_genesis_fang','天梁','南斗主星','core-tianliang.png'],
+    ['rem_genesis_scale','天同','南斗主星','core-tiantong.png'],
+    ['sp2_genesis_rune_l','七殺','南斗主星','core-qisha.png'],
+    ['sp2_genesis_rune_r','廉貞','南斗主星','core-lianzhen.png'],
+    ['rem_genesis_heart','太陽','南斗主星','core-taiyang.png'],
+    ['sp2_genesis_hourglass','太陰','南斗主星','core-taiyin.png'],
+    ['sp2_genesis_nexus','青龍','五方神獸','core-qinglong.png'],
+    ['sp2_genesis_kneeguard','白虎','五方神獸','core-baihu.png'],
+    ['rem_genesis_flesh','朱雀','五方神獸','core-zhuque.png'],
+    ['sp2_genesis_familiar','玄武','五方神獸','core-xuanwu.png'],
+    ['sp2_genesis_seal','麒麟','五方神獸','core-qilin.png']
+  ];
+  ziweiPageTwoTheme.forEach(function (row) {
+    const def=items[row[0]];
+    if (!def) return;
+    def.n='紫微斗數核心・'+row[1];
+    def.img=A+row[3];
+    def.ziweiCore=row[1];
+    def.ziweiSystem=row[2];
+    def.d='紫微斗數核心【'+row[2]+'・'+row[1]+'】。'+def.d;
+  });
+
   items.wpn_genesis_omni_sword.d = '單手劍。近戰傷害+80、命中+100、爆擊率+20%、爆擊傷害+100%、額外傷害+40；全屬性。所有物理攻擊與攻擊魔法自動全體化，並依實際總傷害各回復30% HP與30% MP。未命中或0傷害不觸發。';
 
   const loadout = [
@@ -201,6 +304,12 @@
     ['ring2','rng_genesis_control',5],['ring3','rng_genesis_void',5],['belt','blt_genesis_order',5],
     ['boots','bot_genesis_temporal',15],['ring4','rng_genesis_chaos',5],['doll','doll_genesis_core',0],
     ['shin','shin_genesis_immortal',15],['special','spc_genesis_origin',5],
+    ['eye','eye_genesis_allseeing',5,'all'],['gen_oracle','sp2_genesis_oracle',5,'all'],
+    ['gen_soul','sp2_genesis_soul',5,'all'],['gen_mantle','sp2_genesis_mantle',5,'all'],
+    ['gen_rune_l','sp2_genesis_rune_l',5,'all'],['gen_rune_r','sp2_genesis_rune_r',5,'all'],
+    ['gen_hourglass','sp2_genesis_hourglass',5,'all'],['gen_nexus','sp2_genesis_nexus',5,'all'],
+    ['gen_kneeguard','sp2_genesis_kneeguard',5,'all'],['gen_familiar','sp2_genesis_familiar',5,'all'],
+    ['gen_seal','sp2_genesis_seal',5,'all'],
     ['rem_eye','rem_genesis_eye',5,'all'],['rem_blood','rem_genesis_blood',5,'all'],
     ['rem_scale','rem_genesis_scale',5,'all'],['rem_bone','rem_genesis_bone',5,'all'],
     ['rem_fang','rem_genesis_fang',5,'all'],['rem_heart','rem_genesis_heart',5,'all'],

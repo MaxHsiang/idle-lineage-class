@@ -3,7 +3,7 @@ function isMageSummonMastered(sm, owner) {
 }
 function summonAttackCount(sm, owner) {
     owner = owner || player;
-    let cha = Math.min(60, (owner.d && owner.d.cha) || 0);
+    let cha = Math.max(0, (owner.d && owner.d.cha) || 0);
     if(sm.kind === 'melee') return 1 + Math.floor(cha / 20);
     // 👑 v3.2.25 精靈精通改版：不再增加精靈數量/攻擊段數（改為 召喚強力屬性精靈→精靈王·見 _elfSpiritKingOverride）
     return 1;

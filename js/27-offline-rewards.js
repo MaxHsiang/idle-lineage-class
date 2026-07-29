@@ -462,7 +462,7 @@
     }
 
     function _offlineExpProgress(lv, exp) {
-        lv = Math.max(1, Math.min(100, Math.floor(_offlineFinite(lv, 1))));
+        lv = Math.max(1, Math.floor(_offlineFinite(lv, 1)));
         let total = Math.max(0, _offlineFinite(exp, 0));
         if (typeof getExpReq !== 'function') return total;
         for (let n = 1; n < lv; n++) {
@@ -1521,7 +1521,7 @@
             { items: {}, cards: {}, itemCount: 0, cardCount: 0 };
         let safeRoom = Number.MAX_SAFE_INTEGER - Math.max(0, Number(player.gold) || 0);
         gold = Math.min(gold, Math.max(0, safeRoom));
-        if ((player.lv || 1) < 100 && exp > 0) {
+        if (exp > 0) {
             player.exp = Math.max(0, Number(player.exp) || 0) + exp;
             if (typeof checkLvUp === 'function') checkLvUp();
         } else {

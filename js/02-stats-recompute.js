@@ -46,7 +46,7 @@ function antHelperGuardReductionPercent(magicResistance) {
 }
 function recomputeStats() {
     let p = player, d = p.d, b = p.base, a = p.alloc;
-    if (typeof p.lv === 'number') p.lv = Math.max(1, Math.min(100, Math.floor(p.lv) || 1));   // 🛡️ 等級硬夾 [1,100]：即時中和「改 player.lv」的外掛，避免職業成長值被放大
+    if (typeof p.lv === 'number') p.lv = Math.max(1, Math.floor(p.lv) || 1);   // 角色等級無上限；僅阻擋負值與無效值
 
     // 先把「上一輪由裝備授予的技能」從技能欄移除（卸下裝備時生效）；sk_helm_* 玩家無法學習，不會誤刪已學技能
     if (player.grantedSkills && player.grantedSkills.length) {
@@ -160,12 +160,7 @@ function recomputeStats() {
       } }
 
     // 🎯 六維屬性效果上限 100（v3.1.51 由 80 拓展）：效果表(getStr/Dex/Int/Con/Wis... 系列·js/01)已依 60→80 段曲線鏡射設定到 100，超過 100 無對應能力。
-    //    故在此(Phase 1 加總完、Phase 2 換算前)把最終屬性夾擠至 ≤100：
-    //    ① 讓 HP/MP 線性成長(getConGrowth/getWisGrowth·原本無上限)亦止於 100；② 資訊欄(讀 d.str)顯示不超過 100，避免玩家誤會配更高有加成。
-    //    註：只夾「衍生最終值 d.*」，不動 player.base/alloc/panacea(原始配點保留、可回憶蠟燭退還)；各效果自身更低的內部上限(ER封60/MpReduce封45/MR封60·項圈計數封60)刻意不隨拓展、維持原值。
-    { let _ATTR_CAP = 100;
-      d.str = Math.min(_ATTR_CAP, d.str); d.dex = Math.min(_ATTR_CAP, d.dex); d.int = Math.min(_ATTR_CAP, d.int);
-      d.con = Math.min(_ATTR_CAP, d.con); d.wis = Math.min(_ATTR_CAP, d.wis); d.cha = Math.min(_ATTR_CAP, d.cha); }
+    // 最終六維不封頂；裝備、Buff、配點與萬能藥的數值全部保留並參與後續換算。
 
     // ===== Phase 2：依「最終屬性」一次性換算所有衍生戰鬥數值 =====
     // 職業基礎 MR 與 等級成長
@@ -737,7 +732,7 @@ d.mr += (baseMr + bonusMr);
     // 原版方向魔法公式拆分：INT 提供 SP 封頂 33；其餘 extraMp 才列為道具／套裝／增益 SP。
     // 用未封頂的 INT 原始提供量扣除，避免 INT 100 多出的 2 點被誤判成道具 SP。
     let _rawIntSp = Math.max(0, getIntExtraMp(d.int));
-    d.intSp = Math.min(33, _rawIntSp);
+    d.intSp = _rawIntSp;
     d.itemSp = Math.max(0, (d.extraMp || 0) - _rawIntSp);
     if (p._setBeauty5 && p.eq && p.eq.wpn) {
         let _beautyWpn = DB.items[p.eq.wpn.id];

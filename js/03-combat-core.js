@@ -9,9 +9,9 @@ let _dpsAllyTurn = false;   // alliesTick 逐傭兵量測期間為 true：令 _a
 // extraMp 仍是畫面上的「總額外魔法點數」；扣除 INT 原始提供量後才是道具／套裝／增益 SP，避免重複計算。
 function magicIntSp(dStats) {
     if (!dStats) return 0;
-    if (dStats.intSp != null) return Math.max(0, Math.min(33, Number(dStats.intSp) || 0));
+    if (dStats.intSp != null) return Math.max(0, Number(dStats.intSp) || 0);
     let raw = (typeof getIntExtraMp === 'function') ? getIntExtraMp(Number(dStats.int) || 0) : 0;
-    return Math.max(0, Math.min(33, Number(raw) || 0));
+    return Math.max(0, Number(raw) || 0);
 }
 function magicItemSp(dStats) {
     if (!dStats) return 0;
@@ -52,7 +52,7 @@ function classicHealMagicBonus(dStats) {
     if (int <= 17) return 2;
     if (int === 18) return 3;
     if (int <= 25) return int - 15;   // INT19~25：4~10
-    return Math.min(21, 10 + Math.floor((int - 25) / 5));   // INT60=17、INT80+=21
+    return 10 + Math.floor((int - 25) / 5);
 }
 function healingSpellTargetHp(target) {
     if (!target) return 0;
@@ -445,7 +445,7 @@ function _ffInventoryCounts() {
 
 // 經驗「總累積進度」（exp＋已升等級需求總和）：跨升級仍單調，前後差＝實得經驗（升級瞬間也算得對）
 function _ffExpProgress() {
-    let lv = Math.max(1, Math.min(100, Math.floor(Number(player.lv) || 1)));
+    let lv = Math.max(1, Math.floor(Number(player.lv) || 1));
     let total = Math.max(0, Number(player.exp) || 0);
     if (typeof getExpReq !== 'function') return total;
     for (let n = 1; n < lv; n++) { let r = Number(getExpReq(n)); if (Number.isFinite(r) && r > 0) total += r; }

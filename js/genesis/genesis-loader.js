@@ -44,7 +44,7 @@
       return;
     }
     const script = document.createElement('script');
-    script.src = files[index] + '?v=1.6.20-dev';
+    script.src = files[index] + '?v=1.6.21-unbounded-full-page2';
     script.onload = function () { loadSequentially(index + 1); };
     script.onerror = function () { showFatal(files[index]); };
     document.body.appendChild(script);
