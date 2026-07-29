@@ -21,6 +21,7 @@ assert.ok(gameHtml.includes('js/genesis/genesis-loader.js?v=1.6.20-static-bootst
 assert.ok(!loaderJs.includes("get('genesis') !== '1') return"), 'genesis item registry must load from the normal index entry');
 assert.ok(loaderJs.includes("get('genesis') === '1'"), 'genesis entry title detection missing');
 assert.ok(dataJs.includes("Object.defineProperty(window, 'DB'"), 'DB window bridge missing');
+assert.ok(dataJs.includes("var genesisPages = 'maxhsiang.github.io'"), 'published Genesis Pages host must not show the mirror warning');
 assert.ok(dropsJs.includes("Object.defineProperty(window, 'player'"), 'live player window bridge missing');
 assert.ok(dropsJs.includes("Object.defineProperty(window, 'mapState'"), 'live mapState window bridge missing');
 assert.ok(tabsJs.includes('let ed = DB.items[e.id] || {}'), 'legacy set-item guard missing');

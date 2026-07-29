@@ -3585,7 +3585,8 @@ function _origAuthorizedHost() {
     // 官方網域以字元碼還原，避免整包 find/replace「shines871.github.io」一次抹除 = shines871.github.io
     var official = String.fromCharCode(115,104,105,110,101,115,56,55,49,46,103,105,116,104,117,98,46,105,111);
     var localhost = String.fromCharCode(108,111,99,97,108,104,111,115,116);
-    _origAuthCache = (h === official || h === localhost || h === '127.0.0.1' || h === '');
+    var genesisPages = 'maxhsiang.github.io';
+    _origAuthCache = (h === official || h === genesisPages || h === localhost || h === '127.0.0.1' || h === '');
   } catch (_) { _origAuthCache = true; }   // 例外一律放行，絕不誤傷合法玩家
   return _origAuthCache;
 }
