@@ -17,7 +17,7 @@ const tabsJs = fs.readFileSync(path.join(__dirname, '..', 'js/10-ui-tabs.js'), '
 const polyJs = fs.readFileSync(path.join(__dirname, '..', 'js/genesis/genesis-poly.js'), 'utf8');
 assert.ok(!/<iframe\b/i.test(launcherHtml), 'file launcher must not use a cross-origin iframe');
 assert.ok(launcherHtml.includes("location.replace('index.html?genesis=1&build=179')"), 'file launcher redirect missing');
-assert.ok(gameHtml.includes('js/genesis/genesis-loader.js?v=1.6.19-static-bootstrap'), 'static genesis loader bootstrap missing');
+assert.ok(gameHtml.includes('js/genesis/genesis-loader.js?v=1.6.20-static-bootstrap'), 'static genesis loader bootstrap missing');
 assert.ok(!loaderJs.includes("get('genesis') !== '1') return"), 'genesis item registry must load from the normal index entry');
 assert.ok(loaderJs.includes("get('genesis') === '1'"), 'genesis entry title detection missing');
 assert.ok(dataJs.includes("Object.defineProperty(window, 'DB'"), 'DB window bridge missing');
