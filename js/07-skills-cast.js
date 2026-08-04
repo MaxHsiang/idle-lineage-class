@@ -691,7 +691,8 @@ function castSkillInner(skId) {
                     let _base = roll(1, dice) + _dmgB + enB + (sk.weaponFlat || 0);
                     dmg = Math.max(1, Math.floor(magicBaseDamage(_base, player.d, 0, true) * magicDamageCoef(player.d, magicAttrDefense(t, getWpnEle(player.eq.wpn, wpn)), sk.tier))) + (sk.flatBonus || 0);   // 🦴 骷髏毀壞：統一魔法公式 ×(1+幻術專屬階級/10)＋固定傷害20
                 } else {
-                    dmg = Math.max(1, roll(1, dice) + (player.d.meleeDmg || 0) + enB + (sk.weaponFlat || 0) - (t.dr || 0) - mobHardSkin(t));
+                    let _ignoreDef = !!(wpn && wpn.genesisIgnoreDefense);
+                    dmg = Math.max(1, roll(1, dice) + (player.d.meleeDmg || 0) + enB + (sk.weaponFlat || 0) - (_ignoreDef ? 0 : (t.dr || 0) + mobHardSkin(t)));
                 }
             } else {
                 dmg = spend;   // 心靈破壞：基礎傷害＝消耗 MP，套統一魔法公式與幻術士專屬階級，無屬性、受 MR

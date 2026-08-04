@@ -10,9 +10,10 @@
       n:'創世萬象神劍', type:'wpn', oneHand:true, safe:15, dmgS:80, dmgL:80,
       dmgBonus:80, hit:100, mcrit:20, mcritDmg:100, extraDmg:40,
       genesisOmniElement:true, genesisAoePhysical:true, genesisAoeMagic:true,
+      genesisIgnoreDefense:true, genesisIgnoreRestrictions:true, spellIgnoreMr:true, ignHardSkin:true,
       genesisDrain:{ physical:{hp:0.30,mp:0.30}, magic:{hp:0.30,mp:0.30} },
       img:A+'omni-sword.png',
-      d:'單手劍。近戰傷害+80、近戰命中+100、爆擊率+20%、爆擊傷害+100%、額外傷害+40。武器傷害視為全屬性；物理與魔法命中造成實際傷害時，各吸取30% HP與30% MP。'
+      d:'單手劍。近戰傷害+80、近戰命中+100、爆擊率+20%、爆擊傷害+100%、額外傷害+40。武器傷害視為全屬性；無視防禦、傷害減免、硬皮、魔抗與屬性抗性，並無視怪物的近距離／遠距離／魔法傷害免疫。物理與魔法命中造成實際傷害時，各吸取30% HP與30% MP。'
     }),
     hlm_genesis_omni: make({
       n:'創世全知神冠', type:'arm', slot:'helm', safe:15,

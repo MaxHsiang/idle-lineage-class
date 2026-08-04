@@ -470,16 +470,12 @@ function batchUseItem(u) {
     let d = DB.items[item.id];
     if (!d || !d.batchUse) return;
     if (player.dead) { logSys(`死亡狀態無法使用道具，請先復活。`); return; }
-    // 💊 v3.5.50 萬能藥批量使用：一次輸入數量，自動夾限「持有數／60 瓶總額度／該屬性距上限 60」三者取小
+    // 💊 萬能藥批量使用：無總瓶數與屬性上限，只受背包持有數限制。
     if (d.eff === 'panacea') {
         const STAT_CN = { str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'精神', cha:'魅力' };
-        let st = d.pstat, cap = 60;
-        let remainQuota = 60 - (player.panaceaUsed || 0);
-        let remainStat = cap - naturalStat(st);
-        if (remainQuota <= 0) { logSys(`萬能藥最多只能使用 60 瓶，使用回憶蠟燭後可重新使用。`); return; }
-        if (remainStat <= 0) { logSys(`${STAT_CN[st]}已達上限（${cap}），無法再使用 ${d.n}。`); return; }
-        let maxN = Math.min(item.cnt, remainQuota, remainStat);
-        let rawP = prompt(`要使用幾瓶 ${d.n}？（持有 ${item.cnt} 瓶·${STAT_CN[st]}距上限 ${remainStat}·萬能藥剩餘額度 ${remainQuota} 瓶·本次最多 ${maxN} 瓶）`, maxN);
+        let st = d.pstat;
+        let maxN = item.cnt;
+        let rawP = prompt(`要使用幾瓶 ${d.n}？（持有 ${item.cnt} 瓶·使用次數與${STAT_CN[st]}加成皆無上限）`, maxN);
         if (rawP === null) return;
         let nP = Math.floor(Number(rawP));
         if (!nP || nP <= 0) { logSys('已取消批量使用。'); return; }
@@ -490,7 +486,7 @@ function batchUseItem(u) {
         item.cnt -= nP;
         if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);
         calcStats();
-        logSys(`使用了 <span class="${d.c || 'text-pink-300'} font-bold">${d.n}</span> ×${nP}，${STAT_CN[st]} 永久 +${nP}！（萬能藥已使用 ${player.panaceaUsed}/60）`);
+        logSys(`使用了 <span class="${d.c || 'text-pink-300'} font-bold">${d.n}</span> ×${nP}，${STAT_CN[st]} 永久 +${nP}！（累計使用 ${player.panaceaUsed} 瓶，無上限）`);
         renderTabs(); updateUI(); saveGame();
         if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
         return;
@@ -706,14 +702,12 @@ function useItem(u, silent = false) {
             // 落到下方 consume(item)，消耗一張卷軸
         } else if (d.eff === 'panacea') {
             const STAT_CN = { str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'精神', cha:'魅力' };
-            let st = d.pstat, cap = 60;
-            // 萬能藥已取消等級限制（不再檢查 plv）
-            if ((player.panaceaUsed || 0) >= 60) { if(!silent) logSys(`萬能藥最多只能使用 60 瓶，使用回憶蠟燭後可重新使用。`); return; }   // 🔧 上限 20→30→50→60
-            if (naturalStat(st) >= cap) { if(!silent) logSys(`${STAT_CN[st]}已達上限（${cap}），無法再使用 ${d.n}。`); return; }
+            let st = d.pstat;
+            // 萬能藥沒有等級、總使用瓶數或單項能力值上限。
             if (!player.panacea) player.panacea = { str:0, dex:0, con:0, int:0, wis:0, cha:0 };
             player.panacea[st] = (player.panacea[st] || 0) + 1;
             player.panaceaUsed = (player.panaceaUsed || 0) + 1;
-            if(!silent) logSys(`使用了 ${d.n}，${STAT_CN[st]} 永久 +1！（萬能藥已使用 ${player.panaceaUsed}/60）`);
+            if(!silent) logSys(`使用了 ${d.n}，${STAT_CN[st]} 永久 +1！（累計使用 ${player.panaceaUsed} 瓶，無上限）`);
             // 落到下方 consume(item) + calcStats()，由 useItem 結尾 updateUI 刷新
         } else if (d.eff === 'reset') {
             startRespec(); return;   // 🕯️ 回憶蠟燭：改為「資訊面板配點重置」流程（確認時才消耗蠟燭，故此處不 consume）

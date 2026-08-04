@@ -813,6 +813,8 @@ function weaponPurposeLabels(d) {
     if (d.vanderStunHit) out.push('范德劍術（施放衝擊之暈時，本次近距離命中+1）');
     if (d.shahaBow) out.push('沙哈之箭（裝備時自動提供不會消耗的專用箭矢，卸下弓時消失）');
     if (d.shahaArrow) out.push('無限箭矢（不會消耗；卸下沙哈之弓時消失）');
+    if (d.genesisIgnoreDefense) out.push('無視防禦（物理攻擊必定命中，並無視傷害減免、硬皮、堅固防護、魔抗與屬性抗性）');
+    if (d.genesisIgnoreRestrictions) out.push('無視限制（無視怪物的近距離、遠距離與魔法傷害免疫）');
     return out;
 }
 

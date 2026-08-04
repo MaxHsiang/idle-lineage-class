@@ -21,6 +21,7 @@ function magicItemSp(dStats) {
 }
 function magicAttrDefense(target, ele) {
     if (!target) return 0;
+    if (window.Genesis && Genesis.combat && Genesis.combat.weaponRulesActive && Genesis.combat.weaponRulesActive()) return 0;
     let d = target.d || target;
     let key = ele === 'fire' ? 'resFire' : ele === 'water' ? 'resWater' : ele === 'wind' ? 'resWind' : ele === 'earth' ? 'resEarth' : 'resNone';
     let raw = Number(d[key]) || 0;
@@ -2287,6 +2288,7 @@ function consumeWetMult(target, ele) {
 }
 function getPhysicalDmg(diceStr, target, wpn, arrowData, forceHeavy, forceHit, forceLand, forceCrit, wpnInst, forceGraze, probe) {
     let isRanged = !!(wpn && wpn.ranged);
+    let _ignoreDefense = !!(wpn && wpn.genesisIgnoreDefense);
     let hitBonus = (isRanged ? player.d.rangedHit : player.d.meleeHit) + player.d.extraHit + (player._skillHitBonus || 0);   // 🗼 范德之劍：施展衝擊之暈時本次技能近距離命中+1
     let dmgBonus = (isRanged ? player.d.rangedDmg : player.d.meleeDmg);
     // 🌅 日出之國異常（玩家承受）：弱化＝傷害−5/命中−2；疾病＝命中−4（AC+8 在敵方命中端）；目盲＝命中−6
@@ -2317,7 +2319,7 @@ function getPhysicalDmg(diceStr, target, wpn, arrowData, forceHeavy, forceHit, f
     if (forceGraze) { hit = true; graze = true; }   // 🏺 水精靈王的撫摸：原本未命中時依機率改判為 50% 擦傷
     else if (forceHeavy) { hit = true; heavy = true; }   // 魔擊：必定命中且必定重擊
     else if (forceHit) { hit = true; }   // 反擊：必定命中、必定非重擊
-    else if (forceLand) { hit = true; if (rollHit === 20) heavy = true; }   // 居合：必定命中，rollHit20 仍自然重擊；不擦傷
+    else if (forceLand || _ignoreDefense) { hit = true; if (rollHit === 20) heavy = true; }   // 居合／創世無視防禦：必定命中，rollHit20 仍自然重擊；不擦傷
     else if (rollHit === 20) { hit = true; heavy = true; }
     else if (isCrush && rollHit >= 19 - Math.round(((_cw && _cw.heavyRatePct) || 0) / 5) && (!player.classicMode || (_cw && _cw.classicOk) || rollHit !== 19)) { hit = true; heavy = true; crush = true; }   // 重擊武器：骰19必定重擊（粉碎）；🏺 v3.1.80 方尖碑 heavyRatePct:10 → 骰17~19 亦重擊（每 5%＝1 面）；🎮 v3.2.44 用戶拍板：經典模式只停「骰19」一般重擊特效——heavyRatePct 擴充段（如方尖碑 17~18）照樣重擊·classicOk 全放行
     else if (player.buffs && player.buffs.sk_elf_preciseshot > 0 && rollHit === 1) hit = true;   // 🏹 精準射擊：擲骰1由必定未命中→必定命中（最高命中率可達100%）
@@ -2344,7 +2346,8 @@ function getPhysicalDmg(diceStr, target, wpn, arrowData, forceHeavy, forceHit, f
     // [（遠/近距離傷害 x 爆擊係數） + 額外傷害 - 敵人傷害減免]，計算過程最低為1
     let nearFar = weaponRoll + dmgBonus;
     let _ignHard = !!(_cw && _cw.ignHardSkin);   // 🗡️ 貫穿（暗黑十字弓）：攻擊無視硬皮額外減傷（主攻擊與連射皆走本函式 → 一併涵蓋）
-    let inner = Math.floor(nearFar * critMult) + player.d.extraDmg - ((target.dr || 0) + (_ignHard ? 0 : mobHardSkin(target)) + ((target._siegeDrEnd > state.ticks) ? (target._siegeDrVal || 0) : 0));   // 堅固防護：怪物傷害減免；🔧 硬皮：額外物理減傷（貫穿時不扣）
+    let _defenseDeduction = _ignoreDefense ? 0 : ((target.dr || 0) + (_ignHard ? 0 : mobHardSkin(target)) + ((target._siegeDrEnd > state.ticks) ? (target._siegeDrVal || 0) : 0));
+    let inner = Math.floor(nearFar * critMult) + player.d.extraDmg - _defenseDeduction;   // 創世萬象神劍無視 AC 命中判定、DR、硬皮與堅固防護；其他武器維持原公式
     inner = Math.max(1, inner);
     if (target._trauma && target._trauma.until > state.ticks) inner += (target._trauma.dmg || 5) * (target._trauma.s || 1);   // 🏺 v3.7.20 創傷（戰士的漆黑之劍）：目標受到的所有物理傷害 +5×層數（玩家物理樞紐·傭兵側 allyStrikeRoll 另掛）
 

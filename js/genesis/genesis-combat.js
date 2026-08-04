@@ -2,6 +2,14 @@
   'use strict';
   function active(){return !!(G.classSystem&&G.classSystem.isGenesisPlayer()&&window.player);}
   function has(id){return !!(G.stats&&G.stats.has(id));}
+  let weaponRuleDepth=0;
+  function weaponRulesActive(){return weaponRuleDepth>0&&active()&&has('wpn_genesis_omni_sword');}
+  function withWeaponRules(fn,ctx,args){
+    const enabled=active()&&has('wpn_genesis_omni_sword');
+    if(enabled)weaponRuleDepth++;
+    try{return fn.apply(ctx,args);}
+    finally{if(enabled)weaponRuleDepth=Math.max(0,weaponRuleDepth-1);}
+  }
   function mobsBefore(){return ((window.mapState&&mapState.mobs)||[]).filter(Boolean).map(function(m){return[m,Math.max(0,+m.curHp||0)];});}
   function actualDamage(before){return Math.floor((before||[]).reduce(function(n,r){return n+Math.max(0,r[1]-Math.max(0,+r[0].curHp||0));},0));}
   function spreadDamage(before,label){
@@ -34,12 +42,12 @@
   function installOutgoing(){
     if(typeof window.playerAttack==='function'&&!window.playerAttack._genesisDrain){
       const original=window.playerAttack;
-      window.playerAttack=function(){const b=active()&&has('wpn_genesis_omni_sword')?mobsBefore():null;const r=original.apply(this,arguments);if(b){spreadDamage(b,'物理');const dmg=actualDamage(b);restore(dmg,has('rng_genesis_life')?0.40:0.30,0.30,'創世萬象神劍');if(dmg>0&&has('rng_genesis_chaos')&&Math.random()<0.05)chaosEcho(b,'melee');}return r;};
+      window.playerAttack=function(){const b=active()&&has('wpn_genesis_omni_sword')?mobsBefore():null;const r=withWeaponRules(original,this,arguments);if(b){spreadDamage(b,'物理');const dmg=actualDamage(b);restore(dmg,has('rng_genesis_life')?0.40:0.30,0.30,'創世萬象神劍');if(dmg>0&&has('rng_genesis_chaos')&&Math.random()<0.05)chaosEcho(b,'melee');}return r;};
       window.playerAttack._genesisDrain=true;
     }
     if(typeof window.castSkillInner==='function'&&!window.castSkillInner._genesisDrain){
       const originalCast=window.castSkillInner;
-      window.castSkillInner=function(skId){const sk=window.DB&&DB.skills&&DB.skills[skId];const kind=sk&&sk.dmgType;const eligible=active()&&has('wpn_genesis_omni_sword')&&sk&&sk.type==='atk'&&(kind==='magic'||kind==='physical');const b=eligible?mobsBefore():null;const r=originalCast.apply(this,arguments);if(r&&b){if(sk.target!=='all'&&!sk.aoe)spreadDamage(b,kind==='magic'?'魔法':'物理技能');const dmg=actualDamage(b);restore(dmg,0.30,0.30,'創世萬象神劍・技能');if(dmg>0&&has('rng_genesis_chaos')&&Math.random()<0.05)chaosEcho(b,kind==='magic'?'magic':'melee');}return r;};
+      window.castSkillInner=function(skId){const sk=window.DB&&DB.skills&&DB.skills[skId];const kind=sk&&sk.dmgType;const eligible=active()&&has('wpn_genesis_omni_sword')&&sk&&sk.type==='atk'&&(kind==='magic'||kind==='physical');const b=eligible?mobsBefore():null;const r=withWeaponRules(originalCast,this,arguments);if(r&&b){if(sk.target!=='all'&&!sk.aoe)spreadDamage(b,kind==='magic'?'魔法':'物理技能');const dmg=actualDamage(b);restore(dmg,0.30,0.30,'創世萬象神劍・技能');if(dmg>0&&has('rng_genesis_chaos')&&Math.random()<0.05)chaosEcho(b,kind==='magic'?'magic':'melee');}return r;};
       window.castSkillInner._genesisDrain=true;
     }
   }
@@ -78,5 +86,5 @@
     ['hasPolyRing','hasTeleportRing','hasSummonCtrlRing'].forEach(function(name){const fn=window[name];if(typeof fn!=='function'||fn._genesisControl)return;window[name]=function(owner){const who=owner||player;if(who&&who.eq&&Object.keys(who.eq).some(function(k){return who.eq[k]&&who.eq[k].id==='rng_genesis_control';}))return true;return fn.apply(this,arguments);};window[name]._genesisControl=true;});
   }
   function install(){installOutgoing();installKill();installControl();if(!G.combat._timer)G.combat._timer=setInterval(periodic,250);}
-  G.combat={install,incoming,afterIncoming,periodic};install();
+  G.combat={install,incoming,afterIncoming,periodic,weaponRulesActive};install();
 })(window.Genesis=window.Genesis||{});

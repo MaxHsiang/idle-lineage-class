@@ -13,7 +13,7 @@ function playerAttack() {
     let _sureHit = !!player._darkEvadeSure;   // 🔧 迴避精通：下一次一般攻擊必中
     let _sureCrit = !!player._darkEvadeCrit;   // 🔧 迴避精通：迴避後下一次一般攻擊必定爆擊
     if (_sureHit || _sureCrit) { player._darkEvadeSure = false; player._darkEvadeCrit = false; }
-    if (!_sureHit && target.er && roll(1, 100) <= target.er) {
+    if (!_sureHit && !(player.eq.wpn && (DB.items[player.eq.wpn.id] || {}).genesisIgnoreDefense) && target.er && roll(1, 100) <= target.er) {
         logCombat(`<span class="${getMobColor(target.lv)}">${target.n}</span> 成功迴避攻擊。`, 'evade');
         wandLightArrowProc(target);
         magicStrikeProc(target);
@@ -1776,6 +1776,7 @@ function reflectWallOnDamage(mob, dmg, kind, ally) {
     let rw = mob._reflectWall;
     if (state.ticks > rw.until) { mob._reflectWall = null; return; }
     if (rw.kind !== kind) return;
+    if (rw.block && window.Genesis && Genesis.combat && Genesis.combat.weaponRulesActive && Genesis.combat.weaponRulesActive()) return;
     // 🌅 恐怖的面貌（block:true·巨大骷髏）：攔截該類傷害——把剛扣的血補回（含致死打擊：所有掛點的 killMob 判定都在本呼叫之後，故補血先於死亡判定）；訊息每秒節流
     if (rw.block) {
         if (mob._dead) return;
